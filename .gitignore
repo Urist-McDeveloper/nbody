@@ -1,0 +1,7 @@
+# IDEs
+/.idea
+/.vscode
+
+# Build artifacts
+/build
+/compile_commands.json
