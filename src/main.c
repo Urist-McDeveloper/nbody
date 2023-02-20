@@ -10,7 +10,7 @@
 #define HEIGHT  600
 
 #define PHYS_STEP   0.01
-#define BODY_COUNT  1200
+#define BODY_COUNT  350
 
 static Body bodies[BODY_COUNT];
 
@@ -70,14 +70,33 @@ int main(void) {
     }
 
     double phys_time = 0.0;
+    double speed = 1.0;
+    bool stop = false;
+
     while (!WindowShouldClose()) {
-        phys_time += GetFrameTime();
-        DoPhysics(&phys_time);
+        if (IsKeyPressed(KEY_LEFT) && speed > 0.2) {
+            speed *= 0.8;
+        }
+        if (IsKeyPressed(KEY_RIGHT)) {
+            speed *= 1.2;
+        }
+        if (IsKeyPressed(KEY_ZERO)) {
+            speed = 1.0;
+        }
+        if (IsKeyPressed(KEY_SPACE)) {
+            stop = !stop;
+        }
+
+        if (!stop) {
+            phys_time += speed * GetFrameTime();
+            DoPhysics(&phys_time);
+        }
 
         BeginDrawing();
         ClearBackground(BLACK);
         DrawBodies();
         DrawFPS(10, 10);
+        DrawText(TextFormat("x%.2f", stop ? 0 : speed), 10, 30, 20, GREEN);
         EndDrawing();
     }
     CloseWindow();
