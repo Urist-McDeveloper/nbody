@@ -1,5 +1,5 @@
 # system libraries to include
-LIBS := raylib m
+LIBS := raylib m omp
 
 # final executable name
 EXEC_NAME := rag
@@ -11,7 +11,7 @@ SRC_DIRS := ./src
 INC_DIRS := ./include
 
 # compiler and linker flags
-CFLAGS += -Wall -Wextra -Werror -std=c17 $(addprefix -I,$(INC_DIRS))
+CFLAGS += -fopenmp -Wall -Wextra -Werror -std=c17 $(addprefix -I,$(INC_DIRS))
 LDFLAGS += $(addprefix -l,$(LIBS))
 
 # configurable build profile
@@ -19,8 +19,8 @@ DEBUG ?= 1
 
 # configure build profile
 ifeq ($(DEBUG), 1)
-	CFLAGS += -g -Og -fsanitize=undefined
-	LDFLAGS += -fsanitize=undefined
+	CFLAGS += -g -Og -fsanitize=address,leak,undefined
+	LDFLAGS += -fsanitize=address,leak,undefined
 else
 	CFLAGS += -O3 -flto
 endif

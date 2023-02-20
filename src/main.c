@@ -10,7 +10,7 @@
 #define HEIGHT  600
 
 #define PHYS_STEP   0.01
-#define BODY_COUNT  100
+#define BODY_COUNT  1200
 
 static Body bodies[BODY_COUNT];
 
@@ -26,26 +26,34 @@ void DrawBodies(void) {
     }
 }
 
-void AccBodies() {
-    for (int i = 0; i < BODY_COUNT - 1; i++) {
-        for (int j = i + 1; j < BODY_COUNT; j++) {
-            Body_ApplyGrav(&bodies[i], &bodies[j]);
-        }
-    }
-}
+void DoPhysics(double *phys_time) {
+    if (*phys_time < PHYS_STEP) return;
 
-void MoveBodies(double t) {
-    for (int i = 0; i < BODY_COUNT; i++) {
-        Body *b = &bodies[i];
-        Body_Move(b, t);
+    while (*phys_time >= PHYS_STEP) {
+        *phys_time -= PHYS_STEP;
 
-        if (b->pos.x < 0 || b->pos.x > WIDTH) {
-            b->pos.x = b->pos.x < 0 ? 0 : WIDTH;
-            b->vel.x *= -0.5;
+#pragma omp parallel for if(BODY_COUNT > 500) shared(bodies) default(none)
+        for (int i = 0; i < BODY_COUNT; i++) {
+            for (int j = 0; j < BODY_COUNT; j++) {
+                if (i != j) {
+                    Body_ApplyGravUni(&bodies[i], &bodies[j]);
+                }
+            }
         }
-        if (b->pos.y < 0 || b->pos.y > HEIGHT) {
-            b->pos.y = b->pos.y < 0 ? 0 : HEIGHT;
-            b->vel.y *= -0.5;
+
+#pragma omp parallel for if(BODY_COUNT > 500) shared(bodies) default(none)
+        for (int i = 0; i < BODY_COUNT; i++) {
+            Body *b = &bodies[i];
+            Body_Move(b, PHYS_STEP);
+
+            if (b->pos.x < 0 || b->pos.x > WIDTH) {
+                b->pos.x = b->pos.x < 0 ? 0 : WIDTH;
+                b->vel.x *= -0.5;
+            }
+            if (b->pos.y < 0 || b->pos.y > HEIGHT) {
+                b->pos.y = b->pos.y < 0 ? 0 : HEIGHT;
+                b->vel.y *= -0.5;
+            }
         }
     }
 }
@@ -55,6 +63,7 @@ int main(void) {
 
     SetConfigFlags(FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT);
     InitWindow(WIDTH, HEIGHT, "RAG!");
+    SetTargetFPS((int) ceil(1.0 / PHYS_STEP));
 
     for (int i = 0; i < BODY_COUNT; i++) {
         Body_Init(&bodies[i], WIDTH, HEIGHT);
@@ -63,11 +72,7 @@ int main(void) {
     double phys_time = 0.0;
     while (!WindowShouldClose()) {
         phys_time += GetFrameTime();
-        while (phys_time >= PHYS_STEP) {
-            AccBodies();
-            MoveBodies(PHYS_STEP);
-            phys_time -= PHYS_STEP;
-        }
+        DoPhysics(&phys_time);
 
         BeginDrawing();
         ClearBackground(BLACK);

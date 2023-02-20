@@ -13,8 +13,8 @@
 
 #define G   10.0
 
-#define MIN_BM  1000.0
-#define MAX_BM  9999.9
+#define MIN_BM  10.0
+#define MAX_BM  99.9
 
 /*
  * Utils
@@ -43,22 +43,38 @@ void Body_Init(Body *body, int mx, int my) {
     };
 }
 
-void Body_ApplyGrav(Body *a, Body *b) {
+void Body_ApplyGravBoth(Body *a, Body *b) {
     V2 ab_radv = V2_Sub(b->pos, a->pos);
     V2 ab_norm = V2_Normalize(ab_radv);
     V2 ba_norm = V2_Neg(ab_norm);
 
     double dist = V2_Length(ab_radv);
-    double mind = a->r + b->r;
+    double dmin = a->r + b->r;
 
-    if (dist > mind) {
+    if (dist > dmin) {
         double f = G / (dist * dist);
         a->acc = V2_Add(a->acc, V2_Scale(ab_norm, f * b->m));
         b->acc = V2_Add(b->acc, V2_Scale(ba_norm, f * a->m));
     } else {
-        double f = 1.0 - (dist / mind);
+        double f = 1.0 - (dist / dmin);
         a->acc = V2_Add(a->acc, V2_Scale(ba_norm, f * b->m));
         b->acc = V2_Add(b->acc, V2_Scale(ab_norm, f * a->m));
+    }
+}
+
+/* Apply gravitational pull of OTHER to TARGET. */
+void Body_ApplyGravUni(Body *target, Body *other) {
+    V2 radv = V2_Sub(other->pos, target->pos);
+    double dist = V2_Length(radv);
+    double dmin = target->r + other->r;
+
+    if (dist > dmin) {
+        double g = G * other->m / (dist * dist);
+        // normalize(radv) * g  ==  (radv / dist) * g  ==  radv * (g / dist)
+        target->acc = V2_Add(target->acc, V2_Scale(radv, g / dist));
+    } else {
+        double f = 1.0 - (dist / dmin);
+        target->acc = V2_Add(target->acc, V2_Scale(radv, -f * other->m));
     }
 }
 
