@@ -2,15 +2,12 @@
 #include <time.h>
 #include <math.h>
 
-#include <raylib.h>
-
+#include "raylib.h"
 #include "body.h"
 
-
-#define WIDTH   800
-#define HEIGHT  600
-
-#define BODY_COUNT  350
+#define WIDTH       800
+#define HEIGHT      600
+#define BODY_COUNT  450
 
 static Body bodies[BODY_COUNT];
 static const double SPEEDS[] = {0, 1, 2, 4, 8, 16, 32};
@@ -21,7 +18,6 @@ static const double SPEEDS[] = {0, 1, 2, 4, 8, 16, 32};
 
 #define PHYS_STEP       0.01
 #define MAX_PHYS_STEP   (MAX_SPEED * PHYS_STEP)
-
 
 void DrawBodies(void) {
     for (int i = 0; i < BODY_COUNT; i++) {

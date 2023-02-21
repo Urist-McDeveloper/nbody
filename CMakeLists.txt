@@ -1,16 +1,20 @@
 cmake_minimum_required(VERSION 3.18)
 
+# general configuration
 project(rag C)
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE true)
 
-add_compile_options(-Wall -Wextra -Werror)
+# compiled dependencies
+add_subdirectory(deps/raylib)
 
+# system dependencies
 find_library(REQUIRED m)
-find_library(REQUIRED raylib)
 find_package(OpenMP REQUIRED)
 
+# the executable
 add_executable(rag src/main.c src/body.c)
-target_include_directories(rag PRIVATE include)
+target_compile_options(rag PRIVATE -Wall -Wextra -Werror)
 
+target_include_directories(rag PUBLIC include)
 target_link_libraries(rag PRIVATE OpenMP::OpenMP_C m raylib)
