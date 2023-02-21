@@ -23,6 +23,7 @@ ifeq ($(DEBUG), 1)
 	LDFLAGS += -fsanitize=address,leak,undefined
 else
 	CFLAGS += -O3 -flto
+	LDFLAGS += -flto
 endif
 
 # where build files live
@@ -36,12 +37,10 @@ OBJS := $(patsubst %.c,$(BUILD_DIR)/%.o,$(SRCS))
 # compile targets
 $(BUILD_DIR)/%.o: %.c
 	@mkdir -p "$(dir $@)"
-	@echo "... Compiling $<"
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(EXEC_FILE): $(OBJS)
 	@mkdir -p "$(dir $@)"
-	@echo "... Linking $(EXEC_FILE)"
 	$(CC) $(LDFLAGS) $^ -o $@
 
 #

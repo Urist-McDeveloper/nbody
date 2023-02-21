@@ -1,0 +1,5 @@
+Simple 2D N-body simulation written in C.
+
+Requires:
+1. raylib (https://github.com/raysan5/raylib);
+2. compiler with OpenMP support.
