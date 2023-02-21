@@ -2,6 +2,5 @@
 /.idea
 /.vscode
 
-# Build artifacts
+# build artifacts
 /build
-/compile_commands.json
