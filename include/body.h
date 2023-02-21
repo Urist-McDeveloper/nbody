@@ -11,9 +11,6 @@ typedef struct Body {
 /* Set random X, Y and W of BODY. */
 void Body_Init(Body *body, int mx, int my);
 
-/* Apply gravitational pull of both A and B to each other. */
-void Body_ApplyGravBoth(Body *a, Body *b);
-
 /* Apply gravitational pull of OTHER to TARGET. */
 void Body_ApplyGravUni(Body *target, Body *other);
 

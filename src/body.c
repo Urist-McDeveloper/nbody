@@ -43,25 +43,6 @@ void Body_Init(Body *body, int mx, int my) {
     };
 }
 
-void Body_ApplyGravBoth(Body *a, Body *b) {
-    V2 ab_radv = V2_Sub(b->pos, a->pos);
-    V2 ab_norm = V2_Normalize(ab_radv);
-    V2 ba_norm = V2_Neg(ab_norm);
-
-    double dist = V2_Length(ab_radv);
-    double dmin = a->r + b->r;
-
-    if (dist > dmin) {
-        double f = G / (dist * dist);
-        a->acc = V2_Add(a->acc, V2_Scale(ab_norm, f * b->m));
-        b->acc = V2_Add(b->acc, V2_Scale(ba_norm, f * a->m));
-    } else {
-        double f = 1.0 - (dist / dmin);
-        a->acc = V2_Add(a->acc, V2_Scale(ba_norm, f * b->m));
-        b->acc = V2_Add(b->acc, V2_Scale(ab_norm, f * a->m));
-    }
-}
-
 /* Apply gravitational pull of OTHER to TARGET. */
 void Body_ApplyGravUni(Body *target, Body *other) {
     V2 radv = V2_Sub(other->pos, target->pos);
