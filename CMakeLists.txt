@@ -3,9 +3,17 @@ cmake_minimum_required(VERSION 3.18)
 # general configuration
 project(rag C)
 set(CMAKE_C_STANDARD 17)
-set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE true)
+
+# enable IPO on Release (if supported)
+include(CheckIPOSupported)
+check_ipo_supported(RESULT ipo_supported)
+if (ipo_supported)
+    set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
+    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
+endif ()
 
 # compiled dependencies
+set(OpenGL_GL_PREFERENCE GLVND)
 add_subdirectory(deps/raylib)
 
 # system dependencies
