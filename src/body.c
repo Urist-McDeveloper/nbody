@@ -13,8 +13,8 @@
 
 #define G   10.0
 
-#define MIN_BM  10.0
-#define MAX_BM  99.9
+#define MIN_BM  100.0
+#define MAX_BM  999.9
 
 /*
  * Utils

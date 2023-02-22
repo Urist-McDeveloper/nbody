@@ -37,7 +37,7 @@ void DoPhysics(double *phys_time) {
     while (*phys_time >= PHYS_STEP) {
         *phys_time -= PHYS_STEP;
 
-#pragma omp parallel for if(BODY_COUNT > 100) shared(bodies) default(none)
+        #pragma omp parallel for if(BODY_COUNT > 100) shared(bodies) default(none)
         for (int i = 0; i < BODY_COUNT; i++) {
             for (int j = 0; j < BODY_COUNT; j++) {
                 if (i != j) {
@@ -46,18 +46,25 @@ void DoPhysics(double *phys_time) {
             }
         }
 
-#pragma omp parallel for if(BODY_COUNT > 100) shared(bodies) default(none)
+        #pragma omp parallel for if(BODY_COUNT > 100) shared(bodies) default(none)
         for (int i = 0; i < BODY_COUNT; i++) {
             Body *b = &bodies[i];
             Body_Move(b, PHYS_STEP);
 
-            if (b->pos.x < 0 || b->pos.x > WIDTH) {
-                b->pos.x = b->pos.x < 0 ? 0 : WIDTH;
+            double min_x = b->r;
+            double min_y = b->r;
+            double max_x = WIDTH - min_x;
+            double max_y = HEIGHT - min_y;
+
+            if (b->pos.x < min_x || b->pos.x > max_x) {
+                b->pos.x = (b->pos.x < min_x) ? min_x : max_x;
                 b->vel.x *= -0.5;
+                b->vel.y *= 0.75;
             }
-            if (b->pos.y < 0 || b->pos.y > HEIGHT) {
-                b->pos.y = b->pos.y < 0 ? 0 : HEIGHT;
+            if (b->pos.y < min_y || b->pos.y > max_y) {
+                b->pos.y = (b->pos.y < min_y) ? min_y : max_y;
                 b->vel.y *= -0.5;
+                b->vel.x *= 0.75;
             }
         }
     }
