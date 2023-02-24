@@ -20,8 +20,17 @@ add_subdirectory(deps/raylib)
 find_library(REQUIRED m)
 find_package(OpenMP REQUIRED)
 
+# project sources
+set(rag_sources
+        src/body.c
+        src/main.c)
+
+set(rag_headers
+        include/body.h
+        include/v2.h)
+
 # the executable
-add_executable(rag src/main.c src/body.c)
+add_executable(rag ${rag_sources} ${rag_headers})
 target_compile_options(rag PRIVATE -Wall -Wextra -Werror)
 
 target_include_directories(rag PUBLIC include)

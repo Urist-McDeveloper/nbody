@@ -1,5 +1,5 @@
-#ifndef V2_H
-#define V2_H
+#ifndef RAG_V2_H
+#define RAG_V2_H
 
 #include <math.h>
 
@@ -26,4 +26,4 @@ static inline V2 V2_scale(V2 a, double f) {
     return V2_From(a.x * f, a.y * f);
 }
 
-#endif
+#endif //RAG_V2_H

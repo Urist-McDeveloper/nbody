@@ -1,5 +1,5 @@
-#ifndef BODY_H
-#define BODY_H
+#ifndef RAG_BODY_H
+#define RAG_BODY_H
 
 #include "v2.h"
 
@@ -22,4 +22,4 @@ void Body_applyGravV2(Body *target, V2 other, double mass);
 /* Apply T seconds of acceleration and velocity to BODY. */
 void Body_move(Body *body, double t);
 
-#endif
+#endif //RAG_BODY_H
