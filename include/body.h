@@ -3,7 +3,7 @@
 
 #include "v2.h"
 
-#define G       100.0
+#define G       10.0
 #define MIN_BM  50.0
 #define MAX_BM  50.0
 
