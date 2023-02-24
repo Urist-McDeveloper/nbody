@@ -18,8 +18,12 @@ static const double SPEEDS[] = {0, 1, 2, 4, 8, 16, 32};
 #define MAX_SKIPPED_PHYS_FRAMES 15
 
 static void drawBodies(World *world) {
-    for (int i = 0; i < world->size; i++) {
-        Body *b = &world->bodies[i];
+    Body *bodies;
+    int size;
+    World_getBodies(world, &bodies, &size);
+
+    for (int i = 0; i < size; i++) {
+        Body *b = &bodies[i];
         DrawCircle(
                 (int) round(b->pos.x),
                 (int) round(b->pos.y),
@@ -44,7 +48,6 @@ int main(void) {
     InitWindow(800, 600, "RAG!");
 
     World *world = World_create(BODY_COUNT, GetScreenWidth(), GetScreenHeight());
-    if (world == NULL) return 1;
 
     double phys_time = 0.0;
     int speed_idx = 1;

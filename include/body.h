@@ -3,9 +3,9 @@
 
 #include "v2.h"
 
-#define G       10.0
-#define MIN_BM  50.0
-#define MAX_BM  50.0
+#define G       22.2
+#define MIN_BM  33.3
+#define MAX_BM  99.9
 
 typedef struct Body {
     V2 pos, vel, acc;
@@ -16,7 +16,9 @@ typedef struct Body {
 void Body_init(Body *body, int mx, int my);
 
 /* Apply gravitational pull of OTHER to TARGET. */
-void Body_applyGrav(Body *target, Body *other);
+void Body_applyGrav(Body *target, const Body *other);
+
+void Body_applyGravV2(Body *target, V2 com, double mass);
 
 /* Apply T seconds of acceleration and velocity to BODY. */
 void Body_move(Body *body, double t);

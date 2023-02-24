@@ -30,7 +30,7 @@ void Body_init(Body *body, int mx, int my) {
     double y = rangeRand(radius, my - radius);
 
     *body = (Body) {
-            .pos = V2_From(x, y),
+            .pos = V2_from(x, y),
             .vel = V2_ZERO,
             .acc = V2_ZERO,
             .m = mass,
@@ -38,19 +38,31 @@ void Body_init(Body *body, int mx, int my) {
     };
 }
 
-static void applyGrav(Body *target, V2 radv, double dist, double mass) {
+static void applyGrav(Body *target, double mass, V2 radv, double dist) {
     double g = G * mass / (dist * dist);
     // normalize(radv) * g  ==  (radv / dist) * g  ==  radv * (g / dist)
     target->acc = V2_add(target->acc, V2_scale(radv, g / dist));
 }
 
-void Body_applyGrav(Body *target, Body *other) {
+void Body_applyGrav(Body *target, const Body *other) {
+    if (target == other) return;
+
     V2 radv = V2_sub(other->pos, target->pos);
     double dist = V2_length(radv);
 
     if (dist > target->r + other->r) {
-        applyGrav(target, radv, dist, other->m);
+        applyGrav(target, other->m, radv, dist);
+    } else {
+        // TODO: impulse-based collision logic
+//        V2 tgt_p = V2_scale(target->vel, target->m);
+//        V2 oth_p = V2_scale(other->vel, other->m);
     }
+}
+
+void Body_applyGravV2(Body *target, V2 com, double mass) {
+    V2 radv = V2_sub(com, target->pos);
+    double dist = V2_length(radv);
+    applyGrav(target, mass, com, dist);
 }
 
 void Body_move(Body *body, double t) {
