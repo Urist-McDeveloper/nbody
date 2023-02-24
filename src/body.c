@@ -47,20 +47,10 @@ static void applyGrav(Body *target, V2 radv, double dist, double mass) {
 void Body_applyGrav(Body *target, Body *other) {
     V2 radv = V2_sub(other->pos, target->pos);
     double dist = V2_length(radv);
-    double dmin = target->r + other->r;
 
-    if (dist > dmin) {
+    if (dist > target->r + other->r) {
         applyGrav(target, radv, dist, other->m);
-    } else {
-        double f = 1.0 - (dist / dmin);
-        target->acc = V2_add(target->acc, V2_scale(radv, -f * other->m));
     }
-}
-
-void Body_applyGravV2(Body *target, V2 other, double mass) {
-    V2 radv = V2_sub(other, target->pos);
-    double dist = V2_length(radv);
-    applyGrav(target, radv, dist, mass);
 }
 
 void Body_move(Body *body, double t) {

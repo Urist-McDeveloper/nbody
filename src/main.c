@@ -1,15 +1,10 @@
 #include <stdlib.h>
 #include <time.h>
-#include <math.h>
 
 #include <raylib.h>
 
 #include "body.h"
 #include "world.h"
-
-#define WIDTH       800
-#define HEIGHT      600
-#define BODY_COUNT  450
 
 static const double SPEEDS[] = {0, 1, 2, 4, 8, 16, 32};
 
@@ -17,6 +12,7 @@ static const double SPEEDS[] = {0, 1, 2, 4, 8, 16, 32};
 #define LAST_SPEED      (SPEEDS_LENGTH - 1)
 #define MAX_SPEED       SPEEDS[LAST_SPEED]
 
+#define BODY_COUNT      1500
 #define PHYS_STEP       0.01
 #define MAX_PHYS_STEP   (MAX_SPEED * PHYS_STEP)
 
@@ -42,11 +38,12 @@ static void doPhysics(World *world, double *phys_time) {
 int main(void) {
     srand(time(NULL));
 
-    World *world = World_create(BODY_COUNT, WIDTH, HEIGHT);
-    if (world == NULL) return 1;
+    SetConfigFlags(FLAG_FULLSCREEN_MODE | FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT);
+    SetTargetFPS((int) round(1.0 / PHYS_STEP));
+    InitWindow(0, 0, "RAG!");
 
-    SetConfigFlags(FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT);
-    InitWindow(WIDTH, HEIGHT, "RAG!");
+    World *world = World_create(BODY_COUNT, GetScreenWidth(), GetScreenHeight());
+    if (world == NULL) return 1;
 
     double phys_time = 0.0;
     int speed = 1;
