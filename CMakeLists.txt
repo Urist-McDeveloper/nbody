@@ -23,11 +23,13 @@ find_package(OpenMP REQUIRED)
 # project sources
 set(rag_sources
         src/body.c
-        src/main.c)
+        src/main.c
+        src/world.c)
 
 set(rag_headers
         include/body.h
-        include/v2.h)
+        include/v2.h
+        include/world.h)
 
 # the executable
 add_executable(rag ${rag_sources} ${rag_headers})
