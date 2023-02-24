@@ -19,7 +19,7 @@ static const double SPEEDS[] = {0, 1, 2, 4, 8, 16, 32};
 #define PHYS_STEP       0.01
 #define MAX_PHYS_STEP   (MAX_SPEED * PHYS_STEP)
 
-void DrawBodies(void) {
+void drawBodies(void) {
     for (int i = 0; i < BODY_COUNT; i++) {
         Body *b = &bodies[i];
         DrawCircle(
@@ -31,7 +31,7 @@ void DrawBodies(void) {
     }
 }
 
-void DoPhysics(double *phys_time) {
+void doPhysics(double *phys_time) {
     if (*phys_time < PHYS_STEP) return;
 
     while (*phys_time >= PHYS_STEP) {
@@ -41,7 +41,7 @@ void DoPhysics(double *phys_time) {
         for (int i = 0; i < BODY_COUNT; i++) {
             for (int j = 0; j < BODY_COUNT; j++) {
                 if (i != j) {
-                    Body_ApplyGravUni(&bodies[i], &bodies[j]);
+                    Body_applyGrav(&bodies[i], &bodies[j]);
                 }
             }
         }
@@ -49,7 +49,7 @@ void DoPhysics(double *phys_time) {
         #pragma omp parallel for if(BODY_COUNT > 100) shared(bodies) default(none)
         for (int i = 0; i < BODY_COUNT; i++) {
             Body *b = &bodies[i];
-            Body_Move(b, PHYS_STEP);
+            Body_move(b, PHYS_STEP);
 
             double min_x = b->r;
             double min_y = b->r;
@@ -77,7 +77,7 @@ int main(void) {
     InitWindow(WIDTH, HEIGHT, "RAG!");
 
     for (int i = 0; i < BODY_COUNT; i++) {
-        Body_Init(&bodies[i], WIDTH, HEIGHT);
+        Body_init(&bodies[i], WIDTH, HEIGHT);
     }
 
     double phys_time = 0.0;
@@ -104,12 +104,12 @@ int main(void) {
             TraceLog(LOG_DEBUG, "skipping physics frames: %.2f -> %.2f", phys_time, MAX_PHYS_STEP);
             phys_time = MAX_PHYS_STEP;
         }
-        DoPhysics(&phys_time);
+        doPhysics(&phys_time);
 
         // draw stuff
         BeginDrawing();
         ClearBackground(BLACK);
-        DrawBodies();
+        drawBodies();
         DrawFPS(10, 10);
         DrawText(TextFormat("x%d", (int) SPEEDS[speed]), 10, 30, 20, GREEN);
         EndDrawing();
