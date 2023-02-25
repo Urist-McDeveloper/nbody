@@ -23,11 +23,11 @@ static void drawBodies(World *world) {
     World_getBodies(world, &bodies, &size);
 
     for (int i = 0; i < size; i++) {
-        Body *b = &bodies[i];
+        Particle *p = &(bodies + i)->p;
         DrawCircle(
-                (int) round(b->pos.x),
-                (int) round(b->pos.y),
-                (float) b->r,
+                (int) round(p->pos.x),
+                (int) round(p->pos.y),
+                (float) p->radius,
                 RAYWHITE
         );
     }

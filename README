@@ -1,1 +1,2 @@
-Simple 2D N-body simulation written in C. Requires C compiler with OpenMP support.
+Not-so-simple 2D N-body simulation written in C.
+Requires C compiler with OpenMP support.

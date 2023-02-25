@@ -23,50 +23,32 @@ static double rangeRand(double min, double max) {
  * Implementation
  */
 
-void Body_init(Body *body, int mx, int my) {
+void Particle_init(Particle *p, V2 min, V2 max) {
     double mass = rangeRand(MIN_BM, MAX_BM);
     double radius = pow(mass / F, 1.0 / 3.0);
-    double x = rangeRand(radius, mx - radius);
-    double y = rangeRand(radius, my - radius);
+    double x = rangeRand(min.x + radius, max.x - radius);
+    double y = rangeRand(min.y + radius, max.y - radius);
 
-    *body = (Body) {
+    *p = (Particle) {
             .pos = V2_from(x, y),
-            .vel = V2_ZERO,
-            .acc = V2_ZERO,
-            .m = mass,
-            .r = radius,
+            .mass = mass,
+            .radius = radius,
     };
 }
 
-static void applyGrav(Body *target, double mass, V2 radv, double dist) {
-    double g = G * mass / (dist * dist);
-    // normalize(radv) * g  ==  (radv / dist) * g  ==  radv * (g / dist)
-    target->acc = V2_add(target->acc, V2_scale(radv, g / dist));
-}
-
-void Body_applyGrav(Body *target, const Body *other) {
-    if (target == other) return;
-
-    V2 radv = V2_sub(other->pos, target->pos);
+void Body_applyGrav(Body *b, Particle p) {
+    V2 radv = V2_sub(p.pos, b->p.pos);
     double dist = V2_length(radv);
 
-    if (dist > target->r + other->r) {
-        applyGrav(target, other->m, radv, dist);
-    } else {
-        // TODO: impulse-based collision logic
-//        V2 tgt_p = V2_scale(target->vel, target->m);
-//        V2 oth_p = V2_scale(other->vel, other->m);
+    if (dist > b->p.radius + p.radius) {
+        double g = G * p.mass / (dist * dist);
+        // normalize(radv) * g  ==  (radv / dist) * g  ==  radv * (g / dist)
+        b->acc = V2_add(b->acc, V2_scale(radv, g / dist));
     }
-}
-
-void Body_applyGravV2(Body *target, V2 com, double mass) {
-    V2 radv = V2_sub(com, target->pos);
-    double dist = V2_length(radv);
-    applyGrav(target, mass, com, dist);
 }
 
 void Body_move(Body *body, double t) {
     body->vel = V2_add(body->vel, V2_scale(body->acc, t));
-    body->pos = V2_add(body->pos, V2_scale(body->vel, t));
+    body->p.pos = V2_add(body->p.pos, V2_scale(body->vel, t));
     body->acc = V2_ZERO;
 }

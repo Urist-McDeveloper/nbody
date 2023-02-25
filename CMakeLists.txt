@@ -24,11 +24,13 @@ find_package(OpenMP REQUIRED)
 set(rag_sources
         src/body.c
         src/main.c
+        src/quadtree.c
         src/world.c)
 
 set(rag_headers
         include/body.h
         include/v2.h
+        include/quadtree.h
         include/world.h)
 
 # the executable
