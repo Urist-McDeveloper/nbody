@@ -2,6 +2,7 @@
 #define RAG_WORLD_H
 
 #include "body.h"
+#include "quadtree.h"
 
 typedef struct World World;
 
@@ -15,6 +16,12 @@ void World_destroy(World *world);
 void World_update(World *world, double t);
 
 /* Get WORLD's bodies and size into respective pointers. */
-void World_getBodies(World *world, Body **bodies, int *size);
+void World_getBodies(const World *world, Body **bodies, int *size);
+
+/*
+ * DEBUG
+ */
+
+const Node *World_getQuad(const World *world);
 
 #endif //RAG_WORLD_H

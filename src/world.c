@@ -1,28 +1,16 @@
 #include "world.h"
 
 #include <stdlib.h>
-#include <stdio.h>
-#include <stdbool.h>
 
-#include "quadtree.h"
+#include "err.h"
 #include "body.h"
+#include "quadtree.h"
 
 /* How velocity changes along the axis of bounce. */
 #define BOUNCE_F    (-0.5)
 
 /* How velocity changes along the other axis. */
 #define FRICTION_F  0.75
-
-/* Call perror(NULL) and abort if COND is false. */
-#define ASSERT(COND) assert_or_abort(COND, __FILE_NAME__, __LINE__, __FUNCTION__)
-
-static void assert_or_abort(bool cond, const char *file, int line, const char *function) {
-    if (!cond) {
-        fprintf(stderr, "%s:%d [%s]\n", file, line, function);
-        perror(NULL);
-        abort();
-    }
-}
 
 /*
  * WORLD
@@ -67,11 +55,6 @@ void World_destroy(World *world) {
     }
 }
 
-void World_getBodies(World *world, Body **bodies, int *size) {
-    *bodies = world->bodies;
-    *size = world->size;
-}
-
 void World_update(World *world, const double t) {
     Body *bodies = world->bodies;
     QuadTree *tree = world->tree;
@@ -84,29 +67,42 @@ void World_update(World *world, const double t) {
         QuadTree_applyGrav(tree, &bodies[i]);
     }
 
-    int width = world->width;
-    int height = world->height;
+//    int width = world->width;
+//    int height = world->height;
 
-    #pragma omp parallel for shared(bodies) firstprivate(size, t, width, height) default(none)
+    #pragma omp parallel for shared(bodies) firstprivate(size, t/*, width, height*/) default(none)
     for (int i = 0; i < size; i++) {
         Body *b = &bodies[i];
         Body_move(b, t);
 
-        Particle *p = &b->p;
-        double min_x = p->radius;
-        double min_y = p->radius;
-        double max_x = width - min_x;
-        double max_y = height - min_y;
-
-        if (p->pos.x < min_x || p->pos.x > max_x) {
-            p->pos.x = (p->pos.x < min_x) ? min_x : max_x;
-            b->vel.x *= BOUNCE_F;
-            b->vel.y *= FRICTION_F;
-        }
-        if (p->pos.y < min_y || p->pos.y > max_y) {
-            p->pos.y = (p->pos.y < min_y) ? min_y : max_y;
-            b->vel.y *= BOUNCE_F;
-            b->vel.x *= FRICTION_F;
-        }
+//        Particle *p = &b->p;
+//        double min_x = p->radius;
+//        double min_y = p->radius;
+//        double max_x = width - min_x;
+//        double max_y = height - min_y;
+//
+//        if (p->pos.x < min_x || p->pos.x > max_x) {
+//            p->pos.x = (p->pos.x < min_x) ? min_x : max_x;
+//            b->vel.x *= BOUNCE_F;
+//            b->vel.y *= FRICTION_F;
+//        }
+//        if (p->pos.y < min_y || p->pos.y > max_y) {
+//            p->pos.y = (p->pos.y < min_y) ? min_y : max_y;
+//            b->vel.y *= BOUNCE_F;
+//            b->vel.x *= FRICTION_F;
+//        }
     }
+}
+
+void World_getBodies(const World *world, Body **bodies, int *size) {
+    *bodies = world->bodies;
+    *size = world->size;
+}
+
+/*
+ * DEBUG
+ */
+
+const Node *World_getQuad(const World *world) {
+    return QuadTree_getQuad(world->tree);
 }

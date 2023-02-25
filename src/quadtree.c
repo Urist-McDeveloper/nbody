@@ -1,22 +1,10 @@
 #include "quadtree.h"
 
 #include <stdlib.h>
-#include <stdio.h>
-#include <stdbool.h>
 
+#include "err.h"
 #include "body.h"
 #include "v2.h"
-
-/* Call perror(NULL) and abort if COND is false. */
-#define ASSERT(COND) assert_or_abort(COND, __FILE_NAME__, __LINE__, __FUNCTION__)
-
-static void assert_or_abort(bool cond, const char *file, int line, const char *function) {
-    if (!cond) {
-        fprintf(stderr, "%s:%d [%s]\n", file, line, function);
-        perror(NULL);
-        abort();
-    }
-}
 
 /*
  * Dynamic array of Particles.
@@ -70,11 +58,11 @@ struct Node {
     bool is_leaf, end;  // whether this Node is a is_leaf
 };
 
-#define LEAF_MAX_BODIES 5      // how many members a leaf can have
-#define NODE_END_WIDTH  0.1    // minimum width of non-leaf node
-#define NODE_END_HEIGHT 0.1    // minimum height of non-leaf node
+#define LEAF_MAX_BODIES 1      // how many members a leaf can have
+#define NODE_END_WIDTH  1.0    // minimum width of non-leaf node
+#define NODE_END_HEIGHT 1.0    // minimum height of non-leaf node
 
-#define NODE_COM_DIST_F 2.0
+#define NODE_COM_DIST_F 4.0
 
 static Particle Node_toParticle(const Node *n) {
     return (Particle) {
@@ -196,8 +184,6 @@ static void Node_applyGrav(const Node *n, Body *b) {
         if (n->is_leaf) {
             // apply gravity of all members to B
             Particles ps = n->members;
-
-//            #pragma omp parallel for if (ps.len > 100) firstprivate(ps, b) default(none)
             for (int i = 0; i < ps.len; i++) {
                 Body_applyGrav(b, ps.arr[i]);
             }
@@ -262,4 +248,29 @@ void QuadTree_applyGrav(const QuadTree *t, Body *b) {
     for (int i = 0; i < 4; i++) {
         Node_applyGrav(&t->quad[i], b);
     }
+}
+
+/*
+ * DEBUG
+ */
+
+const Node *QuadTree_getQuad(const QuadTree *t) {
+    return (const Node *)(t->quad);
+}
+
+const Node *Node_getQuad(const Node *n) {
+    return n->is_leaf ? NULL : n->quad;
+}
+
+const Node *Node_fromQuad(const Node *quad, int n) {
+    return &quad[n];
+}
+
+bool Node_isEmpty(const Node *n) {
+    return n->members.len == 0;
+}
+
+void Node_getBox(const Node *n, V2 *from, V2 *to) {
+    *from = n->from;
+    *to = n->to;
 }

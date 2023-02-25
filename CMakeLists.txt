@@ -29,6 +29,7 @@ set(rag_sources
 
 set(rag_headers
         include/body.h
+        include/err.h
         include/v2.h
         include/quadtree.h
         include/world.h)
