@@ -63,13 +63,13 @@ struct Node {
 #define NODE_END_WIDTH  1.0    // minimum width of non-leaf node
 #define NODE_END_HEIGHT 1.0    // minimum height of non-leaf node
 
-#define NODE_COM_DIST_F 1.0
+#define NODE_COM_DIST_F 1.5
 
 static Particle Node_toParticle(const Node *n) {
     return (Particle) {
             .pos = n->com,
             .mass = n->mass,
-            .radius = n->radius,
+            .radius = 0.0,
     };
 }
 

@@ -1,6 +1,8 @@
 #ifndef RAG_WORLD_H
 #define RAG_WORLD_H
 
+#include <stdbool.h>
+
 #include "body.h"
 #include "quadtree.h"
 
@@ -13,7 +15,7 @@ World *World_create(int size, int width, int height);
 void World_destroy(World *world);
 
 /* Update WORLD assuming T seconds passed. */
-void World_update(World *world, double t);
+void World_update(World *world, double t, bool approx);
 
 /* Get WORLD's bodies and size into respective pointers. */
 void World_getBodies(const World *world, Body **bodies, int *size);

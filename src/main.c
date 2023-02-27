@@ -50,17 +50,20 @@ static void drawQuad(const Node *quad) {
         // ignore empty nodes
         if (Node_isEmpty(n)) continue;
 
-        // draw inner quad
-        drawQuad(Node_getQuad(n));
+        const Node *inner = Node_getQuad(n);
+        if (inner != NULL) {
+            // draw inner quad
+            drawQuad(Node_getQuad(n));
+        } else {
+            // draw bounding box
+            V2 from, to;
+            Node_getBox(n, &from, &to);
 
-        // draw bounding box
-        V2 from, to;
-        Node_getBox(n, &from, &to);
-
-        DrawLineD(from.x, from.y, to.x, from.y);    // top
-        DrawLineD(from.x, from.y, from.x, to.y);    // left
-        DrawLineD(from.x, to.y, to.x, to.y);        // bottom
-        DrawLineD(to.x, from.y, to.x, to.y);        // right
+            DrawLineD(from.x, from.y, to.x, from.y);    // top
+            DrawLineD(from.x, from.y, from.x, to.y);    // left
+            DrawLineD(from.x, to.y, to.x, to.y);        // bottom
+            DrawLineD(to.x, from.y, to.x, to.y);        // right
+        }
     }
 }
 
@@ -73,14 +76,19 @@ int main(void) {
 
     World *world = World_create(BODY_COUNT, GetScreenWidth(), GetScreenHeight());
 
-    double phys_time = 0.0;
     int speed_idx = 1;
+    bool approx = true;
+
+    double phys_time = 0.0;
     int skipped_phys_frames = 0;
 
     while (!WindowShouldClose()) {
         // handle input
         if (IsKeyPressed(KEY_Q)) {
             break;
+        }
+        if (IsKeyPressed(KEY_TAB)) {
+            approx = !approx;
         }
         if (IsKeyPressed(KEY_LEFT) && speed_idx > 0) {
             speed_idx--;
@@ -94,7 +102,7 @@ int main(void) {
             skipped_phys_frames = 0;
         }
         if (speed_idx == 0 && IsKeyDown(KEY_ENTER)) {
-            World_update(world, PHYS_STEP);
+            World_update(world, PHYS_STEP, approx);
         }
 
         // update stuff
@@ -116,7 +124,7 @@ int main(void) {
 
             while (phys_time >= PHYS_STEP) {
                 phys_time -= PHYS_STEP;
-                World_update(world, PHYS_STEP);
+                World_update(world, PHYS_STEP, approx);
             }
         }
 
@@ -129,10 +137,12 @@ int main(void) {
             drawQuad(World_getQuad(world));
         }
 
-        DrawFPS(10, 10);
+        DrawText(approx ? "Barnes-Hut simulation" : "Exact simulation", 10, 10, 20, GREEN);
         DrawText(TextFormat("x%d", (int) SPEEDS[speed_idx]), 10, 30, 20, GREEN);
+        DrawFPS(10, 50);
+
         if (skipped_phys_frames > MAX_PHYS_OVERWORK) {
-            DrawText("SKIPPING FRAMES", 10, 50, 20, RED);
+            DrawText("SKIPPING FRAMES", 10, 70, 20, RED);
         }
 
         EndDrawing();
