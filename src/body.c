@@ -11,6 +11,8 @@
 #define C   1.0
 #define F   (4.0 * PI * C / 3.0)
 
+#define VELOCITY_DECAY  0.01
+
 /*
  * Utils
  */
@@ -49,6 +51,8 @@ void Body_applyGrav(Body *b, Particle p) {
 
 void Body_move(Body *body, double t) {
     body->vel = V2_add(body->vel, V2_scale(body->acc, t));
+    body->vel = V2_scale(body->vel, 1.0 - VELOCITY_DECAY * t);
+
     body->p.pos = V2_add(body->p.pos, V2_scale(body->vel, t));
     body->acc = V2_ZERO;
 }
