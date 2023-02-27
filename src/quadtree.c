@@ -53,22 +53,23 @@ struct Node {
     Node *quad;         // a quad of Nodes
     V2 from, to, dims;  // (x0, y0), (x1, y1) and (width, height)
     V2 com;             // center of mass
-    double mass;        // total mass
+    double mass;        // sum of members' mass
+    double radius;      // sum of members' radius
     Particles members;  // cached Bodies in this Node
-    bool is_leaf, end;  // whether this Node is a is_leaf
+    bool is_leaf, end;  // whether this Node is a leaf and can it be split into quad
 };
 
 #define LEAF_MAX_BODIES 1      // how many members a leaf can have
 #define NODE_END_WIDTH  1.0    // minimum width of non-leaf node
 #define NODE_END_HEIGHT 1.0    // minimum height of non-leaf node
 
-#define NODE_COM_DIST_F 4.0
+#define NODE_COM_DIST_F 1.0
 
 static Particle Node_toParticle(const Node *n) {
     return (Particle) {
             .pos = n->com,
             .mass = n->mass,
-            .radius = 0.0,
+            .radius = n->radius,
     };
 }
 
@@ -80,6 +81,7 @@ static void Node_init(Node *n, V2 from, V2 dims) {
             .to = V2_add(from, dims),
             .com = V2_ZERO,
             .mass = 0.0,
+            .radius = 0.0,
             .is_leaf = true,
             .end = (dims.x < NODE_END_WIDTH || dims.y < NODE_END_HEIGHT),
     };
@@ -116,6 +118,7 @@ static void Node_update(Node *n, const Particles *ps) {
     // reset N
     n->com = V2_ZERO;
     n->mass = 0.0;
+    n->radius = 0.0;
     n->is_leaf = true;
 
     // reset members
@@ -141,6 +144,7 @@ static void Node_update(Node *n, const Particles *ps) {
             // update accumulators
             com = V2_add(com, p.pos);
             mass += p.mass;
+            n->radius += p.radius;
         }
     }
 
@@ -176,7 +180,7 @@ static void Node_applyGrav(const Node *n, Body *b) {
     double dx = fabs(b->p.pos.x - n->com.x);
     double dy = fabs(b->p.pos.y - n->com.y);
 
-    if (dx > min.x && dy > min.y) {
+    if (dx > min.x && dy > min.y && (dx * dx + dy * dy) > (n->radius * n->radius)) {
         // B is sufficiently far away from N
         Body_applyGrav(b, Node_toParticle(n));
     } else {
@@ -255,7 +259,7 @@ void QuadTree_applyGrav(const QuadTree *t, Body *b) {
  */
 
 const Node *QuadTree_getQuad(const QuadTree *t) {
-    return (const Node *)(t->quad);
+    return (const Node *) (t->quad);
 }
 
 const Node *Node_getQuad(const Node *n) {
