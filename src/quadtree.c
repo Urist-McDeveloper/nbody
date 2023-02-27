@@ -90,7 +90,6 @@ static void Node_init(Node *n, V2 from, V2 dims) {
 
 static void Node_deinit(Node *n) {
     if (n == NULL) return;
-
     if (n->quad != NULL) {
         for (int i = 0; i < 4; i++) {
             Node_deinit(&n->quad[i]);

@@ -11,19 +11,22 @@ typedef struct World World;
 /* Allocate World with given SIZE, WIDTH and HEIGHT. */
 World *World_create(int size, int width, int height);
 
-/* Free previously allocated World. */
-void World_destroy(World *world);
+/* Create an (almost) identical copy of W. */
+World *World_copy(const World *w);
 
-/* Update WORLD assuming T seconds passed. */
-void World_update(World *world, double t, bool approx);
+/* Free previously allocated W. */
+void World_destroy(World *w);
 
-/* Get WORLD's bodies and size into respective pointers. */
-void World_getBodies(const World *world, Body **bodies, int *size);
+/* Update W assuming T seconds passed. */
+void World_update(World *w, double t, bool approx);
+
+/* Get W's bodies and size into respective pointers. */
+void World_getBodies(const World *w, Body **bodies, int *size);
 
 /*
  * DEBUG
  */
 
-const Node *World_getQuad(const World *world);
+const Node *World_getQuad(const World *w);
 
 #endif //RAG_WORLD_H

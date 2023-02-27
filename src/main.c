@@ -7,12 +7,12 @@
 #include "quadtree.h"
 #include "world.h"
 
-static const double SPEEDS[] = {0, 1, 2, 4, 8, 16, 32};
+static const double SPEEDS[] = { 0, 1, 2, 4, 8, 16, 32 };
 
 #define SPEEDS_LENGTH   (int)(sizeof(SPEEDS) / sizeof(SPEEDS[0]))
 #define LAST_SPEED_IDX  (SPEEDS_LENGTH - 1)
 
-#define BODY_COUNT      1500
+#define BODY_COUNT      1000
 #define PHYS_STEP       0.01
 
 #define MAX_PHYS_OVERWORK 3

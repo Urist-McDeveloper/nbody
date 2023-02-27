@@ -47,18 +47,27 @@ World *World_create(int size, int width, int height) {
     return world;
 }
 
-void World_destroy(World *world) {
-    if (world != NULL) {
-        QuadTree_destroy(world->tree);
-        free(world->bodies);
-        free(world);
+World *World_copy(const World *w) {
+    World *copy = World_create(w->size, w->width, w->height);
+    for (int i = 0; i < w->size; i++) {
+        copy->bodies[i] = w->bodies[i];
+    }
+
+    return copy;
+}
+
+void World_destroy(World *w) {
+    if (w != NULL) {
+        QuadTree_destroy(w->tree);
+        free(w->bodies);
+        free(w);
     }
 }
 
-void World_update(World *world, const double t, bool approx) {
-    Body *bodies = world->bodies;
-    QuadTree *tree = world->tree;
-    int size = world->size;
+void World_update(World *w, const double t, bool approx) {
+    Body *bodies = w->bodies;
+    QuadTree *tree = w->tree;
+    int size = w->size;
 
     if (approx) {
         QuadTree_update(tree, bodies, size);
@@ -78,8 +87,8 @@ void World_update(World *world, const double t, bool approx) {
         }
     }
 
-    int width = world->width;
-    int height = world->height;
+    int width = w->width;
+    int height = w->height;
 
     #pragma omp parallel for shared(bodies) firstprivate(size, t, width, height) default(none)
     for (int i = 0; i < size; i++) {
@@ -105,15 +114,15 @@ void World_update(World *world, const double t, bool approx) {
     }
 }
 
-void World_getBodies(const World *world, Body **bodies, int *size) {
-    *bodies = world->bodies;
-    *size = world->size;
+void World_getBodies(const World *w, Body **bodies, int *size) {
+    *bodies = w->bodies;
+    *size = w->size;
 }
 
 /*
  * DEBUG
  */
 
-const Node *World_getQuad(const World *world) {
-    return QuadTree_getQuad(world->tree);
+const Node *World_getQuad(const World *w) {
+    return QuadTree_getQuad(w->tree);
 }
