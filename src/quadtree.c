@@ -115,6 +115,7 @@ static void Node_initQuad(Node *quad, V2 parent_from, V2 parent_dims) {
 
 static void Node_update(Node *n, const Particles *ps) {
     // reset N
+    V2 com = V2_ZERO;
     n->com = V2_ZERO;
     n->mass = 0.0;
     n->radius = 0.0;
@@ -123,10 +124,6 @@ static void Node_update(Node *n, const Particles *ps) {
     // reset members
     Particles *np = &n->members;
     np->len = 0;
-
-    // accumulators
-    V2 com = V2_ZERO;
-    double mass = 0.0;
 
     // check all particles
     for (int i = 0; i < ps->len; i++) {
@@ -140,16 +137,14 @@ static void Node_update(Node *n, const Particles *ps) {
             // add P to members
             Particles_push(np, p);
 
-            // update accumulators
             com = V2_add(com, p.pos);
-            mass += p.mass;
+            n->mass += p.mass;
             n->radius += p.radius;
         }
     }
 
     if (np->len > 0) {
         n->com = V2_scale(com, 1.0 / np->len);
-        n->mass = mass / np->len;
     }
 
     if (!n->end && np->len > LEAF_MAX_BODIES) {
