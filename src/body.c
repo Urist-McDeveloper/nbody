@@ -7,6 +7,10 @@
  * Constants
  */
 
+#define G       10.0
+#define MIN_R   2.0
+#define MAX_R   2.0
+
 #define PI  3.14159265358979323846
 #define C   1.0
 #define F   (4.0 * PI * C / 3.0)
@@ -26,8 +30,8 @@ static double rangeRand(double min, double max) {
  */
 
 void Particle_init(Particle *p, V2 min, V2 max) {
-    double mass = rangeRand(MIN_BM, MAX_BM);
-    double radius = pow(mass / F, 1.0 / 3.0);
+    double radius = rangeRand(MIN_R, MAX_R);
+    double mass = F * radius * radius * radius;
     double x = rangeRand(min.x + radius, max.x - radius);
     double y = rangeRand(min.y + radius, max.y - radius);
 

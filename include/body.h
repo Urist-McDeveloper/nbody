@@ -3,10 +3,6 @@
 
 #include "v2.h"
 
-#define G       10.0
-#define MIN_BM  333
-#define MAX_BM  333
-
 /*
  * PARTICLE
  */

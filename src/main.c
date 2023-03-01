@@ -12,7 +12,13 @@ static const double SPEEDS[] = { 0, 1, 2, 4, 8, 16, 32 };
 #define SPEEDS_LENGTH   (int)(sizeof(SPEEDS) / sizeof(SPEEDS[0]))
 #define LAST_SPEED_IDX  (SPEEDS_LENGTH - 1)
 
-#define BODY_COUNT      500
+static const double STEPS[] = { 0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0 };
+
+#define STEPS_LENGTH    (int)(sizeof(STEPS) / sizeof(STEPS[0]))
+#define LAST_STEP_IDX   (STEPS_LENGTH - 1)
+#define DEF_STEP_IDX    3
+
+#define BODY_COUNT      2000
 #define PHYS_STEP       0.01
 
 #define MAX_PHYS_OVERWORK 3
@@ -77,8 +83,9 @@ int main(void) {
     World *world = World_create(BODY_COUNT, GetScreenWidth(), GetScreenHeight());
 
     int speed_idx = 1;
-    bool approx = true;
+    int step_idx = DEF_STEP_IDX;
 
+    bool approx = false;
     double phys_time = 0.0;
     int skipped_phys_frames = 0;
 
@@ -90,17 +97,26 @@ int main(void) {
         if (IsKeyPressed(KEY_TAB)) {
             approx = !approx;
         }
+
         if (IsKeyPressed(KEY_LEFT) && speed_idx > 0) {
             speed_idx--;
+        }
+        if (IsKeyPressed(KEY_DOWN) && step_idx > 0) {
+            step_idx--;
         }
         if (IsKeyPressed(KEY_RIGHT) && speed_idx < LAST_SPEED_IDX) {
             speed_idx++;
         }
+        if (IsKeyPressed(KEY_UP) && step_idx < LAST_SPEED_IDX) {
+            step_idx++;
+        }
         if (IsKeyPressed(KEY_SPACE)) {
+            step_idx = DEF_STEP_IDX;
             speed_idx = 0;
             phys_time = 0;
             skipped_phys_frames = 0;
         }
+
         if (speed_idx == 0 && IsKeyDown(KEY_ENTER)) {
             World_update(world, PHYS_STEP, approx);
         }
@@ -111,20 +127,22 @@ int main(void) {
             skipped_phys_frames = MAX_PHYS_OVERWORK;
         }
         if (speed_idx > 0) {
-            phys_time += SPEEDS[speed_idx] * GetFrameTime();
-            double max_phys_time = MAX_PHYS_OVERWORK * SPEEDS[speed_idx] * PHYS_STEP;
+            double scale = SPEEDS[speed_idx] * STEPS[step_idx];
+            double step = PHYS_STEP * STEPS[step_idx];
+
+            phys_time += scale * GetFrameTime();
+            double max_phys_time = MAX_PHYS_OVERWORK * scale * PHYS_STEP;
 
             if (phys_time > max_phys_time) {
-                TraceLog(LOG_DEBUG, "skipping physics frames: %.2f -> %.2f", phys_time, max_phys_time);
                 phys_time = max_phys_time;
                 skipped_phys_frames++;
             } else {
                 skipped_phys_frames = 0;
             }
 
-            while (phys_time >= PHYS_STEP) {
-                phys_time -= PHYS_STEP;
-                World_update(world, PHYS_STEP, approx);
+            while (phys_time >= step) {
+                phys_time -= step;
+                World_update(world, step, approx);
             }
         }
 
@@ -133,12 +151,12 @@ int main(void) {
         ClearBackground(BLACK);
 
         drawBodies(world);
-        if (speed_idx == 0) {
+        if (speed_idx == 0 && approx) {
             drawQuad(World_getQuad(world));
         }
 
         DrawText(approx ? "Barnes-Hut simulation" : "Exact simulation", 10, 10, 20, GREEN);
-        DrawText(TextFormat("x%d", (int) SPEEDS[speed_idx]), 10, 30, 20, GREEN);
+        DrawText(TextFormat("step x%.2f  speed x%d", STEPS[step_idx], (int) SPEEDS[speed_idx]), 10, 30, 20, GREEN);
         DrawFPS(10, 50);
 
         if (skipped_phys_frames > MAX_PHYS_OVERWORK) {
