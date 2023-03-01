@@ -37,8 +37,8 @@ static int int64_t_cmp(const void *a_ptr, const void *b_ptr) {
 #define WORLD_HEIGHT    1000
 
 #define UPDATE_STEP 0.01
-#define WARMUP_ITER 10
-#define BENCH_ITER  100
+#define WARMUP_ITER 100
+#define BENCH_ITER  1000
 
 static int64_t dt[BENCH_ITER];
 
