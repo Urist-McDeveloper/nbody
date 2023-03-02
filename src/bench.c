@@ -2,9 +2,7 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
-
 #include <time.h>
-#include <omp.h>
 
 #include "world.h"
 
@@ -68,7 +66,7 @@ static int64_t bench(World *w, bool approx) {
     }
 }
 
-static const int WS[] = { 10, 100, 250, 500, 800, 1200, 2000 };
+static const int WS[] = { 10, 100, 250, 500, 800, 1200 };
 static const int WS_LEN = sizeof(WS) / sizeof(WS[0]);
 
 int main(void) {

@@ -12,9 +12,8 @@ if (ipo_supported)
     set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
 endif ()
 
-# compiled dependencies
-set(OpenGL_GL_PREFERENCE GLVND)
-add_subdirectory(deps/raylib)
+# packaged dependencies
+add_subdirectory(deps)
 
 # system dependencies
 find_library(REQUIRED m)
@@ -49,3 +48,6 @@ target_link_libraries(rag-bin PRIVATE rag-lib raylib)
 # the benchmark
 add_executable(rag-bench src/bench.c)
 target_link_libraries(rag-bench PRIVATE rag-lib)
+
+# the tests
+add_subdirectory(test)

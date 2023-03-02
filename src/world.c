@@ -26,7 +26,7 @@ struct World {
 
 World *World_create(int size, int width, int height) {
     V2 min = V2_ZERO;
-    V2 max = V2_from(width, height);
+    V2 max = V2_of(width, height);
     QuadTree *tree = QuadTree_create(min, max);
 
     World *world = malloc(sizeof(*world));

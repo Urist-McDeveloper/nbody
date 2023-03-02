@@ -103,8 +103,8 @@ static void Node_initQuad(Node *quad, V2 parent_from, V2 parent_dims) {
     V2 dims = V2_scale(parent_dims, 0.5);
     V2 from[] = {
             parent_from,                                // upper left quad
-            V2_add(parent_from, V2_from(dims.x, 0)),    // upper right quad
-            V2_add(parent_from, V2_from(0, dims.y)),    // lower left quad
+            V2_add(parent_from, V2_of(dims.x, 0)),    // upper right quad
+            V2_add(parent_from, V2_of(0, dims.y)),    // lower left quad
             V2_add(parent_from, dims),                  // lower right quad
     };
 
@@ -224,6 +224,7 @@ void QuadTree_destroy(QuadTree *t) {
     for (int i = 0; i < 4; i++) {
         Node_deinit(&t->quad[i]);
     }
+    Particles_deinit(&t->members);
     free(t);
 }
 

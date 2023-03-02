@@ -1,7 +1,6 @@
 #include "body.h"
 
 #include <stdlib.h>
-#include <math.h>
 
 /*
  * Constants
@@ -36,7 +35,7 @@ void Particle_init(Particle *p, V2 min, V2 max) {
     double y = rangeRand(min.y + radius, max.y - radius);
 
     *p = (Particle) {
-            .pos = V2_from(x, y),
+            .pos = V2_of(x, y),
             .mass = mass,
             .radius = radius,
     };
@@ -44,7 +43,7 @@ void Particle_init(Particle *p, V2 min, V2 max) {
 
 void Body_applyGrav(Body *b, Particle p) {
     V2 radv = V2_sub(p.pos, b->p.pos);
-    double dist = V2_length(radv);
+    double dist = V2_len(radv);
 
     if (dist > b->p.radius + p.radius) {
         double g = G * p.mass / (dist * dist);
