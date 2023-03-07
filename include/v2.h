@@ -1,29 +1,38 @@
 #ifndef RAG_V2_H
 #define RAG_V2_H
 
-#include <math.h>
+#include <x86/sse2.h>
+#include <simde-math.h>
 
-typedef struct V2 {
-    double x, y;
+typedef union V2 {
+    struct {
+        double x;
+        double y;
+    };
+    simde__m128d simd;
 } V2;
 
 #define V2_ZERO     (V2){ .x = 0.0, .y = 0.0 }
 #define V2_of(X, Y) (V2){ .x = (X), .y = (Y) }
 
 static inline V2 V2_add(V2 a, V2 b) {
-    return V2_of(a.x + b.x, a.y + b.y);
+    simde__m128d x = simde_mm_add_pd(a.simd, b.simd);
+    return (V2) { .simd = x };
 }
 
 static inline V2 V2_sub(V2 a, V2 b) {
-    return V2_of(a.x - b.x, a.y - b.y);
-}
-
-static inline double V2_len(V2 a) {
-    return hypot(a.x, a.y);
+    simde__m128d x = simde_mm_sub_pd(a.simd, b.simd);
+    return (V2) { .simd = x };
 }
 
 static inline V2 V2_scale(V2 a, double f) {
-    return V2_of(a.x * f, a.y * f);
+    simde__m128d b = simde_mm_set1_pd(f);
+    simde__m128d x = simde_mm_mul_pd(a.simd, b);
+    return (V2) { .simd = x };
+}
+
+static inline double V2_len(V2 v) {
+    return simde_math_hypot(v.y, v.x);
 }
 
 #endif //RAG_V2_H

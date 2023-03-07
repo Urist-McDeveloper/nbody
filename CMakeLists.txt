@@ -38,7 +38,7 @@ set_target_properties(rag-lib PROPERTIES OUTPUT_NAME rag)
 
 target_include_directories(rag-lib PUBLIC include)
 target_compile_options(rag-lib PUBLIC -Wall -Wextra -Werror)
-target_link_libraries(rag-lib PUBLIC m OpenMP::OpenMP_C)
+target_link_libraries(rag-lib PUBLIC OpenMP::OpenMP_C m simde)
 
 # the executable
 add_executable(rag-bin src/main.c)
