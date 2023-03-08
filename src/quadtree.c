@@ -67,7 +67,7 @@ struct Node {
 #define NODE_COM_DIST_F 1.5
 
 static Particle Node_ToParticle(const Node *n) {
-    return (Particle) {
+    return (Particle){
             .pos = n->com,
             .mass = n->mass,
             .radius = 0.0,
@@ -75,7 +75,7 @@ static Particle Node_ToParticle(const Node *n) {
 }
 
 static void Node_Init(Node *n, V2 from, V2 dims) {
-    *n = (Node) {
+    *n = (Node){
             .quad = NULL,
             .from = from,
             .dims = dims,
@@ -257,7 +257,7 @@ void QuadTree_ApplyGrav(const QuadTree *t, Body *b) {
  */
 
 const Node *QuadTree_GetQuad(const QuadTree *t) {
-    return (const Node *) (t->quad);
+    return (const Node *)(t->quad);
 }
 
 const Node *Node_GetQuad(const Node *n) {

@@ -37,7 +37,7 @@ World *World_Create(int size, int width, int height) {
         Particle_InitRand(&(bodies + i)->p, min, max);
     }
 
-    *world = (World) {
+    *world = (World){
             .bodies = bodies,
             .tree = tree,
             .size = size,

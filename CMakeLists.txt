@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.18)
+project(rag C)
 
 # general configuration
-project(rag C)
 set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD_REQUIRED TRUE)
 
 # enable IPO on Release (if supported)
 include(CheckIPOSupported)
@@ -34,7 +35,8 @@ set(rag_headers
 
 # the library
 add_library(rag-lib STATIC ${rag_sources} ${rag_headers})
-set_target_properties(rag-lib PROPERTIES OUTPUT_NAME rag)
+set_property(TARGET rag-lib PROPERTY C_EXTENSIONS off)
+set_property(TARGET rag-lib PROPERTY OUTPUT_NAME rag)
 
 target_include_directories(rag-lib PUBLIC include)
 target_compile_options(rag-lib PUBLIC -Wall -Wextra -Werror)
@@ -42,11 +44,13 @@ target_link_libraries(rag-lib PUBLIC OpenMP::OpenMP_C m simde)
 
 # the executable
 add_executable(rag-bin src/main.c)
-set_target_properties(rag-bin PROPERTIES OUTPUT_NAME rag)
+set_property(TARGET rag-bin PROPERTY C_EXTENSIONS off)
+set_property(TARGET rag-bin PROPERTY OUTPUT_NAME rag)
 target_link_libraries(rag-bin PRIVATE rag-lib raylib)
 
 # the benchmark
 add_executable(rag-bench src/bench.c)
+set_property(TARGET rag-bench PROPERTY C_EXTENSIONS off)
 target_link_libraries(rag-bench PRIVATE rag-lib)
 
 # the tests

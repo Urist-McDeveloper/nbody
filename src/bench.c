@@ -22,8 +22,8 @@ static int64_t diff_us(struct timespec *from, struct timespec *to) {
 }
 
 static int int64_t_cmp(const void *a_ptr, const void *b_ptr) {
-    int a = (int) *((int64_t *) a_ptr);
-    int b = (int) *((int64_t *) b_ptr);
+    int a = (int)*((int64_t *)a_ptr);
+    int b = (int)*((int64_t *)b_ptr);
     return a - b;
 }
 
@@ -59,18 +59,18 @@ static int64_t bench(World *w, bool approx) {
     qsort(dt, BENCH_ITER, sizeof(*dt), int64_t_cmp);
     int middle = BENCH_ITER / 2;
 
-    if (BENCH_ITER % 2 == 0) {
-        return (dt[middle - 1] + dt[middle]) / 2;
-    } else {
-        return dt[middle];
-    }
+#if BENCH_ITER % 2 == 0
+    return (dt[middle - 1] + dt[middle]) / 2;
+#else
+    return dt[middle];
+#endif
 }
 
 static const int WS[] = { 10, 100, 250, 500, 800, 1200 };
 static const int WS_LEN = sizeof(WS) / sizeof(WS[0]);
 
 int main(void) {
-    srand(random());
+    srand(rand());
     printf("\t   N\tApprox\t Exact\tSpeedup\n");
 
     for (int i = 0; i < WS_LEN; i++) {
@@ -83,6 +83,6 @@ int main(void) {
         World_Destroy(w1);
         World_Destroy(w2);
 
-        printf("\t%4d\t%6ld\t%6ld\t%7.2f\n", WS[i], approx, exact, (double) exact / (double) approx);
+        printf("\t%4d\t%6ld\t%6ld\t%7.2f\n", WS[i], approx, exact, (double)exact / (double)approx);
     }
 }

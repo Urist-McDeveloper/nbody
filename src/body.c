@@ -34,7 +34,7 @@ void Particle_InitRand(Particle *p, V2 min, V2 max) {
     double x = RangeRand(min.x + radius, max.x - radius);
     double y = RangeRand(min.y + radius, max.y - radius);
 
-    *p = (Particle) {
+    *p = (Particle){
             .pos = V2_From(x, y),
             .mass = mass,
             .radius = radius,

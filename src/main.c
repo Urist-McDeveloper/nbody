@@ -25,7 +25,7 @@ static const double STEPS[] = { 0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0 };
 #define MAX_SKIPPED_PHYS_FRAMES 15
 
 static int dtoi(double f) {
-    return (int) round(f);
+    return (int)round(f);
 }
 
 static void DrawBodies(World *world) {
@@ -38,7 +38,7 @@ static void DrawBodies(World *world) {
         DrawCircle(
                 dtoi(p->pos.x),
                 dtoi(p->pos.y),
-                (float) p->radius,
+                (float)p->radius,
                 RAYWHITE
         );
     }
@@ -77,7 +77,7 @@ int main(void) {
     srand(time(NULL));
 
     SetConfigFlags(/*FLAG_FULLSCREEN_MODE |*/ FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT);
-    SetTargetFPS((int) round(1.0 / PHYS_STEP));
+    SetTargetFPS((int)round(1.0 / PHYS_STEP));
     InitWindow(800, 600, "RAG!");
 
     World *world = World_Create(BODY_COUNT, GetScreenWidth(), GetScreenHeight());
@@ -156,7 +156,7 @@ int main(void) {
         }
 
         DrawText(approx ? "Barnes-Hut simulation" : "Exact simulation", 10, 10, 20, GREEN);
-        DrawText(TextFormat("step x%.2f  speed x%d", STEPS[step_idx], (int) SPEEDS[speed_idx]), 10, 30, 20, GREEN);
+        DrawText(TextFormat("step x%.2f  speed x%d", STEPS[step_idx], (int)SPEEDS[speed_idx]), 10, 30, 20, GREEN);
         DrawFPS(10, 50);
 
         if (skipped_phys_frames > MAX_PHYS_OVERWORK) {
