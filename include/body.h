@@ -9,8 +9,8 @@
 
 typedef struct Particle {
     V2 pos;
-    double mass;
-    double radius;
+    float mass;
+    float radius;
 } Particle;
 
 /*
@@ -29,6 +29,6 @@ void Particle_InitRand(Particle *p, V2 min, V2 max);
 void Body_ApplyGrav(Body *b, Particle p);
 
 /* Apply T seconds of acceleration and velocity to BODY. */
-void Body_Move(Body *body, double t);
+void Body_Move(Body *body, float t);
 
 #endif //RAG_BODY_H

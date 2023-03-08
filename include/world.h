@@ -18,7 +18,7 @@ World *World_Copy(const World *w);
 void World_Destroy(World *w);
 
 /* Update W assuming T seconds passed. */
-void World_Update(World *w, double t, bool approx);
+void World_Update(World *w, float t, bool approx);
 
 /* Get W's bodies and size into respective pointers. */
 void World_GetBodies(const World *w, Body **bodies, int *size);

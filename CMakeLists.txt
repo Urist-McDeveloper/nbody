@@ -39,8 +39,13 @@ set_property(TARGET rag-lib PROPERTY C_EXTENSIONS off)
 set_property(TARGET rag-lib PROPERTY OUTPUT_NAME rag)
 
 target_include_directories(rag-lib PUBLIC include)
-target_compile_options(rag-lib PUBLIC -Wall -Wextra -Werror)
-target_link_libraries(rag-lib PUBLIC OpenMP::OpenMP_C m simde)
+target_link_libraries(rag-lib PUBLIC OpenMP::OpenMP_C m)
+
+if (MSVC)
+    target_compile_options(rag-lib PUBLIC /Wall /fp:fast)
+else()
+    target_compile_options(rag-lib PUBLIC -Wall -Wextra -Werror -ffast-math)
+endif()
 
 # the executable
 add_executable(rag-bin src/main.c)

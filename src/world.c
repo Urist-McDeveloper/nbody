@@ -7,10 +7,10 @@
 #include "quadtree.h"
 
 /* How velocity changes along the axis of bounce. */
-#define BOUNCE_F    (-0.5)
+#define BOUNCE_F    (-0.5f)
 
 /* How velocity changes along the other axis. */
-#define FRICTION_F  0.75
+#define FRICTION_F  0.75f
 
 /*
  * WORLD
@@ -64,7 +64,7 @@ void World_Destroy(World *w) {
     }
 }
 
-void World_Update(World *w, double t, bool approx) {
+void World_Update(World *w, float t, bool approx) {
     Body *bodies = w->bodies;
     QuadTree *tree = w->tree;
     int size = w->size;
@@ -87,8 +87,8 @@ void World_Update(World *w, double t, bool approx) {
         }
     }
 
-    int width = w->width;
-    int height = w->height;
+    float width = (float)w->width;
+    float height = (float)w->height;
 
     #pragma omp parallel for shared(bodies) firstprivate(size, t, width, height) default(none)
     for (int i = 0; i < size; i++) {
@@ -96,10 +96,10 @@ void World_Update(World *w, double t, bool approx) {
         Body_Move(b, t);
 
         Particle *p = &b->p;
-        double min_x = p->radius;
-        double min_y = p->radius;
-        double max_x = width - min_x;
-        double max_y = height - min_y;
+        float min_x = p->radius;
+        float min_y = p->radius;
+        float max_x = width - min_x;
+        float max_y = height - min_y;
 
         if (p->pos.x < min_x || p->pos.x > max_x) {
             p->pos.x = (p->pos.x < min_x) ? min_x : max_x;

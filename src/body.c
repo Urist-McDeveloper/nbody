@@ -6,22 +6,22 @@
  * Constants
  */
 
-#define G       10.0
-#define MIN_R   2.0
-#define MAX_R   2.0
+#define G       10.0f
+#define MIN_R   2.0f
+#define MAX_R   2.0f
 
-#define PI  3.14159265358979323846
-#define C   1.0
-#define F   (4.0 * PI * C / 3.0)
+#define PI  3.14159265358979323846f
+#define C   1.0f
+#define F   (4.0f * PI * C / 3.0f)
 
-#define VELOCITY_DECAY  0.01
+#define VELOCITY_DECAY  0.01f
 
 /*
  * Utils
  */
 
-static double RangeRand(double min, double max) {
-    return min + (max - min) * (1.0 * rand() / RAND_MAX);
+static float RangeRand(float min, float max) {
+    return min + (max - min) * (rand() / (float)RAND_MAX);
 }
 
 /*
@@ -29,10 +29,10 @@ static double RangeRand(double min, double max) {
  */
 
 void Particle_InitRand(Particle *p, V2 min, V2 max) {
-    double radius = RangeRand(MIN_R, MAX_R);
-    double mass = F * radius * radius * radius;
-    double x = RangeRand(min.x + radius, max.x - radius);
-    double y = RangeRand(min.y + radius, max.y - radius);
+    float radius = RangeRand(MIN_R, MAX_R);
+    float mass = F * radius * radius * radius;
+    float x = RangeRand(min.x + radius, max.x - radius);
+    float y = RangeRand(min.y + radius, max.y - radius);
 
     *p = (Particle){
             .pos = V2_From(x, y),
@@ -43,18 +43,18 @@ void Particle_InitRand(Particle *p, V2 min, V2 max) {
 
 void Body_ApplyGrav(Body *b, Particle p) {
     V2 radv = V2_Sub(p.pos, b->p.pos);
-    double dist = V2_Mag(radv);
+    float dist = V2_Mag(radv);
 
     if (dist > b->p.radius + p.radius) {
-        double g = G * p.mass / (dist * dist);
+        float g = G * p.mass / (dist * dist);
         // normalize(radv) * g  ==  (radv / dist) * g  ==  radv * (g / dist)
         b->acc = V2_Add(b->acc, V2_Mul(radv, g / dist));
     }
 }
 
-void Body_Move(Body *body, double t) {
+void Body_Move(Body *body, float t) {
     body->vel = V2_Add(body->vel, V2_Mul(body->acc, t));        // apply acceleration
-    body->vel = V2_Mul(body->vel, 1.0 - VELOCITY_DECAY * t);    // apply decay
+    body->vel = V2_Mul(body->vel, 1.0f - VELOCITY_DECAY * t);   // apply decay
     body->p.pos = V2_Add(body->p.pos, V2_Mul(body->vel, t));    // apply velocity
     body->acc = V2_ZERO;                                        // reset acceleration
 }

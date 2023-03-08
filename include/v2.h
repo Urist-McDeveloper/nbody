@@ -1,15 +1,11 @@
 #ifndef RAG_V2_H
 #define RAG_V2_H
 
-#include <x86/sse2.h>
 #include <math.h>
 
-typedef union V2 {
-    struct {
-        double x;
-        double y;
-    };
-    simde__m128d simd;
+/* 2D vector of floats. */
+typedef struct V2 {
+    float x, y;
 } V2;
 
 /* Zero-length vector. */
@@ -19,21 +15,27 @@ typedef union V2 {
 #define V2_From(X, Y)   (V2){ .x = (X), .y = (Y) }
 
 /* Vector addition. */
-#define V2_Add(A, B)    (V2){ .simd = simde_mm_add_pd((A).simd, (B).simd) }
+static inline V2 V2_Add(V2 a, V2 b) {
+    return V2_From(a.x + b.x, a.y + b.y);
+}
 
 /* Vector subtraction. */
-#define V2_Sub(A, B)    (V2){ .simd = simde_mm_sub_pd((A).simd, (B).simd) }
+static inline V2 V2_Sub(V2 a, V2 b) {
+    return V2_From(a.x - b.x, a.y - b.y);
+}
 
 /* Scalar multiplication. */
-#define V2_Mul(V, F)    (V2){ .simd = simde_mm_mul_pd((V).simd, simde_mm_set1_pd(F)) }
+static inline V2 V2_Mul(V2 v, float f) {
+    return V2_From(v.x * f, v.y * f);
+}
 
 /* Vector magnitude. */
-static inline double V2_Mag(V2 v) {
-    return hypot(v.x, v.y);
+static inline float V2_Mag(V2 v) {
+    return hypotf(v.x, v.y);
 }
 
 /* Vector magnitude squared. */
-static inline double V2_SqMag(V2 v) {
+static inline float V2_SqMag(V2 v) {
     return (v.x * v.x) + (v.y * v.y);
 }
 

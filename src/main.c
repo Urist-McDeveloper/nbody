@@ -122,10 +122,6 @@ int main(void) {
         }
 
         // update stuff
-        if (speed_idx > 1 && skipped_phys_frames > MAX_SKIPPED_PHYS_FRAMES) {
-            speed_idx--;
-            skipped_phys_frames = MAX_PHYS_OVERWORK;
-        }
         if (speed_idx > 0) {
             double scale = SPEEDS[speed_idx] * STEPS[step_idx];
             double step = PHYS_STEP * STEPS[step_idx];
@@ -135,14 +131,16 @@ int main(void) {
 
             if (phys_time > max_phys_time) {
                 phys_time = max_phys_time;
-                skipped_phys_frames++;
+                if (skipped_phys_frames < MAX_SKIPPED_PHYS_FRAMES) {
+                    skipped_phys_frames++;
+                }
             } else {
                 skipped_phys_frames = 0;
             }
 
             while (phys_time >= step) {
                 phys_time -= step;
-                World_Update(world, step, approx);
+                World_Update(world, (float)step, approx);
             }
         }
 

@@ -7,7 +7,7 @@
 #define B   V2_From(3, 4)
 
 #define EPSILON     1e-9
-#define EQ(a, b)    (fabs((a) - (b)) < EPSILON)
+#define EQ(a, b)    (fabsf((a) - (b)) < EPSILON)
 
 void add(void) {
     V2 ab = V2_Add(A, B);
@@ -33,13 +33,13 @@ void sub(void) {
 
 void mul(void) {
     V2 a = V2_Mul(A, -1);
-    V2 b = V2_Mul(B, 1.5);
+    V2 b = V2_Mul(B, 1.5f);
 
     TEST_CHECK(EQ(a.x, -1));
     TEST_CHECK(EQ(a.y, 0));
 
-    TEST_CHECK(EQ(b.x, 4.5));
-    TEST_CHECK(EQ(b.y, 6.0));
+    TEST_CHECK(EQ(b.x, 4.5f));
+    TEST_CHECK(EQ(b.y, 6.0f));
 }
 
 void mag(void) {

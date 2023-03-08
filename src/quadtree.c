@@ -53,8 +53,8 @@ struct Node {
     Node *quad;         // a quad of Nodes
     V2 from, to, dims;  // (x0, y0), (x1, y1) and (width, height)
     V2 com;             // center of mass
-    double mass;        // sum of members' mass
-    double radius;      // sum of members' radius
+    float mass;         // sum of members' mass
+    float radius;       // sum of members' radius
     Particles members;  // cached Bodies in this Node
     bool is_leaf, end;  // whether this Node is a leaf and can it be split into quad
 };
@@ -70,7 +70,7 @@ static Particle Node_ToParticle(const Node *n) {
     return (Particle){
             .pos = n->com,
             .mass = n->mass,
-            .radius = 0.0,
+            .radius = 0.f,
     };
 }
 
@@ -81,8 +81,8 @@ static void Node_Init(Node *n, V2 from, V2 dims) {
             .dims = dims,
             .to = V2_Add(from, dims),
             .com = V2_ZERO,
-            .mass = 0.0,
-            .radius = 0.0,
+            .mass = 0.f,
+            .radius = 0.f,
             .is_leaf = true,
             .end = (dims.x < NODE_END_WIDTH || dims.y < NODE_END_HEIGHT),
     };
@@ -118,8 +118,8 @@ static void Node_Update(Node *n, const Particles *ps) {
     // reset N
     V2 com = V2_ZERO;
     n->com = V2_ZERO;
-    n->mass = 0.0;
-    n->radius = 0.0;
+    n->mass = 0.f;
+    n->radius = 0.f;
     n->is_leaf = true;
 
     // reset members
@@ -145,7 +145,7 @@ static void Node_Update(Node *n, const Particles *ps) {
     }
 
     if (np->len > 0) {
-        n->com = V2_Mul(com, 1.0 / np->len);
+        n->com = V2_Mul(com, 1.f / (float)np->len);
     }
 
     if (!n->end && np->len > LEAF_MAX_BODIES) {
@@ -175,8 +175,8 @@ static void Node_ApplyGrav(const Node *n, Body *b) {
     // minimal dx and dy
     V2 min = V2_Mul(n->dims, NODE_COM_DIST_F);
 
-    double dx = fabs(b->p.pos.x - n->com.x);
-    double dy = fabs(b->p.pos.y - n->com.y);
+    float dx = fabsf(b->p.pos.x - n->com.x);
+    float dy = fabsf(b->p.pos.y - n->com.y);
 
     if (dx > min.x && dy > min.y && (dx * dx + dy * dy) > (n->radius * n->radius)) {
         // B is sufficiently far away from N
