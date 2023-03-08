@@ -42,7 +42,7 @@ static int64_t dt[BENCH_ITER];
 
 static int64_t bench(World *w, bool approx) {
     for (int i = 0; i < WARMUP_ITER; i++) {
-        World_update(w, UPDATE_STEP, approx);
+        World_Update(w, UPDATE_STEP, approx);
     }
 
     struct timespec start;
@@ -50,7 +50,7 @@ static int64_t bench(World *w, bool approx) {
 
     for (int i = 0; i < BENCH_ITER; i++) {
         now(&start);
-        World_update(w, UPDATE_STEP, approx);
+        World_Update(w, UPDATE_STEP, approx);
         now(&end);
 
         dt[i] = diff_us(&start, &end);
@@ -74,14 +74,14 @@ int main(void) {
     printf("\t   N\tApprox\t Exact\tSpeedup\n");
 
     for (int i = 0; i < WS_LEN; i++) {
-        World *w1 = World_create(WS[i], WORLD_WIDTH, WORLD_HEIGHT);
-        World *w2 = World_copy(w1);
+        World *w1 = World_Create(WS[i], WORLD_WIDTH, WORLD_HEIGHT);
+        World *w2 = World_Copy(w1);
 
         int64_t approx = bench(w1, true);
         int64_t exact = bench(w2, false);
 
-        World_destroy(w1);
-        World_destroy(w2);
+        World_Destroy(w1);
+        World_Destroy(w2);
 
         printf("\t%4d\t%6ld\t%6ld\t%7.2f\n", WS[i], approx, exact, (double) exact / (double) approx);
     }

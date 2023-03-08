@@ -24,17 +24,17 @@ struct World {
     int height;
 };
 
-World *World_create(int size, int width, int height) {
+World *World_Create(int size, int width, int height) {
     V2 min = V2_ZERO;
-    V2 max = V2_of(width, height);
-    QuadTree *tree = QuadTree_create(min, max);
+    V2 max = V2_From(width, height);
+    QuadTree *tree = QuadTree_Create(min, max);
 
     World *world = malloc(sizeof(*world));
     Body *bodies = malloc(sizeof(*bodies) * size);
     ASSERT(world != NULL && bodies != NULL);
 
     for (int i = 0; i < size; i++) {
-        Particle_init(&(bodies + i)->p, min, max);
+        Particle_InitRand(&(bodies + i)->p, min, max);
     }
 
     *world = (World) {
@@ -47,8 +47,8 @@ World *World_create(int size, int width, int height) {
     return world;
 }
 
-World *World_copy(const World *w) {
-    World *copy = World_create(w->size, w->width, w->height);
+World *World_Copy(const World *w) {
+    World *copy = World_Create(w->size, w->width, w->height);
     for (int i = 0; i < w->size; i++) {
         copy->bodies[i] = w->bodies[i];
     }
@@ -56,32 +56,32 @@ World *World_copy(const World *w) {
     return copy;
 }
 
-void World_destroy(World *w) {
+void World_Destroy(World *w) {
     if (w != NULL) {
-        QuadTree_destroy(w->tree);
+        QuadTree_Destroy(w->tree);
         free(w->bodies);
         free(w);
     }
 }
 
-void World_update(World *w, const double t, bool approx) {
+void World_Update(World *w, double t, bool approx) {
     Body *bodies = w->bodies;
     QuadTree *tree = w->tree;
     int size = w->size;
 
     if (approx) {
-        QuadTree_update(tree, bodies, size);
+        QuadTree_Update(tree, bodies, size);
 
         #pragma omp parallel for firstprivate(bodies, tree, size) default(none)
         for (int i = 0; i < size; i++) {
-            QuadTree_applyGrav(tree, &bodies[i]);
+            QuadTree_ApplyGrav(tree, &bodies[i]);
         }
     } else {
         #pragma omp parallel for firstprivate(bodies, tree, size) default(none)
         for (int i = 0; i < size; i++) {
             for (int j = 0; j < size; j++) {
                 if (i != j) {
-                    Body_applyGrav(&bodies[i], bodies[j].p);
+                    Body_ApplyGrav(&bodies[i], bodies[j].p);
                 }
             }
         }
@@ -93,7 +93,7 @@ void World_update(World *w, const double t, bool approx) {
     #pragma omp parallel for shared(bodies) firstprivate(size, t, width, height) default(none)
     for (int i = 0; i < size; i++) {
         Body *b = &bodies[i];
-        Body_move(b, t);
+        Body_Move(b, t);
 
         Particle *p = &b->p;
         double min_x = p->radius;
@@ -114,7 +114,7 @@ void World_update(World *w, const double t, bool approx) {
     }
 }
 
-void World_getBodies(const World *w, Body **bodies, int *size) {
+void World_GetBodies(const World *w, Body **bodies, int *size) {
     *bodies = w->bodies;
     *size = w->size;
 }
@@ -123,6 +123,6 @@ void World_getBodies(const World *w, Body **bodies, int *size) {
  * DEBUG
  */
 
-const Node *World_getQuad(const World *w) {
-    return QuadTree_getQuad(w->tree);
+const Node *World_GetQuad(const World *w) {
+    return QuadTree_GetQuad(w->tree);
 }

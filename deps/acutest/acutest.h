@@ -62,7 +62,13 @@
 #define TEST_LIST               const struct acutest_test_ acutest_list_[]
 
 /*
- * Shortcut for defining TEST_LIST.
+ * Convenience macros for defining TEST_LIST.
+ *
+ *   TEST_LIST = {
+ *          TEST(foo),
+ *          TEST(bar),
+ *          TEST_LIST_END
+ *   };
  */
 #define TEST(name)              { #name, name }
 #define TEST_LIST_END           { NULL, NULL }

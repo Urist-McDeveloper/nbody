@@ -20,7 +20,7 @@
  * Utils
  */
 
-static double rangeRand(double min, double max) {
+static double RangeRand(double min, double max) {
     return min + (max - min) * (1.0 * rand() / RAND_MAX);
 }
 
@@ -28,34 +28,33 @@ static double rangeRand(double min, double max) {
  * Implementation
  */
 
-void Particle_init(Particle *p, V2 min, V2 max) {
-    double radius = rangeRand(MIN_R, MAX_R);
+void Particle_InitRand(Particle *p, V2 min, V2 max) {
+    double radius = RangeRand(MIN_R, MAX_R);
     double mass = F * radius * radius * radius;
-    double x = rangeRand(min.x + radius, max.x - radius);
-    double y = rangeRand(min.y + radius, max.y - radius);
+    double x = RangeRand(min.x + radius, max.x - radius);
+    double y = RangeRand(min.y + radius, max.y - radius);
 
     *p = (Particle) {
-            .pos = V2_of(x, y),
+            .pos = V2_From(x, y),
             .mass = mass,
             .radius = radius,
     };
 }
 
-void Body_applyGrav(Body *b, Particle p) {
-    V2 radv = V2_sub(p.pos, b->p.pos);
-    double dist = V2_len(radv);
+void Body_ApplyGrav(Body *b, Particle p) {
+    V2 radv = V2_Sub(p.pos, b->p.pos);
+    double dist = V2_Mag(radv);
 
     if (dist > b->p.radius + p.radius) {
         double g = G * p.mass / (dist * dist);
         // normalize(radv) * g  ==  (radv / dist) * g  ==  radv * (g / dist)
-        b->acc = V2_add(b->acc, V2_scale(radv, g / dist));
+        b->acc = V2_Add(b->acc, V2_Mul(radv, g / dist));
     }
 }
 
-void Body_move(Body *body, double t) {
-    body->vel = V2_add(body->vel, V2_scale(body->acc, t));
-    body->vel = V2_scale(body->vel, 1.0 - VELOCITY_DECAY * t);
-
-    body->p.pos = V2_add(body->p.pos, V2_scale(body->vel, t));
-    body->acc = V2_ZERO;
+void Body_Move(Body *body, double t) {
+    body->vel = V2_Add(body->vel, V2_Mul(body->acc, t));        // apply acceleration
+    body->vel = V2_Mul(body->vel, 1.0 - VELOCITY_DECAY * t);    // apply decay
+    body->p.pos = V2_Add(body->p.pos, V2_Mul(body->vel, t));    // apply velocity
+    body->acc = V2_ZERO;                                        // reset acceleration
 }

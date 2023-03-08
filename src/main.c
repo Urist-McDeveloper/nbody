@@ -18,7 +18,7 @@ static const double STEPS[] = { 0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0 };
 #define LAST_STEP_IDX   (STEPS_LENGTH - 1)
 #define DEF_STEP_IDX    3
 
-#define BODY_COUNT      2000
+#define BODY_COUNT      1000
 #define PHYS_STEP       0.01
 
 #define MAX_PHYS_OVERWORK 3
@@ -28,10 +28,10 @@ static int dtoi(double f) {
     return (int) round(f);
 }
 
-static void drawBodies(World *world) {
+static void DrawBodies(World *world) {
     Body *bodies;
     int size;
-    World_getBodies(world, &bodies, &size);
+    World_GetBodies(world, &bodies, &size);
 
     for (int i = 0; i < size; i++) {
         Particle *p = &(bodies + i)->p;
@@ -46,24 +46,24 @@ static void drawBodies(World *world) {
 
 #define DrawLineD(X0, Y0, X1, Y1) DrawLine(dtoi(X0), dtoi(Y0), dtoi(X1), dtoi(Y1), BLUE)
 
-static void drawQuad(const Node *quad) {
+static void DrawQuad(const Node *quad) {
     // null-check is mandatory
     if (quad == NULL) return;
 
     for (int i = 0; i < 4; i++) {
-        const Node *n = Node_fromQuad(quad, i);
+        const Node *n = Node_FromQuad(quad, i);
 
         // ignore empty nodes
-        if (Node_isEmpty(n)) continue;
+        if (Node_IsEmpty(n)) continue;
 
-        const Node *inner = Node_getQuad(n);
+        const Node *inner = Node_GetQuad(n);
         if (inner != NULL) {
             // draw inner quad
-            drawQuad(Node_getQuad(n));
+            DrawQuad(Node_GetQuad(n));
         } else {
             // draw bounding box
             V2 from, to;
-            Node_getBox(n, &from, &to);
+            Node_GetBox(n, &from, &to);
 
             DrawLineD(from.x, from.y, to.x, from.y);    // top
             DrawLineD(from.x, from.y, from.x, to.y);    // left
@@ -80,7 +80,7 @@ int main(void) {
     SetTargetFPS((int) round(1.0 / PHYS_STEP));
     InitWindow(800, 600, "RAG!");
 
-    World *world = World_create(BODY_COUNT, GetScreenWidth(), GetScreenHeight());
+    World *world = World_Create(BODY_COUNT, GetScreenWidth(), GetScreenHeight());
 
     int speed_idx = 1;
     int step_idx = DEF_STEP_IDX;
@@ -107,7 +107,7 @@ int main(void) {
         if (IsKeyPressed(KEY_RIGHT) && speed_idx < LAST_SPEED_IDX) {
             speed_idx++;
         }
-        if (IsKeyPressed(KEY_UP) && step_idx < LAST_SPEED_IDX) {
+        if (IsKeyPressed(KEY_UP) && step_idx < LAST_STEP_IDX) {
             step_idx++;
         }
         if (IsKeyPressed(KEY_SPACE)) {
@@ -118,7 +118,7 @@ int main(void) {
         }
 
         if (speed_idx == 0 && IsKeyDown(KEY_ENTER)) {
-            World_update(world, PHYS_STEP, approx);
+            World_Update(world, PHYS_STEP, approx);
         }
 
         // update stuff
@@ -142,7 +142,7 @@ int main(void) {
 
             while (phys_time >= step) {
                 phys_time -= step;
-                World_update(world, step, approx);
+                World_Update(world, step, approx);
             }
         }
 
@@ -150,9 +150,9 @@ int main(void) {
         BeginDrawing();
         ClearBackground(BLACK);
 
-        drawBodies(world);
+        DrawBodies(world);
         if (speed_idx == 0 && approx) {
-            drawQuad(World_getQuad(world));
+            DrawQuad(World_GetQuad(world));
         }
 
         DrawText(approx ? "Barnes-Hut simulation" : "Exact simulation", 10, 10, 20, GREEN);
@@ -167,6 +167,6 @@ int main(void) {
     }
 
     CloseWindow();
-    World_destroy(world);
+    World_Destroy(world);
     return 0;
 }

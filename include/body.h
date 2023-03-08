@@ -22,13 +22,13 @@ typedef struct Body {
     V2 vel, acc;
 } Body;
 
-/* Randomize position and mass of P. */
-void Particle_init(Particle *p, V2 min, V2 max);
+/* Randomize position, mass and radius of P. */
+void Particle_InitRand(Particle *p, V2 min, V2 max);
 
 /* Apply gravitational pull of P to B. */
-void Body_applyGrav(Body *b, Particle p);
+void Body_ApplyGrav(Body *b, Particle p);
 
 /* Apply T seconds of acceleration and velocity to BODY. */
-void Body_move(Body *body, double t);
+void Body_Move(Body *body, double t);
 
 #endif //RAG_BODY_H

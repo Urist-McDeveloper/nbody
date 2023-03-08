@@ -8,34 +8,34 @@ typedef struct Node Node;
 typedef struct QuadTree QuadTree;
 
 /* Allocate quadtree of given size. */
-QuadTree *QuadTree_create(V2 from, V2 to);
+QuadTree *QuadTree_Create(V2 from, V2 to);
 
 /* Deallocate quadtree R. */
-void QuadTree_destroy(QuadTree *t);
+void QuadTree_Destroy(QuadTree *t);
 
 /* Update quadtree with array B of length N. */
-void QuadTree_update(QuadTree *t, const Body *b, int n);
+void QuadTree_Update(QuadTree *t, const Body *b, int n);
 
 /* Apply gravity of T to B. */
-void QuadTree_applyGrav(const QuadTree *t, Body *b);
+void QuadTree_ApplyGrav(const QuadTree *t, Body *b);
 
 /*
  * DEBUG
  */
 
 /* Get quad from T. */
-const Node *QuadTree_getQuad(const QuadTree *t);
+const Node *QuadTree_GetQuad(const QuadTree *t);
 
 /* Get quad from N, or NULL if N is a leaf. */
-const Node *Node_getQuad(const Node *n);
+const Node *Node_GetQuad(const Node *n);
 
 /* Get Nth node from QUAD. */
-const Node *Node_fromQuad(const Node *quad, int n);
+const Node *Node_FromQuad(const Node *quad, int n);
 
 /* Whether N has any bodies in it. */
-bool Node_isEmpty(const Node *n);
+bool Node_IsEmpty(const Node *n);
 
 /* Put bounding box of N into FROM and TO. */
-void Node_getBox(const Node *n, V2 *from, V2 *to);
+void Node_GetBox(const Node *n, V2 *from, V2 *to);
 
 #endif //RAG_QUADTREE_H

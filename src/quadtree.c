@@ -17,7 +17,7 @@ typedef struct Particles {
 
 #define PARTICLES_DEFAULT_CAP 16
 
-static void Particles_init(Particles *ps) {
+static void Particles_Init(Particles *ps) {
     ps->arr = malloc(PARTICLES_DEFAULT_CAP * sizeof(Particle));
     ASSERT(ps->arr != NULL);
 
@@ -25,11 +25,11 @@ static void Particles_init(Particles *ps) {
     ps->len = 0;
 }
 
-static void Particles_deinit(Particles *ps) {
+static void Particles_DeInit(Particles *ps) {
     if (ps != NULL) free(ps->arr);
 }
 
-static void Particles_ensureCap(Particles *ps, int cap) {
+static void Particles_EnsureCap(Particles *ps, int cap) {
     if (ps->cap < cap) {
         do {
             ps->cap *= 2;
@@ -40,8 +40,8 @@ static void Particles_ensureCap(Particles *ps, int cap) {
     }
 }
 
-static void Particles_push(Particles *ps, Particle p) {
-    Particles_ensureCap(ps, ps->len + 1);
+static void Particles_Push(Particles *ps, Particle p) {
+    Particles_EnsureCap(ps, ps->len + 1);
     ps->arr[ps->len++] = p;
 }
 
@@ -59,13 +59,14 @@ struct Node {
     bool is_leaf, end;  // whether this Node is a leaf and can it be split into quad
 };
 
-#define LEAF_MAX_BODIES 1      // how many members a leaf can have
-#define NODE_END_WIDTH  1.0    // minimum width of non-leaf node
-#define NODE_END_HEIGHT 1.0    // minimum height of non-leaf node
+#define LEAF_MAX_BODIES 1       // how many members a leaf can have
+#define NODE_END_WIDTH  1.0     // minimum width of non-leaf node
+#define NODE_END_HEIGHT 1.0     // minimum height of non-leaf node
 
+/* How far away from Node's COM a Body can be before it is considered sufficiently far away. */
 #define NODE_COM_DIST_F 1.5
 
-static Particle Node_toParticle(const Node *n) {
+static Particle Node_ToParticle(const Node *n) {
     return (Particle) {
             .pos = n->com,
             .mass = n->mass,
@@ -73,47 +74,47 @@ static Particle Node_toParticle(const Node *n) {
     };
 }
 
-static void Node_init(Node *n, V2 from, V2 dims) {
+static void Node_Init(Node *n, V2 from, V2 dims) {
     *n = (Node) {
             .quad = NULL,
             .from = from,
             .dims = dims,
-            .to = V2_add(from, dims),
+            .to = V2_Add(from, dims),
             .com = V2_ZERO,
             .mass = 0.0,
             .radius = 0.0,
             .is_leaf = true,
             .end = (dims.x < NODE_END_WIDTH || dims.y < NODE_END_HEIGHT),
     };
-    Particles_init(&n->members);
+    Particles_Init(&n->members);
 }
 
-static void Node_deinit(Node *n) {
+static void Node_DeInit(Node *n) {
     if (n == NULL) return;
     if (n->quad != NULL) {
         for (int i = 0; i < 4; i++) {
-            Node_deinit(&n->quad[i]);
+            Node_DeInit(&n->quad[i]);
         }
         free(n->quad);
     }
-    Particles_deinit(&n->members);
+    Particles_DeInit(&n->members);
 }
 
-static void Node_initQuad(Node *quad, V2 parent_from, V2 parent_dims) {
-    V2 dims = V2_scale(parent_dims, 0.5);
+static void Node_InitQuad(Node *quad, V2 parent_from, V2 parent_dims) {
+    V2 dims = V2_Mul(parent_dims, 0.5);
     V2 from[] = {
             parent_from,                                // upper left quad
-            V2_add(parent_from, V2_of(dims.x, 0)),    // upper right quad
-            V2_add(parent_from, V2_of(0, dims.y)),    // lower left quad
-            V2_add(parent_from, dims),                  // lower right quad
+            V2_Add(parent_from, V2_From(dims.x, 0)),    // upper right quad
+            V2_Add(parent_from, V2_From(0, dims.y)),    // lower left quad
+            V2_Add(parent_from, dims),                  // lower right quad
     };
 
     for (int i = 0; i < 4; i++) {
-        Node_init(&quad[i], from[i], dims);
+        Node_Init(&quad[i], from[i], dims);
     }
 }
 
-static void Node_update(Node *n, const Particles *ps) {
+static void Node_Update(Node *n, const Particles *ps) {
     // reset N
     V2 com = V2_ZERO;
     n->com = V2_ZERO;
@@ -135,16 +136,16 @@ static void Node_update(Node *n, const Particles *ps) {
         // if P is in this node
         if (pp.x >= nf.x && pp.x < nt.x && pp.y >= nf.y && pp.y < nt.y) {
             // add P to members
-            Particles_push(np, p);
+            Particles_Push(np, p);
 
-            com = V2_add(com, p.pos);
+            com = V2_Add(com, p.pos);
             n->mass += p.mass;
             n->radius += p.radius;
         }
     }
 
     if (np->len > 0) {
-        n->com = V2_scale(com, 1.0 / np->len);
+        n->com = V2_Mul(com, 1.0 / np->len);
     }
 
     if (!n->end && np->len > LEAF_MAX_BODIES) {
@@ -154,41 +155,44 @@ static void Node_update(Node *n, const Particles *ps) {
             n->quad = malloc(4 * sizeof(Node));
             ASSERT(n->quad != NULL);
 
-            Node_initQuad(n->quad, n->from, n->dims);
+            Node_InitQuad(n->quad, n->from, n->dims);
         }
 
         #pragma omp parallel for firstprivate(n, np) default(none)
         for (int i = 0; i < 4; i++) {
-            Node_update(&n->quad[i], np);
+            Node_Update(&n->quad[i], np);
         }
     }
 }
 
-static void Node_applyGrav(const Node *n, Body *b) {
-    if (n->members.len == 0)
+static void Node_ApplyGrav(const Node *n, Body *b) {
+    if (n->members.len == 0) return;
+    if (n->members.len == 1) {
+        Body_ApplyGrav(b, Node_ToParticle(n));
         return;
+    }
 
     // minimal dx and dy
-    V2 min = V2_scale(n->dims, NODE_COM_DIST_F);
+    V2 min = V2_Mul(n->dims, NODE_COM_DIST_F);
 
     double dx = fabs(b->p.pos.x - n->com.x);
     double dy = fabs(b->p.pos.y - n->com.y);
 
     if (dx > min.x && dy > min.y && (dx * dx + dy * dy) > (n->radius * n->radius)) {
         // B is sufficiently far away from N
-        Body_applyGrav(b, Node_toParticle(n));
+        Body_ApplyGrav(b, Node_ToParticle(n));
     } else {
         // B is too close to N
         if (n->is_leaf) {
             // apply gravity of all members to B
             Particles ps = n->members;
             for (int i = 0; i < ps.len; i++) {
-                Body_applyGrav(b, ps.arr[i]);
+                Body_ApplyGrav(b, ps.arr[i]);
             }
         } else {
             // apply gravity of inner quad
             for (int i = 0; i < 4; i++) {
-                Node_applyGrav(&n->quad[i], b);
+                Node_ApplyGrav(&n->quad[i], b);
             }
         }
     }
@@ -199,53 +203,52 @@ static void Node_applyGrav(const Node *n, Body *b) {
  */
 
 struct QuadTree {
-    Node quad[4];       // a quad of Nodes
-    V2 from, to, dims;  // (x0, y0), (x1, y1) and (width, height)
+    Node quad[4];       // top-level quad
+    V2 from, dims;      // (x0, y0) and (width, height)
     Particles members;  // cached Bodies in this quadtree
 };
 
-QuadTree *QuadTree_create(V2 from, V2 to) {
+QuadTree *QuadTree_Create(V2 from, V2 to) {
     QuadTree *t = malloc(sizeof(*t));
     ASSERT(t != NULL);
 
     t->from = from;
-    t->to = to;
-    t->dims = V2_sub(to, from);
+    t->dims = V2_Sub(to, from);
 
-    Node_initQuad(t->quad, t->from, t->dims);
-    Particles_init(&t->members);
+    Node_InitQuad(t->quad, t->from, t->dims);
+    Particles_Init(&t->members);
 
     return t;
 }
 
-void QuadTree_destroy(QuadTree *t) {
+void QuadTree_Destroy(QuadTree *t) {
     if (t == NULL) return;
 
     for (int i = 0; i < 4; i++) {
-        Node_deinit(&t->quad[i]);
+        Node_DeInit(&t->quad[i]);
     }
-    Particles_deinit(&t->members);
+    Particles_DeInit(&t->members);
     free(t);
 }
 
-void QuadTree_update(QuadTree *t, const Body *b, int n) {
+void QuadTree_Update(QuadTree *t, const Body *b, int n) {
     Particles *ps = &t->members;
-    Particles_ensureCap(ps, n);
+    Particles_EnsureCap(ps, n);
     ps->len = 0;
 
     for (int i = 0; i < n; i++) {
-        Particles_push(ps, b[i].p);
+        Particles_Push(ps, b[i].p);
     }
 
     #pragma omp parallel for firstprivate(t, ps) default(none)
     for (int i = 0; i < 4; i++) {
-        Node_update(&t->quad[i], ps);
+        Node_Update(&t->quad[i], ps);
     }
 }
 
-void QuadTree_applyGrav(const QuadTree *t, Body *b) {
+void QuadTree_ApplyGrav(const QuadTree *t, Body *b) {
     for (int i = 0; i < 4; i++) {
-        Node_applyGrav(&t->quad[i], b);
+        Node_ApplyGrav(&t->quad[i], b);
     }
 }
 
@@ -253,23 +256,23 @@ void QuadTree_applyGrav(const QuadTree *t, Body *b) {
  * DEBUG
  */
 
-const Node *QuadTree_getQuad(const QuadTree *t) {
+const Node *QuadTree_GetQuad(const QuadTree *t) {
     return (const Node *) (t->quad);
 }
 
-const Node *Node_getQuad(const Node *n) {
+const Node *Node_GetQuad(const Node *n) {
     return n->is_leaf ? NULL : n->quad;
 }
 
-const Node *Node_fromQuad(const Node *quad, int n) {
+const Node *Node_FromQuad(const Node *quad, int n) {
     return &quad[n];
 }
 
-bool Node_isEmpty(const Node *n) {
+bool Node_IsEmpty(const Node *n) {
     return n->members.len == 0;
 }
 
-void Node_getBox(const Node *n, V2 *from, V2 *to) {
+void Node_GetBox(const Node *n, V2 *from, V2 *to) {
     *from = n->from;
     *to = n->to;
 }
