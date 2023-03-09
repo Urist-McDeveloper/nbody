@@ -55,3 +55,10 @@ target_link_libraries(rag-bench PRIVATE rag-lib)
 
 # the tests
 add_subdirectory(test)
+
+# Vulkan playground
+find_package(Vulkan REQUIRED)
+
+add_executable(vk src/vk.c)
+set_property(TARGET vk PROPERTY C_EXTENSIONS off)
+target_link_libraries(vk PRIVATE Vulkan::Vulkan rag-lib)
