@@ -5,6 +5,8 @@
 #include <stdbool.h>
 
 #include <vulkan/vulkan.h>
+
+#include <rag.h>
 #include "util.h"
 
 /* Assert that Vulkan library function returned VK_SUCCESS. */
@@ -12,10 +14,10 @@
 
 #ifndef NDEBUG
 /* Debug layers. */
-static const char *const DBG_LAYERS[] = { "VK_LAYER_KHRONOS_validation" };
+static const char *const DBG_LAYERS[] = {"VK_LAYER_KHRONOS_validation"};
 /* Debug layers count. */
 static const int DBG_LAYERS_COUNT = sizeof(DBG_LAYERS) / sizeof(DBG_LAYERS[0]);
-#endif  // NDEBUG
+#endif
 
 /* Initialize VkInstance. */
 static void InitInstance(VkInstance *instance) {
@@ -42,14 +44,15 @@ static void InitInstance(VkInstance *instance) {
         }
     }
     ASSERT(!error);
+    free(layers);
 #endif
-    VkApplicationInfo app_info = { 0 };
+    VkApplicationInfo app_info = {0};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     app_info.pApplicationName = "rag";
     app_info.applicationVersion = VK_MAKE_VERSION(0, 1, 0);
     app_info.apiVersion = VK_API_VERSION_1_0;
 
-    VkInstanceCreateInfo instance_create_info = { 0 };
+    VkInstanceCreateInfo instance_create_info = {0};
     instance_create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
     instance_create_info.pApplicationInfo = &app_info;
 #ifndef NDEBUG
@@ -99,7 +102,7 @@ static void InitDevAndQueue(VkDevice *dev, VkQueue *queue, VkPhysicalDevice pdev
     ASSERT(index != UINT32_MAX);
     free(family_props);
 
-    VkDeviceQueueCreateInfo queue_create_info = { 0 };
+    VkDeviceQueueCreateInfo queue_create_info = {0};
     queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
     queue_create_info.queueFamilyIndex = index;
     queue_create_info.queueCount = 1;
@@ -120,12 +123,54 @@ static void InitDevAndQueue(VkDevice *dev, VkQueue *queue, VkPhysicalDevice pdev
     vkGetDeviceQueue(*dev, index, 0, queue);
 }
 
+#define READ_BUFFER_INC 256
+
+void LoadShaderModule(VkShaderModule *module, VkDevice device, const char *path) {
+    FILE *f = fopen(path, "rb");
+    ASSERT(f != NULL);
+
+    size_t buf_size = READ_BUFFER_INC;
+    size_t buf_len = 0;
+    uint32_t *buf = ALLOC_N(buf_size, uint32_t);
+    ASSERT(buf != NULL);
+
+    size_t req, got;
+    do {
+        if (buf_len >= buf_size) {
+            buf_size += READ_BUFFER_INC;
+            buf = REALLOC(buf, buf_size, uint32_t);
+            ASSERT(buf != NULL);
+        }
+
+        req = buf_size - buf_len;
+        got = fread(buf + buf_len, 4, req, f);
+        buf_len += got;
+    } while (req == got);
+
+    ASSERT(feof(f) != 0);   // returns non-zero if EOF is set
+    ASSERT(fclose(f) == 0); // returns zero if closed successfully
+
+    VkShaderModuleCreateInfo create_info = {0};
+    create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    create_info.codeSize = buf_len * 4;
+    create_info.pCode = buf;
+
+    ASSERT_VK(vkCreateShaderModule(device, &create_info, NULL, module));
+    free(buf);
+}
+
 /* Holder struct for everything Vulkan-related. */
 typedef struct VulkanCtx {
-    VkInstance instance;
-    VkPhysicalDevice pdev;
-    VkQueue queue;
-    VkDevice dev;
+    VkInstance instance;            // Vulkan instance
+    VkPhysicalDevice pdev;          // physical device
+    VkDevice dev;                   // logical device
+    VkQueue queue;                  // command queue
+    VkShaderModule grav_module;     // gravity compute shader
+    VkShaderModule move_module;     // move compute shader
+    VkDescriptorSetLayout dsl;      // ??
+    VkPipelineLayout pl;            // ??
+    VkPipeline grav_pipeline;       // gravity pipeline
+    VkPipeline move_pipeline;       // move pipeline
 } VulkanCtx;
 
 /* Initialize VulkanCtx. */
@@ -133,22 +178,94 @@ void VulkanCtx_Init(VulkanCtx *ctx) {
     InitInstance(&ctx->instance);
     InitPDev(&ctx->pdev, ctx->instance);
     InitDevAndQueue(&ctx->dev, &ctx->queue, ctx->pdev);
+
+    LoadShaderModule(&ctx->grav_module, ctx->dev, "shader/grav.comp.spv");
+    LoadShaderModule(&ctx->move_module, ctx->dev, "shader/move.comp.spv");
+
+    VkDescriptorSetLayoutBinding *bindings = ALLOC_N(2, VkDescriptorSetLayoutBinding);
+    ASSERT(bindings != NULL);
+
+    bindings[0] = (VkDescriptorSetLayoutBinding){0};
+    bindings[0].binding = 0;
+    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    bindings[0].descriptorCount = 1;
+    bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    bindings[1] = (VkDescriptorSetLayoutBinding){0};
+    bindings[1].binding = 1;
+    bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    bindings[1].descriptorCount = 1;
+    bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    VkDescriptorSetLayoutCreateInfo dsl_info = {0};
+    dsl_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    dsl_info.bindingCount = 2;
+    dsl_info.pBindings = bindings;
+
+    ASSERT_VK(vkCreateDescriptorSetLayout(ctx->dev, &dsl_info, NULL, &ctx->dsl));
+    free(bindings);
+
+    VkPipelineLayoutCreateInfo layout_info = {0};
+    layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+    layout_info.setLayoutCount = 1;
+    layout_info.pSetLayouts = &ctx->dsl;
+    ASSERT_VK(vkCreatePipelineLayout(ctx->dev, &layout_info, NULL, &ctx->pl));
+
+    VkPipelineShaderStageCreateInfo grav_stage_info = {0};
+    grav_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    grav_stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    grav_stage_info.module = ctx->grav_module;
+    grav_stage_info.pName = "main";
+
+    VkPipelineShaderStageCreateInfo move_stage_info = {0};
+    move_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    move_stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    move_stage_info.module = ctx->move_module;
+    move_stage_info.pName = "main";
+
+    VkComputePipelineCreateInfo *pipeline_info = ALLOC_N(2, VkComputePipelineCreateInfo);
+    ASSERT(pipeline_info != NULL);
+
+    pipeline_info[0] = (VkComputePipelineCreateInfo){0};
+    pipeline_info[0].sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipeline_info[0].stage = grav_stage_info;
+    pipeline_info[0].layout = ctx->pl;
+
+    pipeline_info[1] = (VkComputePipelineCreateInfo){0};
+    pipeline_info[1].sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipeline_info[1].stage = move_stage_info;
+    pipeline_info[1].layout = ctx->pl;
+
+    ASSERT_VK(vkCreateComputePipelines(ctx->dev, NULL, 2, pipeline_info, NULL, &ctx->grav_pipeline));
+    free(pipeline_info);
 }
 
 /* De-initialize VulkanCtx. */
 void VulkanCtx_DeInit(VulkanCtx *ctx) {
+    vkDestroyPipeline(ctx->dev, ctx->move_pipeline, NULL);
+    vkDestroyPipeline(ctx->dev, ctx->grav_pipeline, NULL);
+    vkDestroyPipelineLayout(ctx->dev, ctx->pl, NULL);
+    vkDestroyDescriptorSetLayout(ctx->dev, ctx->dsl, NULL);
+
+    vkDestroyShaderModule(ctx->dev, ctx->move_module, NULL);
+    vkDestroyShaderModule(ctx->dev, ctx->grav_module, NULL);
+
     vkDestroyDevice(ctx->dev, NULL);
     vkDestroyInstance(ctx->instance, NULL);
 }
-
-/*
- * MAIN
- */
 
 int main(void) {
     VulkanCtx ctx;
     VulkanCtx_Init(&ctx);
 
+    Body *bodies;
+    int size;
+    World *w = World_Create(100, 100, 100);
+    World_GetBodies(w, &bodies, &size);
+
+    // TODO: stuff
+
+    World_Destroy(w);
     VulkanCtx_DeInit(&ctx);
     return EXIT_SUCCESS;
 }

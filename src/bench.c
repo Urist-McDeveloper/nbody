@@ -58,7 +58,7 @@ static int64_t bench(World *w, bool approx) {
 #endif
 }
 
-static const int WS[] = { 10, 100, 250, 500, 800, 1200 };
+static const int WS[] = {10, 100, 250, 500, 800, 1200};
 static const int WS_LEN = sizeof(WS) / sizeof(WS[0]);
 
 int main(void) {
