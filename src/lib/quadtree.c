@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 #include "body.h"
-#include "../err.h"
+#include "../util.h"
 
 /*
  * Dynamic array of Particles.
@@ -17,7 +17,7 @@ typedef struct Particles {
 #define PARTICLES_DEFAULT_CAP 16
 
 static void Particles_Init(Particles *ps) {
-    ps->arr = malloc(PARTICLES_DEFAULT_CAP * sizeof(Particle));
+    ps->arr = ALLOC_N(PARTICLES_DEFAULT_CAP, Particle);
     ASSERT(ps->arr != NULL);
 
     ps->cap = PARTICLES_DEFAULT_CAP;
@@ -34,7 +34,7 @@ static void Particles_EnsureCap(Particles *ps, int cap) {
             ps->cap *= 2;
         } while (ps->cap < cap);
 
-        ps->arr = realloc(ps->arr, ps->cap * sizeof(Particle));
+        ps->arr = REALLOC(ps->arr, ps->cap, Particle);
         ASSERT(ps->arr != NULL);
     }
 }
@@ -151,7 +151,7 @@ static void Node_Update(Node *n, const Particles *ps) {
         // node should be separated into quad
         n->is_leaf = false;
         if (n->quad == NULL) {
-            n->quad = malloc(4 * sizeof(Node));
+            n->quad = ALLOC_N(4, Node);
             ASSERT(n->quad != NULL);
 
             Node_InitQuad(n->quad, n->from, n->dims);
@@ -208,7 +208,7 @@ struct QuadTree {
 };
 
 QuadTree *QuadTree_Create(V2 from, V2 to) {
-    QuadTree *t = malloc(sizeof(*t));
+    QuadTree *t = ALLOC(QuadTree);
     ASSERT(t != NULL);
 
     t->from = from;

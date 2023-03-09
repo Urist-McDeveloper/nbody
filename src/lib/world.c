@@ -4,7 +4,7 @@
 
 #include "body.h"
 #include "quadtree.h"
-#include "../err.h"
+#include "../util.h"
 
 /* How velocity changes along the axis of bounce. */
 #define BOUNCE_F    (-0.5f)
@@ -25,8 +25,8 @@ World *World_Create(int size, int width, int height) {
     V2 max = V2_From(width, height);
     QuadTree *tree = QuadTree_Create(min, max);
 
-    World *world = malloc(sizeof(*world));
-    Body *bodies = malloc(sizeof(*bodies) * size);
+    World *world = ALLOC(World);
+    Body *bodies = ALLOC_N(size, Body);
     ASSERT(world != NULL && bodies != NULL);
 
     for (int i = 0; i < size; i++) {
