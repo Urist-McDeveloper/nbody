@@ -1,8 +1,7 @@
 #include <acutest.h>
+#include <rag.h>
 
-#include <quadtree.h>
-#include <body.h>
-#include <v2.h>
+#include "../src/lib/quadtree.h"
 
 static const V2 FROM = V2_ZERO;
 static const V2 TO = V2_From(10, 10);
@@ -28,18 +27,18 @@ void update_few(void) {
     TEST_ASSERT(t != NULL);
 
     QuadTree_Update(t, FEW, 4);
-    const Node *quad = QuadTree_GetQuad(t);
+    BHQuad quad = QuadTree_GetQuad(t);
 
     if (TEST_CHECK(quad != NULL)) {
-        TEST_CHECK(!Node_IsEmpty(Node_FromQuad(quad, 0)));
-        TEST_CHECK(!Node_IsEmpty(Node_FromQuad(quad, 1)));
-        TEST_CHECK(!Node_IsEmpty(Node_FromQuad(quad, 2)));
-        TEST_CHECK(!Node_IsEmpty(Node_FromQuad(quad, 3)));
+        TEST_CHECK(!BHNode_IsEmpty(BHQuad_GetNode(quad, 0)));
+        TEST_CHECK(!BHNode_IsEmpty(BHQuad_GetNode(quad, 1)));
+        TEST_CHECK(!BHNode_IsEmpty(BHQuad_GetNode(quad, 2)));
+        TEST_CHECK(!BHNode_IsEmpty(BHQuad_GetNode(quad, 3)));
 
-        TEST_CHECK(Node_GetQuad(Node_FromQuad(quad, 0)) == NULL);
-        TEST_CHECK(Node_GetQuad(Node_FromQuad(quad, 1)) == NULL);
-        TEST_CHECK(Node_GetQuad(Node_FromQuad(quad, 2)) == NULL);
-        TEST_CHECK(Node_GetQuad(Node_FromQuad(quad, 3)) == NULL);
+        TEST_CHECK(BHNode_GetQuad(BHQuad_GetNode(quad, 0)) == NULL);
+        TEST_CHECK(BHNode_GetQuad(BHQuad_GetNode(quad, 1)) == NULL);
+        TEST_CHECK(BHNode_GetQuad(BHQuad_GetNode(quad, 2)) == NULL);
+        TEST_CHECK(BHNode_GetQuad(BHQuad_GetNode(quad, 3)) == NULL);
     }
     QuadTree_Destroy(t);
 }
@@ -60,18 +59,18 @@ void update_many() {
     TEST_ASSERT(t != NULL);
 
     QuadTree_Update(t, MANY, 8);
-    const Node *quad = QuadTree_GetQuad(t);
+    BHQuad quad = QuadTree_GetQuad(t);
 
     if (TEST_CHECK(quad != NULL)) {
-        TEST_CHECK(!Node_IsEmpty(Node_FromQuad(quad, 0)));
-        TEST_CHECK(!Node_IsEmpty(Node_FromQuad(quad, 1)));
-        TEST_CHECK(!Node_IsEmpty(Node_FromQuad(quad, 2)));
-        TEST_CHECK(!Node_IsEmpty(Node_FromQuad(quad, 3)));
+        TEST_CHECK(!BHNode_IsEmpty(BHQuad_GetNode(quad, 0)));
+        TEST_CHECK(!BHNode_IsEmpty(BHQuad_GetNode(quad, 1)));
+        TEST_CHECK(!BHNode_IsEmpty(BHQuad_GetNode(quad, 2)));
+        TEST_CHECK(!BHNode_IsEmpty(BHQuad_GetNode(quad, 3)));
 
-        TEST_CHECK(Node_GetQuad(Node_FromQuad(quad, 0)) != NULL);
-        TEST_CHECK(Node_GetQuad(Node_FromQuad(quad, 1)) != NULL);
-        TEST_CHECK(Node_GetQuad(Node_FromQuad(quad, 2)) != NULL);
-        TEST_CHECK(Node_GetQuad(Node_FromQuad(quad, 3)) != NULL);
+        TEST_CHECK(BHNode_GetQuad(BHQuad_GetNode(quad, 0)) != NULL);
+        TEST_CHECK(BHNode_GetQuad(BHQuad_GetNode(quad, 1)) != NULL);
+        TEST_CHECK(BHNode_GetQuad(BHQuad_GetNode(quad, 2)) != NULL);
+        TEST_CHECK(BHNode_GetQuad(BHQuad_GetNode(quad, 3)) != NULL);
     }
     QuadTree_Destroy(t);
 }

@@ -1,7 +1,5 @@
 #include <acutest.h>
-
-#include <math.h>
-#include <v2.h>
+#include <rag.h>
 
 #define A   V2_From(1, 0)
 #define B   V2_From(3, 4)

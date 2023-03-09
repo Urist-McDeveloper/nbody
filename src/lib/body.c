@@ -2,31 +2,9 @@
 
 #include <stdlib.h>
 
-/*
- * Constants
- */
-
-#define G       10.0f
-#define MIN_R   2.0f
-#define MAX_R   2.0f
-
-#define PI  3.14159265358979323846f
-#define C   1.0f
-#define F   (4.0f * PI * C / 3.0f)
-
-#define VELOCITY_DECAY  0.01f
-
-/*
- * Utils
- */
-
 static float RangeRand(float min, float max) {
-    return min + (max - min) * (rand() / (float)RAND_MAX);
+    return min + (max - min) * ((float)rand() / (float)RAND_MAX);
 }
-
-/*
- * Implementation
- */
 
 void Particle_InitRand(Particle *p, V2 min, V2 max) {
     float radius = RangeRand(MIN_R, MAX_R);

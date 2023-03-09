@@ -1,26 +1,17 @@
 #ifndef RAG_BODY_H
 #define RAG_BODY_H
 
-#include "v2.h"
+#include <rag.h>
 
-/*
- * PARTICLE
- */
+#define G       10.0f
+#define MIN_R   2.0f
+#define MAX_R   2.0f
 
-typedef struct Particle {
-    V2 pos;
-    float mass;
-    float radius;
-} Particle;
+#define PI  3.14159265358979323846f
+#define C   1.0f
+#define F   (4.0f * PI * C / 3.0f)
 
-/*
- * BODY
- */
-
-typedef struct Body {
-    Particle p;
-    V2 vel, acc;
-} Body;
+#define VELOCITY_DECAY  0.01f
 
 /* Randomize position, mass and radius of P. */
 void Particle_InitRand(Particle *p, V2 min, V2 max);

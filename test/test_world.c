@@ -1,8 +1,5 @@
 #include <acutest.h>
-
-#include <world.h>
-#include <body.h>
-#include <v2.h>
+#include <rag.h>
 
 #define PART(x, y) (Particle){ .pos = V2_From(x, y), .mass = 1.0, .radius = 0.1 }
 #define BODY(x, y) (Body){ .p = PART(x, y), .vel = V2_ZERO, .acc = V2_ZERO }
@@ -23,7 +20,7 @@ void update_approx(void) {
 
     bodies[0] = BODY(1, 1);
     bodies[1] = BODY(9, 9);
-    World_Update(w, 1.0, true);
+    World_Update(w, 1.f, true);
 
     TEST_CHECK(bodies[0].vel.x > 0);
     TEST_CHECK(bodies[0].vel.y > 0);
@@ -45,7 +42,7 @@ void update_exact(void) {
     bodies[1] = BODY(9, 1);
     bodies[2] = BODY(1, 9);
     bodies[3] = BODY(9, 9);
-    World_Update(w, 1.0, false);
+    World_Update(w, 1.f, false);
 
     TEST_CHECK(bodies[0].vel.x > 0);
     TEST_CHECK(bodies[0].vel.y > 0);

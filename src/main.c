@@ -1,25 +1,22 @@
 #include <stdlib.h>
 #include <time.h>
 
+#include <rag.h>
 #include <raylib.h>
 
-#include "body.h"
-#include "quadtree.h"
-#include "world.h"
-
-static const double SPEEDS[] = { 0, 1, 2, 4, 8, 16, 32 };
+static const float SPEEDS[] = { 0, 1, 2, 4, 8, 16, 32 };
 
 #define SPEEDS_LENGTH   (int)(sizeof(SPEEDS) / sizeof(SPEEDS[0]))
 #define LAST_SPEED_IDX  (SPEEDS_LENGTH - 1)
 
-static const double STEPS[] = { 0.1, 0.25, 0.5, 1.0, 2.0, 4.0, 8.0 };
+static const float STEPS[] = { 0.1f, 0.25f, 0.5f, 1.f, 2.f, 4.f, 8.f };
 
 #define STEPS_LENGTH    (int)(sizeof(STEPS) / sizeof(STEPS[0]))
 #define LAST_STEP_IDX   (STEPS_LENGTH - 1)
 #define DEF_STEP_IDX    3
 
 #define BODY_COUNT      1000
-#define PHYS_STEP       0.01
+#define PHYS_STEP       0.01f
 
 #define MAX_PHYS_OVERWORK 3
 #define MAX_SKIPPED_PHYS_FRAMES 15
@@ -46,24 +43,21 @@ static void DrawBodies(World *world) {
 
 #define DrawLineD(X0, Y0, X1, Y1) DrawLine(dtoi(X0), dtoi(Y0), dtoi(X1), dtoi(Y1), BLUE)
 
-static void DrawQuad(const Node *quad) {
-    // null-check is mandatory
-    if (quad == NULL) return;
-
+static void DrawQuad(BHQuad q) {
     for (int i = 0; i < 4; i++) {
-        const Node *n = Node_FromQuad(quad, i);
+        BHNode n = BHQuad_GetNode(q, i);
 
         // ignore empty nodes
-        if (Node_IsEmpty(n)) continue;
+        if (BHNode_IsEmpty(n)) continue;
 
-        const Node *inner = Node_GetQuad(n);
+        BHQuad inner = BHNode_GetQuad(n);
         if (inner != NULL) {
-            // draw inner quad
-            DrawQuad(Node_GetQuad(n));
+            // draw inner q
+            DrawQuad(inner);
         } else {
             // draw bounding box
             V2 from, to;
-            Node_GetBox(n, &from, &to);
+            BHNode_GetBox(n, &from, &to);
 
             DrawLineD(from.x, from.y, to.x, from.y);    // top
             DrawLineD(from.x, from.y, from.x, to.y);    // left
@@ -111,14 +105,19 @@ int main(void) {
             step_idx++;
         }
         if (IsKeyPressed(KEY_SPACE)) {
-            step_idx = DEF_STEP_IDX;
-            speed_idx = 0;
-            phys_time = 0;
-            skipped_phys_frames = 0;
+            if (speed_idx == 0) {
+                // unpause
+                speed_idx = 1;
+            } else {
+                // pause
+                speed_idx = 0;
+                phys_time = 0;
+                skipped_phys_frames = 0;
+            }
         }
 
         if (speed_idx == 0 && IsKeyDown(KEY_ENTER)) {
-            World_Update(world, PHYS_STEP, approx);
+            World_Update(world, STEPS[step_idx] * PHYS_STEP, approx);
         }
 
         // update stuff

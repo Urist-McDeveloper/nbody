@@ -4,11 +4,7 @@
 #include <stdbool.h>
 #include <time.h>
 
-#include "world.h"
-
-/*
- * UTIL
- */
+#include <rag.h>
 
 #define US_PER_S    (1000 * 1000)
 #define NS_PER_US   (1000)
@@ -26,10 +22,6 @@ static int int64_t_cmp(const void *a_ptr, const void *b_ptr) {
     int b = (int)*((int64_t *)b_ptr);
     return a - b;
 }
-
-/*
- * BENCH
- */
 
 #define WORLD_WIDTH     1000
 #define WORLD_HEIGHT    1000
@@ -70,7 +62,7 @@ static const int WS[] = { 10, 100, 250, 500, 800, 1200 };
 static const int WS_LEN = sizeof(WS) / sizeof(WS[0]);
 
 int main(void) {
-    srand(rand());
+    srand(11037);
     printf("\t   N\tApprox\t Exact\tSpeedup\n");
 
     for (int i = 0; i < WS_LEN; i++) {

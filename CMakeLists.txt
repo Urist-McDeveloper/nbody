@@ -21,20 +21,15 @@ find_library(REQUIRED m)
 find_package(OpenMP REQUIRED)
 
 # project sources
-set(rag_sources
-        src/body.c
-        src/quadtree.c
-        src/world.c)
+set(rag_lib_sources
+        src/lib/body.c
+        src/lib/quadtree.c
+        src/lib/world.c)
 
-set(rag_headers
-        include/body.h
-        include/err.h
-        include/v2.h
-        include/quadtree.h
-        include/world.h)
+set(rag_lib_headers include/rag.h)
 
 # the library
-add_library(rag-lib STATIC ${rag_sources} ${rag_headers})
+add_library(rag-lib STATIC ${rag_lib_sources} ${rag_lib_headers})
 set_property(TARGET rag-lib PROPERTY C_EXTENSIONS off)
 set_property(TARGET rag-lib PROPERTY OUTPUT_NAME rag)
 
@@ -42,9 +37,9 @@ target_include_directories(rag-lib PUBLIC include)
 target_link_libraries(rag-lib PUBLIC OpenMP::OpenMP_C m)
 
 if (MSVC)
-    target_compile_options(rag-lib PUBLIC /Wall /fp:fast)
+    target_compile_options(rag-lib PUBLIC /Wall)
 else()
-    target_compile_options(rag-lib PUBLIC -Wall -Wextra -Werror -ffast-math)
+    target_compile_options(rag-lib PUBLIC -Wall -Wextra -Werror)
 endif()
 
 # the executable

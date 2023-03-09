@@ -1,20 +1,16 @@
-#include "world.h"
+#include "rag.h"
 
 #include <stdlib.h>
 
-#include "err.h"
 #include "body.h"
 #include "quadtree.h"
+#include "../err.h"
 
 /* How velocity changes along the axis of bounce. */
 #define BOUNCE_F    (-0.5f)
 
 /* How velocity changes along the other axis. */
 #define FRICTION_F  0.75f
-
-/*
- * WORLD
- */
 
 struct World {
     Body *bodies;
@@ -119,10 +115,6 @@ void World_GetBodies(const World *w, Body **bodies, int *size) {
     *size = w->size;
 }
 
-/*
- * DEBUG
- */
-
-const Node *World_GetQuad(const World *w) {
+BHQuad World_GetQuad(const World *w) {
     return QuadTree_GetQuad(w->tree);
 }

@@ -2,9 +2,8 @@
 
 #include <stdlib.h>
 
-#include "err.h"
 #include "body.h"
-#include "v2.h"
+#include "../err.h"
 
 /*
  * Dynamic array of Particles.
@@ -101,7 +100,7 @@ static void Node_DeInit(Node *n) {
 }
 
 static void Node_InitQuad(Node *quad, V2 parent_from, V2 parent_dims) {
-    V2 dims = V2_Mul(parent_dims, 0.5);
+    V2 dims = V2_Mul(parent_dims, 0.5f);
     V2 from[] = {
             parent_from,                                // upper left quad
             V2_Add(parent_from, V2_From(dims.x, 0)),    // upper right quad
@@ -256,23 +255,34 @@ void QuadTree_ApplyGrav(const QuadTree *t, Body *b) {
  * DEBUG
  */
 
-const Node *QuadTree_GetQuad(const QuadTree *t) {
-    return (const Node *)(t->quad);
+BHQuad QuadTree_GetQuad(const QuadTree *t) {
+    return t->quad;
 }
 
-const Node *Node_GetQuad(const Node *n) {
-    return n->is_leaf ? NULL : n->quad;
+BHNode BHQuad_GetNode(BHQuad q, int n) {
+    return n + (Node *)q;
 }
 
-const Node *Node_FromQuad(const Node *quad, int n) {
-    return &quad[n];
+bool BHNode_HasQuad(BHNode n) {
+    Node *node = (Node *)n;
+    return !node->is_leaf && node->quad != NULL;
 }
 
-bool Node_IsEmpty(const Node *n) {
-    return n->members.len == 0;
+BHQuad BHNode_GetQuad(BHNode n) {
+    if (BHNode_HasQuad(n)) {
+        return ((Node *)n)->quad;
+    } else {
+        return NULL;
+    }
 }
 
-void Node_GetBox(const Node *n, V2 *from, V2 *to) {
-    *from = n->from;
-    *to = n->to;
+bool BHNode_IsEmpty(BHNode n) {
+    Node *node = (Node *)n;
+    return node->members.len == 0;
+}
+
+void BHNode_GetBox(BHNode n, V2 *from, V2 *to) {
+    Node *node = (Node *)n;
+    *from = node->from;
+    *to = node->to;
 }
