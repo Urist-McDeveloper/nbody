@@ -53,7 +53,8 @@ struct Node {
     V2 from, to, dims;  // (x0, y0), (x1, y1) and (width, height)
     V2 com;             // center of mass
     float mass;         // sum of members' mass
-    float radius;       // sum of members' radius
+    float radius;       // sum of members' radii
+    float radius_sq;    // sum of member's radii squared
     Particles members;  // cached Bodies in this Node
     bool is_leaf, end;  // whether this Node is a leaf and can it be split into quad
 };
@@ -145,6 +146,7 @@ static void Node_Update(Node *n, const Particles *ps) {
 
     if (np->len > 0) {
         n->com = V2_Mul(com, 1.f / (float)np->len);
+        n->radius_sq = n->radius * n->radius;
     }
 
     if (!n->end && np->len > LEAF_MAX_BODIES) {
@@ -157,7 +159,6 @@ static void Node_Update(Node *n, const Particles *ps) {
             Node_InitQuad(n->quad, n->from, n->dims);
         }
 
-        #pragma omp parallel for firstprivate(n, np) default(none)
         for (int i = 0; i < 4; i++) {
             Node_Update(&n->quad[i], np);
         }
@@ -171,13 +172,10 @@ static void Node_ApplyGrav(const Node *n, Body *b) {
         return;
     }
 
-    // minimal dx and dy
-    V2 min = V2_Mul(n->dims, NODE_COM_DIST_F);
+    V2 min = V2_Mul(n->dims, NODE_COM_DIST_F);  // minimal dx and dy
+    V2 d = V2_Sub(n->com, b->p.pos);            // delta of position
 
-    float dx = fabsf(b->p.pos.x - n->com.x);
-    float dy = fabsf(b->p.pos.y - n->com.y);
-
-    if (dx > min.x && dy > min.y && (dx * dx + dy * dy) > (n->radius * n->radius)) {
+    if (fabsf(d.x) > min.x && fabsf(d.y) > min.y && V2_SqMag(d) > n->radius_sq) {
         // B is sufficiently far away from N
         Body_ApplyGrav(b, Node_ToParticle(n));
     } else {
