@@ -48,7 +48,7 @@ int main(void) {
     SetTargetFPS((int)round(1.0 / PHYS_STEP));
     InitWindow(800, 600, "RAG!");
 
-    World *world = World_Create(BODY_COUNT, GetScreenWidth(), GetScreenHeight());
+    World *world = World_Create(BODY_COUNT, V2_ZERO, V2_From(GetScreenWidth(), GetScreenHeight()));
 
     int speed_idx = 1;
     int step_idx = DEF_STEP_IDX;

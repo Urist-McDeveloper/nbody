@@ -3,13 +3,17 @@
 
 #include <rag.h>
 
+/* Gravitational constant. */
 #define G       10.0f
+
+/* Minimum radius of a Particle. */
 #define MIN_R   2.0f
+
+/* Maximum radius of a Particle. */
 #define MAX_R   2.0f
 
-#define PI  3.14159265358979323846f
-#define C   1.0f
-#define F   (4.0f * PI * C / 3.0f)
+/* Density of a Particle (used to calculate mass from radius). */
+#define DENSITY 1.0f
 
 /* A fraction of velocity that becomes friction. */
 #define FRICTION (-0.01f)

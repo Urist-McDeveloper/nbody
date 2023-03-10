@@ -5,23 +5,14 @@
 #include "body.h"
 #include "util.h"
 
-/* How velocity changes along the axis of bounce. */
-#define BOUNCE_F    (-0.5f)
-
-/* How velocity changes along the other axis. */
-#define FRICTION_F  0.75f
-
+/* The simulated world with fixed boundaries and body count. */
 struct World {
     Body *bodies;
     int size;
-    int width;
-    int height;
 };
 
-World *World_Create(int size, int width, int height) {
-    V2 min = V2_ZERO;
-    V2 max = V2_From(width, height);
-
+/* Allocate World of given SIZE and randomize positions within MIN and MAX. */
+World *World_Create(int size, V2 min, V2 max) {
     World *world = ALLOC(World);
     Body *bodies = ALLOC_N(size, Body);
     ASSERT(world != NULL && bodies != NULL);
@@ -35,12 +26,11 @@ World *World_Create(int size, int width, int height) {
     *world = (World){
             .bodies = bodies,
             .size = size,
-            .width = width,
-            .height = height,
     };
     return world;
 }
 
+/* Free previously allocated W. */
 void World_Destroy(World *w) {
     if (w != NULL) {
         free(w->bodies);
@@ -48,6 +38,7 @@ void World_Destroy(World *w) {
     }
 }
 
+/* Update W using exact simulation. */
 void World_Update(World *w, float dt) {
     Body *bodies = w->bodies;
     int size = w->size;
@@ -61,43 +52,13 @@ void World_Update(World *w, float dt) {
         }
     }
 
-    float width = (float)w->width;
-    float height = (float)w->height;
-
-    #pragma omp parallel for shared(bodies) firstprivate(size, dt, width, height) default(none)
+    #pragma omp parallel for firstprivate(bodies, size, dt) default(none)
     for (int i = 0; i < size; i++) {
-        Body *b = &bodies[i];
-        Body_Move(b, dt);
-
-        Particle *p = &b->p;
-        float min_x = p->radius;
-        float min_y = p->radius;
-        float max_x = width - min_x;
-        float max_y = height - min_y;
-
-        if (p->pos.x < min_x) {
-            p->pos.x = min_x;
-            b->vel.x *= BOUNCE_F;
-            b->vel.y *= FRICTION_F;
-        }
-        if (p->pos.x > max_x) {
-            p->pos.x = max_x;
-            b->vel.x *= BOUNCE_F;
-            b->vel.y *= FRICTION_F;
-        }
-        if (p->pos.y < min_y) {
-            p->pos.y = min_y;
-            b->vel.y *= BOUNCE_F;
-            b->vel.x *= FRICTION_F;
-        }
-        if (p->pos.y > max_y) {
-            p->pos.y = max_y;
-            b->vel.y *= BOUNCE_F;
-            b->vel.x *= FRICTION_F;
-        }
+        Body_Move(&bodies[i], dt);
     }
 }
 
+/* Get W's bodies and size into respective pointers. */
 void World_GetBodies(const World *w, Body **bodies, int *size) {
     *bodies = w->bodies;
     *size = w->size;

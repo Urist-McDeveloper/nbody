@@ -2,38 +2,18 @@
 
 #include "body_common_cs.glsl"
 
-/* How velocity changes along the axis of bounce. */
-const float BOUNCE_ALONG = -0.5f;
-
-/* How velocity changes along the other axis. */
-const float BOUNCE_OPPOSITE = 0.75f;
+/* A fraction of velocity that becomes friction. */
+const float FRICTION_F = -0.01;
 
 void main() {
     uint i = gl_GlobalInvocationID.x;
     if (i >= world.size) return;
 
-    frame.bodies[i].vel += world.dt * frame.bodies[i].acc;
-    frame.bodies[i].p.pos += world.dt * frame.bodies[i].vel;
-    frame.bodies[i].acc = vec2(0);
+    // acceleration from gravity + friction
+    vec2 friction = FRICTION_F * frame.bodies[i].vel;
+    vec2 final_acc = frame.bodies[i].acc + friction;
 
-    if (frame.bodies[i].p.pos.x < world.min.x) {
-        frame.bodies[i].p.pos.x = world.min.x;
-        frame.bodies[i].vel.x *= BOUNCE_ALONG;
-        frame.bodies[i].vel.y *= BOUNCE_OPPOSITE;
-    }
-    if (frame.bodies[i].p.pos.x > world.max.x) {
-        frame.bodies[i].p.pos.x = world.max.x;
-        frame.bodies[i].vel.x *= BOUNCE_ALONG;
-        frame.bodies[i].vel.y *= BOUNCE_OPPOSITE;
-    }
-    if (frame.bodies[i].p.pos.y < world.min.y) {
-        frame.bodies[i].p.pos.y = world.min.y;
-        frame.bodies[i].vel.y *= BOUNCE_ALONG;
-        frame.bodies[i].vel.x *= BOUNCE_OPPOSITE;
-    }
-    if (frame.bodies[i].p.pos.y > world.max.y) {
-        frame.bodies[i].p.pos.y = world.max.y;
-        frame.bodies[i].vel.y *= BOUNCE_ALONG;
-        frame.bodies[i].vel.x *= BOUNCE_OPPOSITE;
-    }
+    frame.bodies[i].acc = vec2(0);
+    frame.bodies[i].vel += world.dt * final_acc;
+    frame.bodies[i].p.pos += world.dt * frame.bodies[i].vel;
 }

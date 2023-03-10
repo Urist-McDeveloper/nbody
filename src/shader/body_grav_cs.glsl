@@ -5,9 +5,6 @@
 /* Gravitational constant. */
 const float G = 10.0;
 
-/* A fraction of velocity that becomes friction. */
-const float FRICTION = -0.01;
-
 /* Get gravity acceleration of P upon B. */
 vec2 GetGrav(Body b, Particle p) {
     vec2 radv = p.pos - b.p.pos;
@@ -29,5 +26,4 @@ void main() {
     for (uint j = 0; j < world.size; j++) {
         frame.bodies[i].acc += GetGrav(frame.bodies[i], frame.bodies[j].p);
     }
-    frame.bodies[i].acc += FRICTION * frame.bodies[i].vel;
 }

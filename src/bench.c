@@ -65,7 +65,7 @@ int main(void) {
     printf("\t   N\t Time\n");
 
     for (int i = 0; i < WS_LEN; i++) {
-        World *w = World_Create(WS[i], WORLD_WIDTH, WORLD_HEIGHT);
+        World *w = World_Create(WS[i], V2_ZERO, V2_From(WORLD_WIDTH, WORLD_HEIGHT));
         printf("\t%4d\t%5ld\n", WS[i], bench(w));
         World_Destroy(w);
     }

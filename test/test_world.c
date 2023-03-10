@@ -5,13 +5,13 @@
 #define BODY(x, y) (Body){ .p = PART(x, y), .vel = V2_ZERO, .acc = V2_ZERO }
 
 void create_and_destroy(void) {
-    World *w = World_Create(100, 100, 100);
+    World *w = World_Create(100, V2_ZERO, V2_From(10, 10));
     TEST_ASSERT(w != NULL);
     World_Destroy(w);
 }
 
 void update(void) {
-    World *w = World_Create(2, 10, 10);
+    World *w = World_Create(2, V2_ZERO, V2_From(10, 10));
     TEST_ASSERT(w != NULL);
 
     int size;

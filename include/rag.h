@@ -55,11 +55,11 @@ typedef struct Body {
 } Body;
 
 
-/* The simulation world with fixed boundaries and body count. */
+/* The simulated world with fixed boundaries and body count. */
 typedef struct World World;
 
-/* Allocate World with given SIZE, WIDTH and HEIGHT. */
-World *World_Create(int size, int width, int height);
+/* Allocate World of given SIZE and randomize positions within MIN and MAX. */
+World *World_Create(int size, V2 min, V2 max);
 
 /* Free previously allocated W. */
 void World_Destroy(World *w);
