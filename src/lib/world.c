@@ -1,10 +1,10 @@
-#include "rag.h"
+#include <rag.h>
 
 #include <stdlib.h>
 
 #include "body.h"
 #include "quadtree.h"
-#include "../util.h"
+#include "util.h"
 
 /* How velocity changes along the axis of bounce. */
 #define BOUNCE_F    (-0.5f)

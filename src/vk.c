@@ -5,9 +5,10 @@
 #include <stdbool.h>
 
 #include <vulkan/vulkan.h>
-
 #include <rag.h>
-#include "util.h"
+
+#include "lib/fio.h"
+#include "lib/util.h"
 
 /* Assert that Vulkan library function returned VK_SUCCESS. */
 #define ASSERT_VK(X) ASSERT((X) == VK_SUCCESS)
@@ -15,11 +16,11 @@
 #ifndef NDEBUG
 static const char *const DBG_LAYERS[] = {"VK_LAYER_KHRONOS_validation"};
 static const int DBG_LAYERS_COUNT = sizeof(DBG_LAYERS) / sizeof(DBG_LAYERS[0]);
-#endif
 
-/* Initialize VkInstance. */
-static void InitInstance(VkInstance *instance) {
-#ifndef NDEBUG
+static void AssertDebugLayersSupported() {
+    static bool done = false;
+    if (done) return;
+
     uint32_t layer_count;
     ASSERT_VK(vkEnumerateInstanceLayerProperties(&layer_count, NULL));
     ASSERT(layer_count > 0);
@@ -43,6 +44,15 @@ static void InitInstance(VkInstance *instance) {
     }
     ASSERT(!error);
     free(layers);
+    done = true;
+}
+
+#endif
+
+/* Initialize VkInstance. */
+static void InitInstance(VkInstance *instance) {
+#ifndef NDEBUG
+    AssertDebugLayersSupported();
 #endif
     VkApplicationInfo app_info = {0};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
@@ -60,6 +70,7 @@ static void InitInstance(VkInstance *instance) {
     ASSERT_VK(vkCreateInstance(&instance_create_info, NULL, instance));
 }
 
+/* Initialize VkPhysicalDevice. */
 static void InitPDev(VkPhysicalDevice *pdev, VkInstance instance) {
     uint32_t pdev_count;
     ASSERT_VK(vkEnumeratePhysicalDevices(instance, &pdev_count, NULL));
@@ -78,7 +89,11 @@ static void InitPDev(VkPhysicalDevice *pdev, VkInstance instance) {
     printf("Using VkPhysicalDevice #%u of type %u -- %s\n", props.deviceID, props.deviceType, props.deviceName);
 }
 
+/* Initialize VkDevice and VkQueue. */
 static void InitDevAndQueue(VkDevice *dev, VkQueue *queue, VkPhysicalDevice pdev) {
+#ifndef NDEBUG
+    AssertDebugLayersSupported();
+#endif
     uint32_t queue_count;
     vkGetPhysicalDeviceQueueFamilyProperties(pdev, &queue_count, NULL);
     ASSERT(queue_count > 0);
@@ -116,59 +131,16 @@ static void InitDevAndQueue(VkDevice *dev, VkQueue *queue, VkPhysicalDevice pdev
     device_create_info.enabledLayerCount = 1;
     device_create_info.ppEnabledLayerNames = DBG_LAYERS;
 #endif
-
     ASSERT_VK(vkCreateDevice(pdev, &device_create_info, NULL, dev));
     vkGetDeviceQueue(*dev, index, 0, queue);
 }
 
-#define READ_BUFFER_INC 256
-
-void LoadShaderModule(VkShaderModule *module, VkDevice device, const char *path) {
-    FILE *f = fopen(path, "rb");
-    ASSERT(f != NULL);
-
-    size_t buf_size = READ_BUFFER_INC;
-    size_t buf_len = 0;
-    uint32_t *buf = ALLOC_N(buf_size, uint32_t);
-    ASSERT(buf != NULL);
-
-    size_t req, got;
-    do {
-        if (buf_len >= buf_size) {
-            buf_size += READ_BUFFER_INC;
-            buf = REALLOC(buf, buf_size, uint32_t);
-            ASSERT(buf != NULL);
-        }
-
-        req = buf_size - buf_len;
-        got = fread(buf + buf_len, 4, req, f);
-        buf_len += got;
-    } while (req == got);
-
-    ASSERT(feof(f) != 0);   // returns non-zero if EOF is set
-    ASSERT(fclose(f) == 0); // returns zero if closed successfully
-
-    VkShaderModuleCreateInfo create_info = {0};
-    create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    create_info.codeSize = buf_len * 4;
-    create_info.pCode = buf;
-
-    ASSERT_VK(vkCreateShaderModule(device, &create_info, NULL, module));
-    free(buf);
-}
-
-/* Holder struct for everything Vulkan-related. */
+/* Vulkan setup-related stuff. */
 typedef struct VulkanCtx {
     VkInstance instance;            // Vulkan instance
     VkPhysicalDevice pdev;          // physical device
     VkDevice dev;                   // logical device
     VkQueue queue;                  // command queue
-    VkShaderModule grav_module;     // gravity compute shader
-    VkShaderModule move_module;     // move compute shader
-    VkDescriptorSetLayout dsl;      // ??
-    VkPipelineLayout pl;            // ??
-    VkPipeline grav_pipeline;       // gravity pipeline
-    VkPipeline move_pipeline;       // move pipeline
 } VulkanCtx;
 
 /* Initialize VulkanCtx. */
@@ -176,9 +148,50 @@ void VulkanCtx_Init(VulkanCtx *ctx) {
     InitInstance(&ctx->instance);
     InitPDev(&ctx->pdev, ctx->instance);
     InitDevAndQueue(&ctx->dev, &ctx->queue, ctx->pdev);
+}
 
-    LoadShaderModule(&ctx->grav_module, ctx->dev, "shader/body_grav_cs.spv");
-    LoadShaderModule(&ctx->move_module, ctx->dev, "shader/body_move_cs.spv");
+/* De-initialize VulkanCtx. */
+void VulkanCtx_DeInit(VulkanCtx *ctx) {
+    vkDestroyDevice(ctx->dev, NULL);
+    vkDestroyInstance(ctx->instance, NULL);
+}
+
+/* Load shader module from PATH. */
+VkShaderModule VulkanCtx_LoadShader(const VulkanCtx *ctx, const char *path) {
+    size_t buf_size;
+    uint32_t *buf = FIO_ReadFile(path, &buf_size);
+
+    VkShaderModuleCreateInfo create_info = {0};
+    create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+    create_info.codeSize = buf_size;
+    create_info.pCode = buf;
+
+    VkShaderModule module;
+    ASSERT_VK(vkCreateShaderModule(ctx->dev, &create_info, NULL, &module));
+
+    free(buf);
+    return module;
+}
+
+/* Simulation pipeline-related stuff. */
+typedef struct BodyCompPipeline {
+    const VulkanCtx *ctx;               // Vulkan context
+    VkShaderModule grav_module;         // gravity compute shader
+    VkShaderModule move_module;         // move compute shader
+    VkDescriptorSetLayout ds_layout;    // ??
+    VkPipelineLayout pipeline_layout;   // ??
+    VkPipeline grav_pipeline;           // gravity pipeline
+    VkPipeline move_pipeline;           // move pipeline
+} BodyCompPipeline;
+
+/*
+ * Initialize BodyCompPipeline.
+ * CTX must be a valid pointer to initialized VulkanCtx until BodyCompPipeline_DeInit() is called.
+ */
+void BodyCompPipeline_Init(BodyCompPipeline *bcp, const VulkanCtx *ctx) {
+    bcp->ctx = ctx;
+    bcp->grav_module = VulkanCtx_LoadShader(ctx, "shader/body_grav_cs.spv");
+    bcp->move_module = VulkanCtx_LoadShader(ctx, "shader/body_move_cs.spv");
 
     VkDescriptorSetLayoutBinding *bindings = ALLOC_N(2, VkDescriptorSetLayoutBinding);
     ASSERT(bindings != NULL);
@@ -200,25 +213,25 @@ void VulkanCtx_Init(VulkanCtx *ctx) {
     dsl_info.bindingCount = 2;
     dsl_info.pBindings = bindings;
 
-    ASSERT_VK(vkCreateDescriptorSetLayout(ctx->dev, &dsl_info, NULL, &ctx->dsl));
+    ASSERT_VK(vkCreateDescriptorSetLayout(ctx->dev, &dsl_info, NULL, &bcp->ds_layout));
     free(bindings);
 
     VkPipelineLayoutCreateInfo layout_info = {0};
     layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     layout_info.setLayoutCount = 1;
-    layout_info.pSetLayouts = &ctx->dsl;
-    ASSERT_VK(vkCreatePipelineLayout(ctx->dev, &layout_info, NULL, &ctx->pl));
+    layout_info.pSetLayouts = &bcp->ds_layout;
+    ASSERT_VK(vkCreatePipelineLayout(ctx->dev, &layout_info, NULL, &bcp->pipeline_layout));
 
     VkPipelineShaderStageCreateInfo grav_stage_info = {0};
     grav_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     grav_stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    grav_stage_info.module = ctx->grav_module;
+    grav_stage_info.module = bcp->grav_module;
     grav_stage_info.pName = "main";
 
     VkPipelineShaderStageCreateInfo move_stage_info = {0};
     move_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     move_stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    move_stage_info.module = ctx->move_module;
+    move_stage_info.module = bcp->move_module;
     move_stage_info.pName = "main";
 
     VkComputePipelineCreateInfo *pipeline_info = ALLOC_N(2, VkComputePipelineCreateInfo);
@@ -227,34 +240,34 @@ void VulkanCtx_Init(VulkanCtx *ctx) {
     pipeline_info[0] = (VkComputePipelineCreateInfo){0};
     pipeline_info[0].sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     pipeline_info[0].stage = grav_stage_info;
-    pipeline_info[0].layout = ctx->pl;
+    pipeline_info[0].layout = bcp->pipeline_layout;
 
     pipeline_info[1] = (VkComputePipelineCreateInfo){0};
     pipeline_info[1].sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     pipeline_info[1].stage = move_stage_info;
-    pipeline_info[1].layout = ctx->pl;
+    pipeline_info[1].layout = bcp->pipeline_layout;
 
-    ASSERT_VK(vkCreateComputePipelines(ctx->dev, NULL, 2, pipeline_info, NULL, &ctx->grav_pipeline));
+    ASSERT_VK(vkCreateComputePipelines(ctx->dev, NULL, 2, pipeline_info, NULL, &bcp->grav_pipeline));
     free(pipeline_info);
 }
 
-/* De-initialize VulkanCtx. */
-void VulkanCtx_DeInit(VulkanCtx *ctx) {
-    vkDestroyPipeline(ctx->dev, ctx->move_pipeline, NULL);
-    vkDestroyPipeline(ctx->dev, ctx->grav_pipeline, NULL);
-    vkDestroyPipelineLayout(ctx->dev, ctx->pl, NULL);
-    vkDestroyDescriptorSetLayout(ctx->dev, ctx->dsl, NULL);
+/* De-initialize BodyCompPipeline. */
+void BodyCompPipeline_DeInit(BodyCompPipeline *bcp) {
+    vkDestroyPipeline(bcp->ctx->dev, bcp->move_pipeline, NULL);
+    vkDestroyPipeline(bcp->ctx->dev, bcp->grav_pipeline, NULL);
+    vkDestroyPipelineLayout(bcp->ctx->dev, bcp->pipeline_layout, NULL);
+    vkDestroyDescriptorSetLayout(bcp->ctx->dev, bcp->ds_layout, NULL);
 
-    vkDestroyShaderModule(ctx->dev, ctx->move_module, NULL);
-    vkDestroyShaderModule(ctx->dev, ctx->grav_module, NULL);
-
-    vkDestroyDevice(ctx->dev, NULL);
-    vkDestroyInstance(ctx->instance, NULL);
+    vkDestroyShaderModule(bcp->ctx->dev, bcp->move_module, NULL);
+    vkDestroyShaderModule(bcp->ctx->dev, bcp->grav_module, NULL);
 }
 
 int main(void) {
     VulkanCtx ctx;
     VulkanCtx_Init(&ctx);
+
+    BodyCompPipeline bcp;
+    BodyCompPipeline_Init(&bcp, &ctx);
 
     Body *bodies;
     int size;
@@ -266,6 +279,7 @@ int main(void) {
     fgetc(stdin);
 
     World_Destroy(w);
+    BodyCompPipeline_DeInit(&bcp);
     VulkanCtx_DeInit(&ctx);
     return EXIT_SUCCESS;
 }

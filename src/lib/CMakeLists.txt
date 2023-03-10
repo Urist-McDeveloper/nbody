@@ -4,6 +4,7 @@ find_package(OpenMP REQUIRED)
 set(rag_lib_headers ${CMAKE_SOURCE_DIR}/include/rag.h)
 set(rag_lib_sources
         body.c
+        fio.c
         quadtree.c
         world.c)
 

@@ -3,7 +3,7 @@
 #include <stdlib.h>
 
 #include "body.h"
-#include "../util.h"
+#include "util.h"
 
 /*
  * Dynamic array of Particles.
