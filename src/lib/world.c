@@ -26,19 +26,19 @@ typedef struct WorldComp WorldComp;
  *
  * CTX must remain a valid pointer to initialized VulkanCtx until WC is de-initialized.
  */
-WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data);
+static WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data);
 
 /* De-initialize WC. */
-void WorldComp_Destroy(WorldComp *wc);
+static void WorldComp_Destroy(WorldComp *wc);
 
 /* Update WC. */
-void WorldComp_DoUpdate(WorldComp *wc);
+static void WorldComp_DoUpdate(WorldComp *wc);
 
 /* Copy bodies from GPU buffer into ARR. */
-void WorldComp_GetBodies(WorldComp *wc, Body *arr);
+static void WorldComp_GetBodies(WorldComp *wc, Body *arr);
 
 /* Copy bodies from ARR into GPU buffer. */
-void WorldComp_SetBodies(WorldComp *wc, Body *arr);
+static void WorldComp_SetBodies(WorldComp *wc, Body *arr);
 
 
 /* The simulated world with fixed boundaries and body count. */
@@ -160,102 +160,96 @@ void World_UpdateVK(World *w) {
 
 struct WorldComp {
     const VulkanCtx *ctx;
-    // Shaders
-    VkShaderModule grav_module;
-    VkShaderModule move_module;
+    uint32_t world_size;
+    VkShaderModule shader;
     // Descriptor
     VkDescriptorSetLayout ds_layout;
     VkDescriptorPool ds_pool;
-    VkDescriptorSet ds;
     // Memory
     VkDeviceMemory memory;
     VkBuffer uniform;
-    VkBuffer storage;
+    VkBuffer storage[2];
     VkDeviceSize uniform_size;
     VkDeviceSize storage_size;
-    // Pipelines
+    // Pipeline
     VkPipelineLayout pipeline_layout;
-    VkPipeline grav_pipeline;
-    VkPipeline move_pipeline;
+    VkPipeline pipeline;
     // Commands
     VkCommandBuffer cmd_buf;
     VkFence fence;
+    int new_old_idx;
 };
 
-void WorldComp_GetBodies(WorldComp *wc, Body *arr) {
+static void GetStorage(const WorldComp *wc,
+                                 VkBuffer *new, VkDeviceSize *new_offset,
+                                 VkBuffer *old, VkDeviceSize *old_offset) {
+    if (wc->new_old_idx == 0) {
+        if (new != NULL) *new = wc->storage[0];
+        if (old != NULL) *old = wc->storage[1];
+        if (new_offset != NULL) *new_offset = wc->uniform_size;
+        if (old_offset != NULL) *old_offset = wc->uniform_size + wc->storage_size;
+    } else {
+        if (old != NULL) *old = wc->storage[0];
+        if (new != NULL) *new = wc->storage[1];
+        if (old_offset != NULL) *old_offset = wc->uniform_size;
+        if (new_offset != NULL) *new_offset = wc->uniform_size + wc->storage_size;
+    }
+}
+
+static void WorldComp_GetBodies(WorldComp *wc, Body *arr) {
     void *mapped;
-    ASSERT_VK(vkMapMemory(wc->ctx->dev, wc->memory, wc->uniform_size, wc->storage_size, 0, &mapped));
+    VkDeviceSize offset;
+
+    // get new because it is new
+    GetStorage(wc, NULL, &offset, NULL, NULL);
+    ASSERT_VK(vkMapMemory(wc->ctx->dev, wc->memory, offset, wc->storage_size, 0, &mapped));
 
     memcpy(arr, mapped, wc->storage_size);
     vkUnmapMemory(wc->ctx->dev, wc->memory);
 }
 
-void WorldComp_SetBodies(WorldComp *wc, Body *arr) {
+static void WorldComp_SetBodies(WorldComp *wc, Body *arr) {
     void *mapped;
-    ASSERT_VK(vkMapMemory(wc->ctx->dev, wc->memory, wc->uniform_size, wc->storage_size, 0, &mapped));
+    // set all because I suck
+    ASSERT_VK(vkMapMemory(wc->ctx->dev, wc->memory, wc->uniform_size, 2 * wc->storage_size, 0, &mapped));
 
     memcpy(mapped, arr, wc->storage_size);
+    memcpy(((char *)mapped) + wc->storage_size, arr, wc->storage_size);
     vkUnmapMemory(wc->ctx->dev, wc->memory);
 }
 
-void WorldComp_DoUpdate(WorldComp *wc) {
-    VkSubmitInfo submit_info = {0};
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &wc->cmd_buf;
-
-    ASSERT_VK(vkQueueSubmit(wc->ctx->queue, 1, &submit_info, wc->fence));
-    ASSERT_VK(vkWaitForFences(wc->ctx->dev, 1, &wc->fence, VK_TRUE, UINT64_MAX));
-    ASSERT_VK(vkResetFences(wc->ctx->dev, 1, &wc->fence));
-}
-
-void WorldComp_Destroy(WorldComp *wc) {
-    if (wc != NULL) {
-        VkDevice dev = wc->ctx->dev;
-        vkDestroyFence(dev, wc->fence, NULL);
-
-        vkDestroyPipeline(dev, wc->move_pipeline, NULL);
-        vkDestroyPipeline(dev, wc->grav_pipeline, NULL);
-        vkDestroyPipelineLayout(dev, wc->pipeline_layout, NULL);
-
-        vkFreeMemory(dev, wc->memory, NULL);
-        vkDestroyBuffer(dev, wc->uniform, NULL);
-        vkDestroyBuffer(dev, wc->storage, NULL);
-
-        vkDestroyDescriptorPool(dev, wc->ds_pool, NULL);
-        vkDestroyDescriptorSetLayout(dev, wc->ds_layout, NULL);
-
-        vkDestroyShaderModule(dev, wc->move_module, NULL);
-        vkDestroyShaderModule(dev, wc->grav_module, NULL);
-        free(wc);
-    }
-}
-
-WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
+static WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     WorldComp *wc = ALLOC(WorldComp);
     ASSERT(wc != NULL);
 
     wc->ctx = ctx;
-    wc->grav_module = VulkanCtx_LoadShader(ctx, "shader/body_grav_cs.spv");
-    wc->move_module = VulkanCtx_LoadShader(ctx, "shader/body_move_cs.spv");
+    wc->world_size = data.size;
+    wc->shader = VulkanCtx_LoadShader(ctx, "shader/body_cs.spv");
 
     /*
-     * Descriptor set and friends.
+     * Descriptors.
      */
 
-    VkDescriptorSetLayoutBinding bindings[2] = {0};
+    VkDescriptorSetLayoutBinding bindings[3] = {0};
+
     bindings[0].binding = 0;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     bindings[0].descriptorCount = 1;
     bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
     bindings[1].binding = 1;
     bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     bindings[1].descriptorCount = 1;
     bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
+    bindings[2].binding = 2;
+    bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    bindings[2].descriptorCount = 1;
+    bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
     VkDescriptorSetLayoutCreateInfo ds_layout_info = {0};
     ds_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    ds_layout_info.bindingCount = 2;
+    ds_layout_info.bindingCount = 3;
     ds_layout_info.pBindings = bindings;
     ASSERT_VK(vkCreateDescriptorSetLayout(ctx->dev, &ds_layout_info, NULL, &wc->ds_layout));
 
@@ -263,7 +257,7 @@ WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     ds_pool_size[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     ds_pool_size[0].descriptorCount = 1;
     ds_pool_size[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    ds_pool_size[1].descriptorCount = 1;
+    ds_pool_size[1].descriptorCount = 2;
 
     VkDescriptorPoolCreateInfo ds_pool_info = {0};
     ds_pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -272,13 +266,6 @@ WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     ds_pool_info.pPoolSizes = ds_pool_size;
     ASSERT_VK(vkCreateDescriptorPool(ctx->dev, &ds_pool_info, NULL, &wc->ds_pool));
 
-    VkDescriptorSetAllocateInfo ds_alloc_info = {0};
-    ds_alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    ds_alloc_info.descriptorPool = wc->ds_pool;
-    ds_alloc_info.descriptorSetCount = 1;
-    ds_alloc_info.pSetLayouts = &wc->ds_layout;
-    ASSERT_VK(vkAllocateDescriptorSets(ctx->dev, &ds_alloc_info, &wc->ds));
-
     /*
      * Memory buffers.
      */
@@ -286,50 +273,22 @@ WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     wc->uniform_size = SIZE_OF_ALIGN_16(WorldData);
     wc->storage_size = data.size * sizeof(Body);
 
-    wc->memory = VulkanCtx_AllocMemory(ctx, wc->uniform_size + wc->storage_size, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    wc->memory = VulkanCtx_AllocMemory(ctx, wc->uniform_size + 2 * wc->storage_size,
+                                       VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+
     wc->uniform = VulkanCtx_CreateBuffer(ctx, wc->uniform_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
-    wc->storage = VulkanCtx_CreateBuffer(ctx, wc->storage_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+    wc->storage[0] = VulkanCtx_CreateBuffer(ctx, wc->storage_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+    wc->storage[1] = VulkanCtx_CreateBuffer(ctx, wc->storage_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
     vkBindBufferMemory(ctx->dev, wc->uniform, wc->memory, 0);
-    vkBindBufferMemory(ctx->dev, wc->storage, wc->memory, wc->uniform_size);
+    vkBindBufferMemory(ctx->dev, wc->storage[0], wc->memory, wc->uniform_size);
+    vkBindBufferMemory(ctx->dev, wc->storage[1], wc->memory, wc->uniform_size + wc->storage_size);
 
     void *mapped;
     ASSERT_VK(vkMapMemory(ctx->dev, wc->memory, 0, wc->uniform_size, 0, &mapped));
 
     memcpy(mapped, &data, sizeof(WorldData));
     vkUnmapMemory(ctx->dev, wc->memory);
-
-    /*
-     * Bind buffers to descriptor sets.
-     */
-
-    VkDescriptorBufferInfo uniform_info = {0};
-    uniform_info.buffer = wc->uniform;
-    uniform_info.offset = 0;
-    uniform_info.range = wc->uniform_size;
-
-    VkDescriptorBufferInfo storage_info = {0};
-    storage_info.buffer = wc->storage;
-    storage_info.offset = 0;
-    storage_info.range = wc->storage_size;
-
-    VkWriteDescriptorSet write_sets[2] = {0};
-
-    write_sets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write_sets[0].dstSet = wc->ds;
-    write_sets[0].dstBinding = 0;
-    write_sets[0].descriptorCount = 1;
-    write_sets[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    write_sets[0].pBufferInfo = &uniform_info;
-
-    write_sets[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write_sets[1].dstSet = wc->ds;
-    write_sets[1].dstBinding = 1;
-    write_sets[1].descriptorCount = 1;
-    write_sets[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    write_sets[1].pBufferInfo = &storage_info;
-
-    vkUpdateDescriptorSets(ctx->dev, 2, write_sets, 0, NULL);
 
     /*
      * Pipelines.
@@ -341,39 +300,120 @@ WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     layout_info.pSetLayouts = &wc->ds_layout;
     ASSERT_VK(vkCreatePipelineLayout(ctx->dev, &layout_info, NULL, &wc->pipeline_layout));
 
-    VkPipelineShaderStageCreateInfo grav_stage_info = {0};
-    grav_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    grav_stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    grav_stage_info.module = wc->grav_module;
-    grav_stage_info.pName = "main";
+    VkPipelineShaderStageCreateInfo stage_info = {0};
+    stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    stage_info.module = wc->shader;
+    stage_info.pName = "main";
 
-    VkPipelineShaderStageCreateInfo move_stage_info = {0};
-    move_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    move_stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    move_stage_info.module = wc->move_module;
-    move_stage_info.pName = "main";
-
-    VkComputePipelineCreateInfo pipeline_info[2] = {0};
-
-    pipeline_info[0].sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-    pipeline_info[0].stage = grav_stage_info;
-    pipeline_info[0].layout = wc->pipeline_layout;
-
-    pipeline_info[1].sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-    pipeline_info[1].stage = move_stage_info;
-    pipeline_info[1].layout = wc->pipeline_layout;
-
-    VkPipeline pipelines[2];
-    ASSERT_VK(vkCreateComputePipelines(ctx->dev, NULL, 2, pipeline_info, NULL, pipelines));
-
-    wc->grav_pipeline = pipelines[0];
-    wc->move_pipeline = pipelines[1];
+    VkComputePipelineCreateInfo pipeline_info = {0};
+    pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+    pipeline_info.stage = stage_info;
+    pipeline_info.layout = wc->pipeline_layout;
+    ASSERT_VK(vkCreateComputePipelines(ctx->dev, NULL, 1, &pipeline_info, NULL, &wc->pipeline));
 
     /*
-     * Command buffers.
+     * Command buffers and synchronization.
      */
 
     VulkanCtx_AllocCommandBuffers(ctx, 1, &wc->cmd_buf);
+
+    VkFenceCreateInfo fence_info = {0};
+    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    ASSERT_VK(vkCreateFence(ctx->dev, &fence_info, NULL, &wc->fence));
+
+    return wc;
+}
+
+static void WorldComp_Destroy(WorldComp *wc) {
+    if (wc != NULL) {
+        VkDevice dev = wc->ctx->dev;
+        vkDestroyFence(dev, wc->fence, NULL);
+
+        vkDestroyPipeline(dev, wc->pipeline, NULL);
+        vkDestroyPipelineLayout(dev, wc->pipeline_layout, NULL);
+
+        vkDestroyBuffer(dev, wc->storage[0], NULL);
+        vkDestroyBuffer(dev, wc->storage[1], NULL);
+        vkDestroyBuffer(dev, wc->uniform, NULL);
+        vkFreeMemory(dev, wc->memory, NULL);
+
+        vkDestroyDescriptorPool(dev, wc->ds_pool, NULL);
+        vkDestroyDescriptorSetLayout(dev, wc->ds_layout, NULL);
+
+        vkDestroyShaderModule(dev, wc->shader, NULL);
+        free(wc);
+    }
+}
+
+static void WorldComp_DoUpdate(WorldComp *wc) {
+    // rotate storage buffers
+    wc->new_old_idx = (wc->new_old_idx + 1) % 2;
+
+    /*
+     * Create descriptor set.
+     */
+
+    VkDescriptorSetAllocateInfo ds_alloc_info = {0};
+    ds_alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    ds_alloc_info.descriptorPool = wc->ds_pool;
+    ds_alloc_info.descriptorSetCount = 1;
+    ds_alloc_info.pSetLayouts = &wc->ds_layout;
+
+    VkDescriptorSet descriptor_set;
+    ASSERT_VK(vkAllocateDescriptorSets(wc->ctx->dev, &ds_alloc_info, &descriptor_set));
+
+    /*
+     * Update descriptor set.
+     */
+
+    VkBuffer new, old;
+    VkDeviceSize new_offset, old_offset;
+    GetStorage(wc, &new, &new_offset, &old, &old_offset);
+
+    VkDescriptorBufferInfo uniform_info = {0};
+    uniform_info.buffer = wc->uniform;
+    uniform_info.offset = 0;
+    uniform_info.range = wc->uniform_size;
+
+    VkDescriptorBufferInfo old_info = {0};
+    old_info.buffer = old;
+    old_info.offset = 0;
+    old_info.range = wc->storage_size;
+
+    VkDescriptorBufferInfo new_info = {0};
+    new_info.buffer = new;
+    new_info.offset = 0;
+    new_info.range = wc->storage_size;
+
+    VkWriteDescriptorSet write_sets[3] = {0};
+
+    write_sets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_sets[0].dstSet = descriptor_set;
+    write_sets[0].dstBinding = 0;
+    write_sets[0].descriptorCount = 1;
+    write_sets[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    write_sets[0].pBufferInfo = &uniform_info;
+
+    write_sets[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_sets[1].dstSet = descriptor_set;
+    write_sets[1].dstBinding = 1;
+    write_sets[1].descriptorCount = 1;
+    write_sets[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    write_sets[1].pBufferInfo = &old_info;
+
+    write_sets[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_sets[2].dstSet = descriptor_set;
+    write_sets[2].dstBinding = 2;
+    write_sets[2].descriptorCount = 1;
+    write_sets[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    write_sets[2].pBufferInfo = &new_info;
+
+    vkUpdateDescriptorSets(wc->ctx->dev, 3, write_sets, 0, NULL);
+
+    /*
+     * Record command buffer.
+     */
 
     VkCommandBufferBeginInfo cmd_begin_info = {0};
     cmd_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -383,40 +423,34 @@ WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     vkCmdBindDescriptorSets(wc->cmd_buf,
                             VK_PIPELINE_BIND_POINT_COMPUTE,
                             wc->pipeline_layout, 0,
-                            1, &wc->ds,
+                            1, &descriptor_set,
                             0, 0);
 
-    uint32_t group_count = data.size / LOCAL_SIZE_X;
-    if (data.size % LOCAL_SIZE_X != 0) group_count++;
+    uint32_t group_count = wc->world_size / LOCAL_SIZE_X;
+    if (wc->world_size % LOCAL_SIZE_X != 0) group_count++;
 
-    vkCmdBindPipeline(wc->cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, wc->grav_pipeline);
-    vkCmdDispatch(wc->cmd_buf, group_count, 1, 1);
-
-    VkBufferMemoryBarrier storage_barrier = {0};
-    storage_barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-    storage_barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
-    storage_barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-    storage_barrier.srcQueueFamilyIndex = ctx->queue_family_idx;
-    storage_barrier.dstQueueFamilyIndex = ctx->queue_family_idx;
-    storage_barrier.buffer = wc->storage;
-    storage_barrier.offset = 0;
-    storage_barrier.size = wc->storage_size;
-
-    vkCmdPipelineBarrier(wc->cmd_buf,
-                         VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                         VK_DEPENDENCY_BY_REGION_BIT,
-                         0, NULL,
-                         1, &storage_barrier,
-                         0, NULL);
-
-    vkCmdBindPipeline(wc->cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, wc->move_pipeline);
+    vkCmdBindPipeline(wc->cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, wc->pipeline);
     vkCmdDispatch(wc->cmd_buf, group_count, 1, 1);
 
     ASSERT_VK(vkEndCommandBuffer(wc->cmd_buf));
 
-    VkFenceCreateInfo fence_info = {0};
-    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    ASSERT_VK(vkCreateFence(ctx->dev, &fence_info, NULL, &wc->fence));
+    /*
+     * Submit command buffer.
+     */
 
-    return wc;
+    VkSubmitInfo submit_info = {0};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &wc->cmd_buf;
+
+    ASSERT_VK(vkQueueSubmit(wc->ctx->queue, 1, &submit_info, wc->fence));
+    ASSERT_VK(vkWaitForFences(wc->ctx->dev, 1, &wc->fence, VK_TRUE, UINT64_MAX));
+
+    /*
+     * Reset used resources.
+     */
+
+    ASSERT_VK(vkResetFences(wc->ctx->dev, 1, &wc->fence));
+    ASSERT_VK(vkResetCommandBuffer(wc->cmd_buf, 0));
+    ASSERT_VK(vkResetDescriptorPool(wc->ctx->dev, wc->ds_pool, 0));
 }
