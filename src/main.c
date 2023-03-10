@@ -117,16 +117,21 @@ int main(void) {
         }
 
         if (speed_idx == 0 && IsKeyDown(KEY_ENTER)) {
-            World_Update(world, STEPS[step_idx] * PHYS_STEP, approx);
+            float dt = STEPS[step_idx] * PHYS_STEP;
+            if (approx) {
+                World_UpdateBH(world, dt);
+            } else {
+                World_UpdateExact(world, dt);
+            }
         }
 
         // update stuff
         if (speed_idx > 0) {
-            double scale = SPEEDS[speed_idx] * STEPS[step_idx];
-            double step = PHYS_STEP * STEPS[step_idx];
+            float scale = SPEEDS[speed_idx] * STEPS[step_idx];
+            float step = PHYS_STEP * STEPS[step_idx];
 
             phys_time += scale * GetFrameTime();
-            double max_phys_time = MAX_PHYS_OVERWORK * scale * PHYS_STEP;
+            float max_phys_time = MAX_PHYS_OVERWORK * scale * PHYS_STEP;
 
             if (phys_time > max_phys_time) {
                 phys_time = max_phys_time;
@@ -139,7 +144,11 @@ int main(void) {
 
             while (phys_time >= step) {
                 phys_time -= step;
-                World_Update(world, (float)step, approx);
+                if (approx) {
+                    World_UpdateBH(world, step);
+                } else {
+                    World_UpdateExact(world, step);
+                }
             }
         }
 

@@ -1,11 +1,14 @@
 find_library(REQUIRED m)
 find_package(OpenMP REQUIRED)
 
-set(rag_lib_headers ${CMAKE_SOURCE_DIR}/include/rag.h)
+set(rag_lib_headers
+        ${CMAKE_SOURCE_DIR}/include/rag.h
+        ${CMAKE_SOURCE_DIR}/include/rag_vk.h)
 set(rag_lib_sources
         body.c
         fio.c
         quadtree.c
+        vk.c
         world.c)
 
 add_library(rag-lib STATIC ${rag_lib_sources} ${rag_lib_headers})

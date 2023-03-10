@@ -60,36 +60,17 @@ void World_Destroy(World *w) {
     }
 }
 
-void World_Update(World *w, float t, bool approx) {
+/* Move bodies. */
+static void World_Move(World *w, float dt) {
     Body *bodies = w->bodies;
-    QuadTree *tree = w->tree;
     int size = w->size;
-
-    if (approx) {
-        QuadTree_Update(tree, bodies, size);
-
-        #pragma omp parallel for firstprivate(bodies, tree, size) default(none)
-        for (int i = 0; i < size; i++) {
-            QuadTree_ApplyGrav(tree, &bodies[i]);
-        }
-    } else {
-        #pragma omp parallel for firstprivate(bodies, tree, size) default(none)
-        for (int i = 0; i < size; i++) {
-            for (int j = 0; j < size; j++) {
-                if (i != j) {
-                    Body_ApplyGrav(&bodies[i], bodies[j].p);
-                }
-            }
-        }
-    }
-
     float width = (float)w->width;
     float height = (float)w->height;
 
-    #pragma omp parallel for shared(bodies) firstprivate(size, t, width, height) default(none)
+    #pragma omp parallel for shared(bodies) firstprivate(size, dt, width, height) default(none)
     for (int i = 0; i < size; i++) {
         Body *b = &bodies[i];
-        Body_Move(b, t);
+        Body_Move(b, dt);
 
         Particle *p = &b->p;
         float min_x = p->radius;
@@ -108,6 +89,34 @@ void World_Update(World *w, float t, bool approx) {
             b->vel.x *= FRICTION_F;
         }
     }
+}
+
+void World_UpdateExact(World *w, float dt) {
+    Body *bodies = w->bodies;
+    int size = w->size;
+
+    #pragma omp parallel for firstprivate(bodies, size) default(none)
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            if (i != j) {
+                Body_ApplyGrav(&bodies[i], bodies[j].p);
+            }
+        }
+    }
+    World_Move(w, dt);
+}
+
+void World_UpdateBH(World *w, float dt) {
+    Body *bodies = w->bodies;
+    QuadTree *tree = w->tree;
+    int size = w->size;
+
+    QuadTree_Update(tree, bodies, size);
+    #pragma omp parallel for firstprivate(bodies, tree, size) default(none)
+    for (int i = 0; i < size; i++) {
+        QuadTree_ApplyGrav(tree, &bodies[i]);
+    }
+    World_Move(w, dt);
 }
 
 void World_GetBodies(const World *w, Body **bodies, int *size) {

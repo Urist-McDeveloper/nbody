@@ -67,8 +67,11 @@ World *World_Copy(const World *w);
 /* Free previously allocated W. */
 void World_Destroy(World *w);
 
-/* Update W assuming T seconds passed. */
-void World_Update(World *w, float t, bool approx);
+/* Update W using exact simulation. */
+void World_UpdateExact(World *w, float dt);
+
+/* Update W using Barnes-Hut simulation. */
+void World_UpdateBH(World *w, float dt);
 
 /* Get W's bodies and size into respective pointers. */
 void World_GetBodies(const World *w, Body **bodies, int *size);

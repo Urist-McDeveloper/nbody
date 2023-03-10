@@ -18,6 +18,11 @@
 /* Abort if COND is false. */
 #define ASSERT(COND)        assert_or_abort(COND, #COND, __FILE__, __LINE__, __FUNCTION__)
 
+#ifdef VULKAN_H_
+/* Assert that Vulkan library function returned VK_SUCCESS. */
+#define ASSERT_VK(X) ASSERT((X) == VK_SUCCESS)
+#endif
+
 static inline void assert_or_abort(bool cond, const char *expr, const char *file, int line, const char *func) {
     if (!cond) {
         if (errno != 0) {
