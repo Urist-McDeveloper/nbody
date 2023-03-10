@@ -1,13 +1,22 @@
+#include <rag.h>
 #include <rag_vk.h>
+
+#include <string.h> // memcpy
 
 #include "lib/fio.h"
 #include "lib/util.h"
 
 #define LOCAL_SIZE_X 16
 
+typedef struct WorldData {
+    uint32_t size;
+    float dt;
+    V2 min;
+    V2 max;
+} WorldData;
+
 /* Simulation pipeline-related stuff. */
 typedef struct BodyCompute {
-    // Context
     const VulkanCtx *ctx;
     // Shaders
     VkShaderModule grav_module;
@@ -20,19 +29,24 @@ typedef struct BodyCompute {
     VkDeviceMemory memory;
     VkBuffer uniform;
     VkBuffer storage;
+    VkDeviceSize uniform_size;
+    VkDeviceSize storage_size;
     // Pipelines
     VkPipelineLayout pipeline_layout;
     VkPipeline grav_pipeline;
     VkPipeline move_pipeline;
     // Command buffers
     VkCommandBuffer cmd_buf;
+    VkFence fence;
 } BodyCompute;
 
 /*
- * Initialize BodyCompute.
+ * Initialize necessary Vulkan stuff and setup buffers with BODIES and WORLD_DATA.
+ * Note that number of bodies and size of the world cannot be changed after initialization.
+ *
  * CTX must remain a valid pointer to initialized VulkanCtx until BCP is de-initialized.
  */
-void BodyCompute_Init(BodyCompute *bc, const VulkanCtx *ctx, uint32_t world_size) {
+void BodyCompute_Init(BodyCompute *bc, const VulkanCtx *ctx, Body *bodies, WorldData world_data) {
     bc->ctx = ctx;
 
     /*
@@ -46,15 +60,11 @@ void BodyCompute_Init(BodyCompute *bc, const VulkanCtx *ctx, uint32_t world_size
      * Descriptor set layout.
      */
 
-    VkDescriptorSetLayoutBinding bindings[2];
-
-    bindings[0] = (VkDescriptorSetLayoutBinding){0};
+    VkDescriptorSetLayoutBinding bindings[2] = {0};
     bindings[0].binding = 0;
     bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     bindings[0].descriptorCount = 1;
     bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-    bindings[1] = (VkDescriptorSetLayoutBinding){0};
     bindings[1].binding = 1;
     bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     bindings[1].descriptorCount = 1;
@@ -70,13 +80,9 @@ void BodyCompute_Init(BodyCompute *bc, const VulkanCtx *ctx, uint32_t world_size
      * Descriptor pool.
      */
 
-    VkDescriptorPoolSize ds_pool_size[2];
-
-    ds_pool_size[0] = (VkDescriptorPoolSize){0};
+    VkDescriptorPoolSize ds_pool_size[2] = {0};
     ds_pool_size[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     ds_pool_size[0].descriptorCount = 1;
-
-    ds_pool_size[1] = (VkDescriptorPoolSize){0};
     ds_pool_size[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     ds_pool_size[1].descriptorCount = 1;
 
@@ -102,15 +108,59 @@ void BodyCompute_Init(BodyCompute *bc, const VulkanCtx *ctx, uint32_t world_size
      * Memory buffers.
      */
 
-    VkDeviceSize uniform_size = 16;
-    VkDeviceSize storage_size = world_size * sizeof(Body);
+    bc->uniform_size = VK_SIZE_OF_16(WorldData);
+    bc->storage_size = world_data.size * sizeof(Body);
+    VkDeviceSize memory_size = bc->uniform_size + bc->storage_size;
 
-    VulkanCtx_AllocMemory(ctx, &bc->memory, uniform_size + storage_size, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-    VulkanCtx_CreateBuffer(ctx, &bc->uniform, uniform_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
-    VulkanCtx_CreateBuffer(ctx, &bc->storage, storage_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
+    bc->memory = VulkanCtx_AllocMemory(ctx, memory_size, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    bc->uniform = VulkanCtx_CreateBuffer(ctx, bc->uniform_size, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT);
+    bc->storage = VulkanCtx_CreateBuffer(ctx, bc->storage_size, VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
 
     vkBindBufferMemory(ctx->dev, bc->uniform, bc->memory, 0);
-    vkBindBufferMemory(ctx->dev, bc->storage, bc->memory, uniform_size);
+    vkBindBufferMemory(ctx->dev, bc->storage, bc->memory, bc->uniform_size);
+
+    /*
+     * Write initial state into buffers.
+     */
+
+    void *mapped;
+    ASSERT_VK(vkMapMemory(ctx->dev, bc->memory, 0, memory_size, 0, &mapped));
+
+    memcpy(mapped, &world_data, sizeof(WorldData));
+    memcpy((char *)mapped + bc->uniform_size, bodies, bc->storage_size);
+    vkUnmapMemory(ctx->dev, bc->memory);
+
+    /*
+     * Bind buffers to descriptor sets.
+     */
+
+    VkDescriptorBufferInfo uniform_info = {0};
+    uniform_info.buffer = bc->uniform;
+    uniform_info.offset = 0;
+    uniform_info.range = bc->uniform_size;
+
+    VkDescriptorBufferInfo storage_info = {0};
+    storage_info.buffer = bc->storage;
+    storage_info.offset = 0;
+    storage_info.range = bc->storage_size;
+
+    VkWriteDescriptorSet write_sets[2] = {0};
+
+    write_sets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_sets[0].dstSet = bc->ds;
+    write_sets[0].dstBinding = 0;
+    write_sets[0].descriptorCount = 1;
+    write_sets[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    write_sets[0].pBufferInfo = &uniform_info;
+
+    write_sets[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_sets[1].dstSet = bc->ds;
+    write_sets[1].dstBinding = 1;
+    write_sets[1].descriptorCount = 1;
+    write_sets[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    write_sets[1].pBufferInfo = &storage_info;
+
+    vkUpdateDescriptorSets(ctx->dev, 2, write_sets, 0, NULL);
 
     /*
      * Pipelines.
@@ -134,14 +184,10 @@ void BodyCompute_Init(BodyCompute *bc, const VulkanCtx *ctx, uint32_t world_size
     move_stage_info.module = bc->move_module;
     move_stage_info.pName = "main";
 
-    VkComputePipelineCreateInfo pipeline_info[2];
-
-    pipeline_info[0] = (VkComputePipelineCreateInfo){0};
+    VkComputePipelineCreateInfo pipeline_info[2] = {0};
     pipeline_info[0].sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     pipeline_info[0].stage = grav_stage_info;
     pipeline_info[0].layout = bc->pipeline_layout;
-
-    pipeline_info[1] = (VkComputePipelineCreateInfo){0};
     pipeline_info[1].sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     pipeline_info[1].stage = move_stage_info;
     pipeline_info[1].layout = bc->pipeline_layout;
@@ -153,7 +199,7 @@ void BodyCompute_Init(BodyCompute *bc, const VulkanCtx *ctx, uint32_t world_size
     bc->move_pipeline = pipelines[1];
 
     /*
-     * Command buffer.
+     * Command buffers.
      */
 
     VulkanCtx_AllocCommandBuffers(ctx, 1, &bc->cmd_buf);
@@ -169,6 +215,12 @@ void BodyCompute_Init(BodyCompute *bc, const VulkanCtx *ctx, uint32_t world_size
                             1, &bc->ds,
                             0, 0);
 
+    uint32_t group_count = world_data.size / LOCAL_SIZE_X;
+    if (world_data.size % LOCAL_SIZE_X != 0) group_count++;
+
+    vkCmdBindPipeline(bc->cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, bc->grav_pipeline);
+    vkCmdDispatch(bc->cmd_buf, group_count, 1, 1);
+
     VkBufferMemoryBarrier storage_barrier = {0};
     storage_barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
     storage_barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
@@ -177,13 +229,7 @@ void BodyCompute_Init(BodyCompute *bc, const VulkanCtx *ctx, uint32_t world_size
     storage_barrier.dstQueueFamilyIndex = ctx->queue_family_idx;
     storage_barrier.buffer = bc->storage;
     storage_barrier.offset = 0;
-    storage_barrier.size = storage_size;
-
-    uint32_t group_count = world_size / LOCAL_SIZE_X;
-    if (world_size % LOCAL_SIZE_X != 0) group_count++;
-
-    vkCmdBindPipeline(bc->cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, bc->grav_pipeline);
-    vkCmdDispatch(bc->cmd_buf, group_count, 1, 1);
+    storage_barrier.size = bc->storage_size;
 
     vkCmdPipelineBarrier(bc->cmd_buf,
                          VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
@@ -196,11 +242,20 @@ void BodyCompute_Init(BodyCompute *bc, const VulkanCtx *ctx, uint32_t world_size
     vkCmdDispatch(bc->cmd_buf, group_count, 1, 1);
 
     ASSERT_VK(vkEndCommandBuffer(bc->cmd_buf));
+
+    /*
+     * Fences.
+     */
+
+    VkFenceCreateInfo fence_info = {0};
+    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    ASSERT_VK(vkCreateFence(ctx->dev, &fence_info, NULL, &bc->fence));
 }
 
 /* De-initialize BodyCompute. */
 void BodyCompute_DeInit(BodyCompute *bc) {
     VkDevice dev = bc->ctx->dev;
+    vkDestroyFence(dev, bc->fence, NULL);
 
     vkDestroyPipeline(dev, bc->move_pipeline, NULL);
     vkDestroyPipeline(dev, bc->grav_pipeline, NULL);
@@ -217,25 +272,67 @@ void BodyCompute_DeInit(BodyCompute *bc) {
     vkDestroyShaderModule(dev, bc->grav_module, NULL);
 }
 
-#define WORLD_SIZE 100
+/* Update world and copy results into BODIES. */
+void BodyCompute_DoUpdate(BodyCompute *bc, Body *bodies) {
+    VkDevice dev = bc->ctx->dev;
+
+    VkSubmitInfo submit_info = {0};
+    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &bc->cmd_buf;
+
+    ASSERT_VK(vkQueueSubmit(bc->ctx->queue, 1, &submit_info, bc->fence));
+    ASSERT_VK(vkWaitForFences(dev, 1, &bc->fence, VK_TRUE, UINT64_MAX));
+    ASSERT_VK(vkResetFences(dev, 1, &bc->fence));
+
+    void *mapped;
+    ASSERT_VK(vkMapMemory(dev, bc->memory, bc->uniform_size, bc->storage_size, 0, &mapped));
+
+    memcpy(bodies, mapped, bc->storage_size);
+    vkUnmapMemory(dev, bc->memory);
+}
+
+#define WORLD_SIZE      4
+#define WORLD_WIDTH     100
+#define WORLD_HEIGHT    100
+
+#define PART_FROM(X, Y) (Particle){ .pos = V2_From(X, Y), .mass = 10.0, .radius = 0.1 }
+#define BODY_FROM(X, Y) (Body){ .p = PART_FROM(X, Y), .acc = V2_ZERO, .vel = V2_ZERO }
+
+void ShowBodies(const Body *bodies) {
+    printf("\n");
+    for (int i = 0; i < WORLD_SIZE; i++) {
+        Body b = bodies[i];
+        printf("pos = (%6.2f, %6.2f)\tvel = (%6.2f, %6.2f)\n",
+               b.p.pos.x, b.p.pos.y, b.vel.x, b.vel.y);
+    }
+}
 
 int main(void) {
     VulkanCtx ctx;
     VulkanCtx_Init(&ctx, false);
 
+    Body bodies[] = {
+            BODY_FROM(10, 10),
+            BODY_FROM(10, 90),
+            BODY_FROM(90, 10),
+            BODY_FROM(90, 90),
+    };
+
     BodyCompute bc;
-    BodyCompute_Init(&bc, &ctx, WORLD_SIZE);
+    BodyCompute_Init(&bc, &ctx, bodies, (WorldData){
+            .size = WORLD_SIZE,
+            .dt = 1.0f,
+            .min = V2_ZERO,
+            .max = V2_From(WORLD_WIDTH, WORLD_HEIGHT),
+    });
 
-    Body *bodies;
-    int size;
-    World *w = World_Create(WORLD_SIZE, 800, 600);
-    World_GetBodies(w, &bodies, &size);
+    ShowBodies(bodies);
+    BodyCompute_DoUpdate(&bc, bodies);
+    ShowBodies(bodies);
+    BodyCompute_DoUpdate(&bc, bodies);
+    ShowBodies(bodies);
 
-    // TODO: stuff
-    printf("Press ENTER to continue\n");
-    fgetc(stdin);
-
-    World_Destroy(w);
     BodyCompute_DeInit(&bc);
     VulkanCtx_DeInit(&ctx);
 }

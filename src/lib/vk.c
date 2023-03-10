@@ -169,8 +169,7 @@ void VulkanCtx_AllocCommandBuffers(const VulkanCtx *ctx, uint32_t count, VkComma
     ASSERT_VK(vkAllocateCommandBuffers(ctx->dev, &allocate_info, buffers));
 }
 
-void VulkanCtx_AllocMemory(const VulkanCtx *ctx, VkDeviceMemory *mem,
-                           VkDeviceSize size, VkMemoryPropertyFlags flags) {
+VkDeviceMemory VulkanCtx_AllocMemory(const VulkanCtx *ctx, VkDeviceSize size, VkMemoryPropertyFlags flags) {
     ASSERT(flags != 0);
 
     VkPhysicalDeviceMemoryProperties props;
@@ -189,10 +188,13 @@ void VulkanCtx_AllocMemory(const VulkanCtx *ctx, VkDeviceMemory *mem,
     allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
     allocate_info.allocationSize = size;
     allocate_info.memoryTypeIndex = mem_type_idx;
-    ASSERT_VK(vkAllocateMemory(ctx->dev, &allocate_info, NULL, mem));
+
+    VkDeviceMemory memory;
+    ASSERT_VK(vkAllocateMemory(ctx->dev, &allocate_info, NULL, &memory));
+    return memory;
 }
 
-void VulkanCtx_CreateBuffer(const VulkanCtx *ctx, VkBuffer *buf, VkDeviceSize size, VkBufferUsageFlags usage) {
+VkBuffer VulkanCtx_CreateBuffer(const VulkanCtx *ctx, VkDeviceSize size, VkBufferUsageFlags usage) {
     VkBufferCreateInfo create_info = {0};
     create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     create_info.size = size;
@@ -200,5 +202,8 @@ void VulkanCtx_CreateBuffer(const VulkanCtx *ctx, VkBuffer *buf, VkDeviceSize si
     create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     create_info.queueFamilyIndexCount = 1;
     create_info.pQueueFamilyIndices = &ctx->queue_family_idx;
-    ASSERT_VK(vkCreateBuffer(ctx->dev, &create_info, NULL, buf));
+
+    VkBuffer buffer;
+    ASSERT_VK(vkCreateBuffer(ctx->dev, &create_info, NULL, &buffer));
+    return buffer;
 }

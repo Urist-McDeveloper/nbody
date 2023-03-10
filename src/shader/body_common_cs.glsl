@@ -10,15 +10,15 @@ struct Body {
     vec2 acc;
 };
 
-layout (std140, binding = 0) readonly uniform UBO {
+layout (std140, binding = 0) readonly uniform WorldData {
     uint size;
     float dt;
     vec2 min;
     vec2 max;
-} ubo;
+} world;
 
-layout (std140, binding = 1) buffer SBO {
+layout (std140, binding = 1) buffer FrameData {
     Body bodies[];
-} sbo;
+} frame;
 
 layout (local_size_x = 16, local_size_y = 1, local_size_z = 1) in;

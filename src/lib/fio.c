@@ -9,13 +9,15 @@ void *FIO_ReadFile(const char *path, size_t *size) {
 
     size_t buf_len = 0;
     size_t buf_size = READ_BUFFER_INC;
-    unsigned char *buf = ALLOC_N(buf_size,unsigned char);
+
+    char *buf = ALLOC_N(buf_size, char);
+    ASSERT(buf != NULL);
 
     size_t req, got;
     do {
         if (buf_len >= buf_size) {
             buf_size += READ_BUFFER_INC;
-            buf = REALLOC(buf, buf_size, unsigned char);
+            buf = REALLOC(buf, buf_size, char);
             ASSERT(buf != NULL);
         }
 

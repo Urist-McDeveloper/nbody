@@ -4,9 +4,9 @@
 
 void main() {
     uint i = gl_GlobalInvocationID.x;
-    if (i >= ubo.size) return;
+    if (i >= world.size) return;
 
-    sbo.bodies[i].vel += ubo.dt * sbo.bodies[i].acc;
-    sbo.bodies[i].p.pos += ubo.dt * sbo.bodies[i].vel;
-    sbo.bodies[i].acc = vec2(0);
+    frame.bodies[i].vel += world.dt * frame.bodies[i].acc;
+    frame.bodies[i].p.pos += world.dt * frame.bodies[i].vel;
+    frame.bodies[i].acc = vec2(0);
 }

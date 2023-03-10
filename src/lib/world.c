@@ -31,6 +31,8 @@ World *World_Create(int size, int width, int height) {
 
     for (int i = 0; i < size; i++) {
         Particle_InitRand(&(bodies + i)->p, min, max);
+        bodies[i].vel = V2_ZERO;
+        bodies[i].acc = V2_ZERO;
     }
 
     *world = (World){

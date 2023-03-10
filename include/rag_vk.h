@@ -6,6 +6,9 @@
 #include <stdbool.h>
 #include <vulkan/vulkan.h>
 
+/* 16-byte aligned sizeof. */
+#define VK_SIZE_OF_16(T) (sizeof(T) + (sizeof(T) % 16))
+
 /* Vulkan context. */
 typedef struct VulkanCtx {
     VkInstance instance;
@@ -29,11 +32,10 @@ VkShaderModule VulkanCtx_LoadShader(const VulkanCtx *ctx, const char *path);
 void VulkanCtx_AllocCommandBuffers(const VulkanCtx *ctx, uint32_t count, VkCommandBuffer *buffers);
 
 /* Allocate device memory. FLAGS must not be 0. */
-void VulkanCtx_AllocMemory(const VulkanCtx *ctx, VkDeviceMemory *mem,
-                           VkDeviceSize size, VkMemoryPropertyFlags flags);
+VkDeviceMemory VulkanCtx_AllocMemory(const VulkanCtx *ctx, VkDeviceSize size, VkMemoryPropertyFlags flags);
 
 /* Create exclusive buffer. */
-void VulkanCtx_CreateBuffer(const VulkanCtx *ctx, VkBuffer *buf, VkDeviceSize size, VkBufferUsageFlags usage);
+VkBuffer VulkanCtx_CreateBuffer(const VulkanCtx *ctx, VkDeviceSize size, VkBufferUsageFlags usage);
 
 /*
  * Setup Vulkan resources for W. Updates will use constant time delta DT.
