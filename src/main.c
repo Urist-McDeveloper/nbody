@@ -41,32 +41,6 @@ static void DrawBodies(World *world) {
     }
 }
 
-#define DrawLineD(X0, Y0, X1, Y1) DrawLine(dtoi(X0), dtoi(Y0), dtoi(X1), dtoi(Y1), BLUE)
-
-static void DrawQuad(BHQuad q) {
-    for (int i = 0; i < 4; i++) {
-        BHNode n = BHQuad_GetNode(q, i);
-
-        // ignore empty nodes
-        if (BHNode_IsEmpty(n)) continue;
-
-        BHQuad inner = BHNode_GetQuad(n);
-        if (inner != NULL) {
-            // draw inner q
-            DrawQuad(inner);
-        } else {
-            // draw bounding box
-            V2 from, to;
-            BHNode_GetBox(n, &from, &to);
-
-            DrawLineD(from.x, from.y, to.x, from.y);    // top
-            DrawLineD(from.x, from.y, from.x, to.y);    // left
-            DrawLineD(from.x, to.y, to.x, to.y);        // bottom
-            DrawLineD(to.x, from.y, to.x, to.y);        // right
-        }
-    }
-}
-
 int main(void) {
     srand(time(NULL));
 
@@ -79,7 +53,6 @@ int main(void) {
     int speed_idx = 1;
     int step_idx = DEF_STEP_IDX;
 
-    bool approx = false;
     double phys_time = 0.0;
     int skipped_phys_frames = 0;
 
@@ -88,10 +61,6 @@ int main(void) {
         if (IsKeyPressed(KEY_Q)) {
             break;
         }
-        if (IsKeyPressed(KEY_TAB)) {
-            approx = !approx;
-        }
-
         if (IsKeyPressed(KEY_LEFT) && speed_idx > 0) {
             speed_idx--;
         }
@@ -118,11 +87,7 @@ int main(void) {
 
         if (speed_idx == 0 && IsKeyDown(KEY_ENTER)) {
             float dt = STEPS[step_idx] * PHYS_STEP;
-            if (approx) {
-                World_UpdateBH(world, dt);
-            } else {
-                World_UpdateExact(world, dt);
-            }
+            World_Update(world, dt);
         }
 
         // update stuff
@@ -144,11 +109,7 @@ int main(void) {
 
             while (phys_time >= step) {
                 phys_time -= step;
-                if (approx) {
-                    World_UpdateBH(world, step);
-                } else {
-                    World_UpdateExact(world, step);
-                }
+                World_Update(world, step);
             }
         }
 
@@ -157,18 +118,12 @@ int main(void) {
         ClearBackground(BLACK);
 
         DrawBodies(world);
-        if (speed_idx == 0 && approx) {
-            DrawQuad(World_GetQuad(world));
-        }
-
-        DrawText(approx ? "Barnes-Hut simulation" : "Exact simulation", 10, 10, 20, GREEN);
+        DrawFPS(10, 10);
         DrawText(TextFormat("step x%.2f  speed x%d", STEPS[step_idx], (int)SPEEDS[speed_idx]), 10, 30, 20, GREEN);
-        DrawFPS(10, 50);
 
         if (skipped_phys_frames > MAX_PHYS_OVERWORK) {
-            DrawText("SKIPPING FRAMES", 10, 70, 20, RED);
+            DrawText("SKIPPING FRAMES", 10, 50, 20, RED);
         }
-
         EndDrawing();
     }
 

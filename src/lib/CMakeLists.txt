@@ -7,7 +7,6 @@ set(rag_lib_headers
 set(rag_lib_sources
         body.c
         fio.c
-        quadtree.c
         vk.c
         world.c)
 

@@ -3,7 +3,6 @@
 #include <stdlib.h>
 
 #include "body.h"
-#include "quadtree.h"
 #include "util.h"
 
 /* How velocity changes along the axis of bounce. */
@@ -14,7 +13,6 @@
 
 struct World {
     Body *bodies;
-    QuadTree *tree;
     int size;
     int width;
     int height;
@@ -23,7 +21,6 @@ struct World {
 World *World_Create(int size, int width, int height) {
     V2 min = V2_ZERO;
     V2 max = V2_From(width, height);
-    QuadTree *tree = QuadTree_Create(min, max);
 
     World *world = ALLOC(World);
     Body *bodies = ALLOC_N(size, Body);
@@ -37,7 +34,6 @@ World *World_Create(int size, int width, int height) {
 
     *world = (World){
             .bodies = bodies,
-            .tree = tree,
             .size = size,
             .width = width,
             .height = height,
@@ -45,27 +41,26 @@ World *World_Create(int size, int width, int height) {
     return world;
 }
 
-World *World_Copy(const World *w) {
-    World *copy = World_Create(w->size, w->width, w->height);
-    for (int i = 0; i < w->size; i++) {
-        copy->bodies[i] = w->bodies[i];
-    }
-
-    return copy;
-}
-
 void World_Destroy(World *w) {
     if (w != NULL) {
-        QuadTree_Destroy(w->tree);
         free(w->bodies);
         free(w);
     }
 }
 
-/* Move bodies. */
-static void World_Move(World *w, float dt) {
+void World_Update(World *w, float dt) {
     Body *bodies = w->bodies;
     int size = w->size;
+
+    #pragma omp parallel for firstprivate(bodies, size) default(none)
+    for (int i = 0; i < size; i++) {
+        for (int j = 0; j < size; j++) {
+            if (i != j) {
+                Body_ApplyGrav(&bodies[i], bodies[j].p);
+            }
+        }
+    }
+
     float width = (float)w->width;
     float height = (float)w->height;
 
@@ -103,39 +98,7 @@ static void World_Move(World *w, float dt) {
     }
 }
 
-void World_UpdateExact(World *w, float dt) {
-    Body *bodies = w->bodies;
-    int size = w->size;
-
-    #pragma omp parallel for firstprivate(bodies, size) default(none)
-    for (int i = 0; i < size; i++) {
-        for (int j = 0; j < size; j++) {
-            if (i != j) {
-                Body_ApplyGrav(&bodies[i], bodies[j].p);
-            }
-        }
-    }
-    World_Move(w, dt);
-}
-
-void World_UpdateBH(World *w, float dt) {
-    Body *bodies = w->bodies;
-    QuadTree *tree = w->tree;
-    int size = w->size;
-
-    QuadTree_Update(tree, bodies, size);
-    #pragma omp parallel for firstprivate(bodies, tree, size) default(none)
-    for (int i = 0; i < size; i++) {
-        QuadTree_ApplyGrav(tree, &bodies[i]);
-    }
-    World_Move(w, dt);
-}
-
 void World_GetBodies(const World *w, Body **bodies, int *size) {
     *bodies = w->bodies;
     *size = w->size;
-}
-
-BHQuad World_GetQuad(const World *w) {
-    return QuadTree_GetQuad(w->tree);
 }

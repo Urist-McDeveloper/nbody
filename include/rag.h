@@ -61,44 +61,13 @@ typedef struct World World;
 /* Allocate World with given SIZE, WIDTH and HEIGHT. */
 World *World_Create(int size, int width, int height);
 
-/* Create an (almost) identical copy of W. */
-World *World_Copy(const World *w);
-
 /* Free previously allocated W. */
 void World_Destroy(World *w);
 
 /* Update W using exact simulation. */
-void World_UpdateExact(World *w, float dt);
-
-/* Update W using Barnes-Hut simulation. */
-void World_UpdateBH(World *w, float dt);
+void World_Update(World *w, float dt);
 
 /* Get W's bodies and size into respective pointers. */
 void World_GetBodies(const World *w, Body **bodies, int *size);
-
-
-/* A handle for quad of nodes (Barnes-Hut simulation). */
-typedef const void *BHQuad;
-
-/* A handle for a single node (Barnes-Hut simulation). */
-typedef const void *BHNode;
-
-/* Get top-level quad of W.  */
-BHQuad World_GetQuad(const World *w);
-
-/* Get Nth node (0 <= N < 4). */
-BHNode BHQuad_GetNode(BHQuad q, int n);
-
-/* Check whether N can be split into a quad.  */
-bool BHNode_HasQuad(BHNode n);
-
-/* Split N into a quad. Will return NULL if QuadNode_HasInnerQuad(N) is false. */
-BHQuad BHNode_GetQuad(BHNode n);
-
-/* Check whether N is empty (has no bodies in it). */
-bool BHNode_IsEmpty(BHNode n);
-
-/* Get bounding box of N. */
-void BHNode_GetBox(BHNode n, V2 *from, V2 *to);
 
 #endif //RAG_H

@@ -8,6 +8,7 @@
 
 #define LOCAL_SIZE_X 16
 
+/* Constant data given to shaders as a uniform buffer. */
 typedef struct WorldData {
     uint32_t size;
     float dt;
