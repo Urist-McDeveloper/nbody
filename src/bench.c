@@ -4,6 +4,7 @@
 #include <time.h>
 
 #include <rag.h>
+#include <rag_vk.h>
 
 #define US_PER_S    (1000 * 1000)
 #define NS_PER_US   (1000)
@@ -31,9 +32,11 @@ static int int64_t_cmp(const void *a_ptr, const void *b_ptr) {
 
 static int64_t dt[BENCH_ITER];
 
-static int64_t bench(World *w) {
+typedef void bench_f(World *);
+
+static int64_t bench(World *w, bench_f *update) {
     for (int i = 0; i < WARMUP_ITER; i++) {
-        World_Update(w, UPDATE_STEP);
+        update(w);
     }
 
     struct timespec start;
@@ -41,7 +44,7 @@ static int64_t bench(World *w) {
 
     for (int i = 0; i < BENCH_ITER; i++) {
         now(&start);
-        World_Update(w, UPDATE_STEP);
+        update(w);
         now(&end);
 
         dt[i] = diff_us(&start, &end);
@@ -57,16 +60,35 @@ static int64_t bench(World *w) {
 #endif
 }
 
-static const int WS[] = {10, 100, 250, 500, 800, 1200};
+static void update_cpu(World *w) {
+    World_Update(w, UPDATE_STEP);
+}
+
+static void update_gpu(World *w) {
+    World_UpdateVK(w);
+}
+
+static const int WS[] = {10, 100, 250, 500, 800, 1200, 2000};
 static const int WS_LEN = sizeof(WS) / sizeof(WS[0]);
 
 int main(void) {
+    VulkanCtx ctx;
+    VulkanCtx_Init(&ctx);
+
     srand(11037);
-    printf("\t   N\t Time\n");
+    printf("\t   N\t  CPU\t  GPU\n");
 
     for (int i = 0; i < WS_LEN; i++) {
-        World *w = World_Create(WS[i], V2_ZERO, V2_From(WORLD_WIDTH, WORLD_HEIGHT));
-        printf("\t%4d\t%5ld\n", WS[i], bench(w));
-        World_Destroy(w);
+        World *cpu_w = World_Create(WS[i], V2_ZERO, V2_From(WORLD_WIDTH, WORLD_HEIGHT));
+        World *gpu_w = World_Create(WS[i], V2_ZERO, V2_From(WORLD_WIDTH, WORLD_HEIGHT));
+        World_InitVK(gpu_w, &ctx, UPDATE_STEP);
+
+        int64_t cpu = bench(cpu_w, &update_cpu);
+        int64_t gpu = bench(gpu_w, &update_gpu);
+        printf("\t%4d\t%5ld\t%5ld\n", WS[i], cpu, gpu);
+
+        World_Destroy(cpu_w);
+        World_Destroy(gpu_w);
     }
+    VulkanCtx_DeInit(&ctx);
 }

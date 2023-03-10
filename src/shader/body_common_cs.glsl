@@ -13,8 +13,6 @@ struct Body {
 layout (std140, binding = 0) readonly uniform WorldData {
     uint size;
     float dt;
-    vec2 min;
-    vec2 max;
 } world;
 
 layout (std140, binding = 1) buffer FrameData {

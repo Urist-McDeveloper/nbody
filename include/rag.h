@@ -68,6 +68,6 @@ void World_Destroy(World *w);
 void World_Update(World *w, float dt);
 
 /* Get W's bodies and size into respective pointers. */
-void World_GetBodies(const World *w, Body **bodies, int *size);
+void World_GetBodies(World *w, Body **bodies, int *size);
 
 #endif //RAG_H

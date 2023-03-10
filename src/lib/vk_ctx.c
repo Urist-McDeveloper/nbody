@@ -81,7 +81,7 @@ static void InitPDev(VkPhysicalDevice *pdev, VkInstance instance) {
 }
 
 /* Returns selected queue family index. */
-static uint32_t InitDev(VkDevice *dev, VkPhysicalDevice pdev, bool need_gfx_queue) {
+static uint32_t InitDev(VkDevice *dev, VkPhysicalDevice pdev) {
     uint32_t queue_count;
     vkGetPhysicalDeviceQueueFamilyProperties(pdev, &queue_count, NULL);
     ASSERT(queue_count > 0);
@@ -89,22 +89,23 @@ static uint32_t InitDev(VkDevice *dev, VkPhysicalDevice pdev, bool need_gfx_queu
     VkQueueFamilyProperties *family_props = ALLOC_N(queue_count, VkQueueFamilyProperties);
     vkGetPhysicalDeviceQueueFamilyProperties(pdev, &queue_count, family_props);
 
-    uint32_t index = UINT32_MAX;
+    uint32_t qf_idx = UINT32_MAX;
     for (uint32_t i = 0; i < queue_count; i++) {
         bool g = family_props[i].queueFlags & VK_QUEUE_GRAPHICS_BIT;
         bool c = family_props[i].queueFlags & VK_QUEUE_COMPUTE_BIT;
-        if ((!need_gfx_queue || g) && c) {
-            printf("Using queue family #%u (count = %u)\n", i, family_props[i].queueCount);
-            index = i;
-            break;
+
+        // prefer compute only queue family
+        if (c && (!g || qf_idx == UINT32_MAX)) {
+            qf_idx = i;
         }
     }
-    ASSERT(index != UINT32_MAX);
+    ASSERT(qf_idx != UINT32_MAX);
+    printf("Using queue family #%u (count = %u)\n", qf_idx, family_props[qf_idx].queueCount);
     free(family_props);
 
     VkDeviceQueueCreateInfo queue_create_info = {0};
     queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queue_create_info.queueFamilyIndex = index;
+    queue_create_info.queueFamilyIndex = qf_idx;
     queue_create_info.queueCount = 1;
 
     const float priority = 1.f;
@@ -120,14 +121,15 @@ static uint32_t InitDev(VkDevice *dev, VkPhysicalDevice pdev, bool need_gfx_queu
     device_create_info.ppEnabledLayerNames = DBG_LAYERS;
 #endif
     ASSERT_VK(vkCreateDevice(pdev, &device_create_info, NULL, dev));
-    return index;
+    return qf_idx;
 }
 
-void VulkanCtx_Init(VulkanCtx *ctx, bool need_gfx_queue) {
+/* Initialize CTX. */
+void VulkanCtx_Init(VulkanCtx *ctx) {
     InitInstance(&ctx->instance);
     InitPDev(&ctx->pdev, ctx->instance);
 
-    ctx->queue_family_idx = InitDev(&ctx->dev, ctx->pdev, need_gfx_queue);
+    ctx->queue_family_idx = InitDev(&ctx->dev, ctx->pdev);
     vkGetDeviceQueue(ctx->dev, ctx->queue_family_idx, 0, &ctx->queue);
 
     VkCommandPoolCreateInfo pool_create_info = {0};
@@ -137,12 +139,14 @@ void VulkanCtx_Init(VulkanCtx *ctx, bool need_gfx_queue) {
     ASSERT_VK(vkCreateCommandPool(ctx->dev, &pool_create_info, NULL, &ctx->cmd_pool));
 }
 
+/* De-initialize VulkanCtx. */
 void VulkanCtx_DeInit(VulkanCtx *ctx) {
     vkDestroyCommandPool(ctx->dev, ctx->cmd_pool, NULL);
     vkDestroyDevice(ctx->dev, NULL);
     vkDestroyInstance(ctx->instance, NULL);
 }
 
+/* Load shader module from PATH. */
 VkShaderModule VulkanCtx_LoadShader(const VulkanCtx *ctx, const char *path) {
     size_t buf_size;
     uint32_t *buf = FIO_ReadFile(path, &buf_size);
@@ -159,6 +163,7 @@ VkShaderModule VulkanCtx_LoadShader(const VulkanCtx *ctx, const char *path) {
     return module;
 }
 
+/* Allocate primary command buffers. */
 void VulkanCtx_AllocCommandBuffers(const VulkanCtx *ctx, uint32_t count, VkCommandBuffer *buffers) {
     VkCommandBufferAllocateInfo allocate_info = {0};
     allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -168,6 +173,7 @@ void VulkanCtx_AllocCommandBuffers(const VulkanCtx *ctx, uint32_t count, VkComma
     ASSERT_VK(vkAllocateCommandBuffers(ctx->dev, &allocate_info, buffers));
 }
 
+/* Allocate device memory. FLAGS must not be 0. */
 VkDeviceMemory VulkanCtx_AllocMemory(const VulkanCtx *ctx, VkDeviceSize size, VkMemoryPropertyFlags flags) {
     ASSERT(flags != 0);
 
@@ -193,6 +199,7 @@ VkDeviceMemory VulkanCtx_AllocMemory(const VulkanCtx *ctx, VkDeviceSize size, Vk
     return memory;
 }
 
+/* Create exclusive buffer. */
 VkBuffer VulkanCtx_CreateBuffer(const VulkanCtx *ctx, VkDeviceSize size, VkBufferUsageFlags usage) {
     VkBufferCreateInfo create_info = {0};
     create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
