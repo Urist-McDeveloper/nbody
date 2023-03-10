@@ -13,6 +13,7 @@ typedef struct VulkanCtx {
     VkDevice dev;
     VkQueue queue;
     VkCommandPool cmd_pool;
+    uint32_t queue_family_idx;
 } VulkanCtx;
 
 /* Initialize CTX. */
@@ -23,6 +24,16 @@ void VulkanCtx_DeInit(VulkanCtx *ctx);
 
 /* Load shader module from PATH. */
 VkShaderModule VulkanCtx_LoadShader(const VulkanCtx *ctx, const char *path);
+
+/* Allocate primary command buffers. */
+void VulkanCtx_AllocCommandBuffers(const VulkanCtx *ctx, uint32_t count, VkCommandBuffer *buffers);
+
+/* Allocate device memory. FLAGS must not be 0. */
+void VulkanCtx_AllocMemory(const VulkanCtx *ctx, VkDeviceMemory *mem,
+                           VkDeviceSize size, VkMemoryPropertyFlags flags);
+
+/* Create exclusive buffer. */
+void VulkanCtx_CreateBuffer(const VulkanCtx *ctx, VkBuffer *buf, VkDeviceSize size, VkBufferUsageFlags usage);
 
 /*
  * Setup Vulkan resources for W. Updates will use constant time delta DT.

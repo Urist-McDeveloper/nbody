@@ -10,7 +10,7 @@ struct Body {
     vec2 acc;
 };
 
-layout (std140, binding = 0) uniform UBO {
+layout (std140, binding = 0) readonly uniform UBO {
     uint size;
     float dt;
     vec2 min;

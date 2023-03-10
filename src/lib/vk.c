@@ -128,13 +128,13 @@ void VulkanCtx_Init(VulkanCtx *ctx, bool need_gfx_queue) {
     InitInstance(&ctx->instance);
     InitPDev(&ctx->pdev, ctx->instance);
 
-    uint32_t queue_family_idx = InitDev(&ctx->dev, ctx->pdev, need_gfx_queue);
-    vkGetDeviceQueue(ctx->dev, queue_family_idx, 0, &ctx->queue);
+    ctx->queue_family_idx = InitDev(&ctx->dev, ctx->pdev, need_gfx_queue);
+    vkGetDeviceQueue(ctx->dev, ctx->queue_family_idx, 0, &ctx->queue);
 
     VkCommandPoolCreateInfo pool_create_info = {0};
     pool_create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     pool_create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    pool_create_info.queueFamilyIndex = queue_family_idx;
+    pool_create_info.queueFamilyIndex = ctx->queue_family_idx;
     ASSERT_VK(vkCreateCommandPool(ctx->dev, &pool_create_info, NULL, &ctx->cmd_pool));
 }
 
@@ -160,6 +160,45 @@ VkShaderModule VulkanCtx_LoadShader(const VulkanCtx *ctx, const char *path) {
     return module;
 }
 
-void test() {
+void VulkanCtx_AllocCommandBuffers(const VulkanCtx *ctx, uint32_t count, VkCommandBuffer *buffers) {
+    VkCommandBufferAllocateInfo allocate_info = {0};
+    allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+    allocate_info.commandPool = ctx->cmd_pool;
+    allocate_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+    allocate_info.commandBufferCount = count;
+    ASSERT_VK(vkAllocateCommandBuffers(ctx->dev, &allocate_info, buffers));
+}
 
+void VulkanCtx_AllocMemory(const VulkanCtx *ctx, VkDeviceMemory *mem,
+                           VkDeviceSize size, VkMemoryPropertyFlags flags) {
+    ASSERT(flags != 0);
+
+    VkPhysicalDeviceMemoryProperties props;
+    vkGetPhysicalDeviceMemoryProperties(ctx->pdev, &props);
+
+    uint32_t mem_type_idx = UINT32_MAX;
+    for (uint32_t i = 0; i < props.memoryTypeCount; i++) {
+        if (flags & props.memoryTypes[i].propertyFlags) {
+            mem_type_idx = i;
+            break;
+        }
+    }
+    ASSERT(mem_type_idx != UINT32_MAX);
+
+    VkMemoryAllocateInfo allocate_info = {0};
+    allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+    allocate_info.allocationSize = size;
+    allocate_info.memoryTypeIndex = mem_type_idx;
+    ASSERT_VK(vkAllocateMemory(ctx->dev, &allocate_info, NULL, mem));
+}
+
+void VulkanCtx_CreateBuffer(const VulkanCtx *ctx, VkBuffer *buf, VkDeviceSize size, VkBufferUsageFlags usage) {
+    VkBufferCreateInfo create_info = {0};
+    create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    create_info.size = size;
+    create_info.usage = usage;
+    create_info.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+    create_info.queueFamilyIndexCount = 1;
+    create_info.pQueueFamilyIndices = &ctx->queue_family_idx;
+    ASSERT_VK(vkCreateBuffer(ctx->dev, &create_info, NULL, buf));
 }
