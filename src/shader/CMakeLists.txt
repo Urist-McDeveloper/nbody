@@ -1,19 +1,21 @@
 find_package(Vulkan COMPONENTS glslc)
 find_program(GLSLC NAMES glslc HINTS Vulkan::glslc)
 
-set(COMMON_GLSL ${CMAKE_CURRENT_LIST_DIR}/common.glsl)
+set(GLSLC_ENV "vulkan1.0" CACHE STRING "glslc --target-env=")
 
-function(compile_shaders target)
-    foreach(source ${ARGN})
-        set(spv ${source}.spv)
-        list(APPEND spv_all ${spv})
-
+function(compile_shaders target stage)
+    cmake_parse_arguments(PARSE_ARGV 1 arg "" "STAGE;DEPENDS" "SOURCE")
+    foreach(source ${arg_SOURCE})
+        cmake_path(REPLACE_EXTENSION source LAST_ONLY spv OUTPUT_VARIABLE spv)
         add_custom_command(
                 OUTPUT ${spv}
-                DEPENDS ${source}
-                DEPENDS ${COMMON_GLSL}
-                COMMAND ${GLSLC} -o ${spv} ${CMAKE_CURRENT_SOURCE_DIR}/${source}
+                DEPENDS ${source} ${arg_DEPENDS}
+                COMMAND
+                    ${GLSLC} -o ${spv}
+                    --target-env=${GLSLC_ENV}
+                    $<$<BOOL:${arg_STAGE}>:-fshader-stage=${arg_STAGE}>
+                    ${CMAKE_CURRENT_SOURCE_DIR}/${source}
         )
-        target_sources(${target} PRIVATE ${source}.spv)
+        target_sources(${target} PRIVATE ${spv})
     endforeach()
 endfunction()

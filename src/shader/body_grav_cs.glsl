@@ -1,6 +1,6 @@
 #version 450
 
-#include "common.glsl"
+#include "body_common_cs.glsl"
 
 const float G = 10.0;
 

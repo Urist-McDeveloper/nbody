@@ -13,9 +13,7 @@
 #define ASSERT_VK(X) ASSERT((X) == VK_SUCCESS)
 
 #ifndef NDEBUG
-/* Debug layers. */
 static const char *const DBG_LAYERS[] = {"VK_LAYER_KHRONOS_validation"};
-/* Debug layers count. */
 static const int DBG_LAYERS_COUNT = sizeof(DBG_LAYERS) / sizeof(DBG_LAYERS[0]);
 #endif
 
@@ -179,8 +177,8 @@ void VulkanCtx_Init(VulkanCtx *ctx) {
     InitPDev(&ctx->pdev, ctx->instance);
     InitDevAndQueue(&ctx->dev, &ctx->queue, ctx->pdev);
 
-    LoadShaderModule(&ctx->grav_module, ctx->dev, "shader/grav.comp.spv");
-    LoadShaderModule(&ctx->move_module, ctx->dev, "shader/move.comp.spv");
+    LoadShaderModule(&ctx->grav_module, ctx->dev, "shader/body_grav_cs.spv");
+    LoadShaderModule(&ctx->move_module, ctx->dev, "shader/body_move_cs.spv");
 
     VkDescriptorSetLayoutBinding *bindings = ALLOC_N(2, VkDescriptorSetLayoutBinding);
     ASSERT(bindings != NULL);
@@ -264,6 +262,8 @@ int main(void) {
     World_GetBodies(w, &bodies, &size);
 
     // TODO: stuff
+    printf("Press ENTER to continue\n");
+    fgetc(stdin);
 
     World_Destroy(w);
     VulkanCtx_DeInit(&ctx);
