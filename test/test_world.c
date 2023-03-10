@@ -20,7 +20,7 @@ void update_approx(void) {
 
     bodies[0] = BODY(1, 1);
     bodies[1] = BODY(9, 9);
-    World_Update(w, 1.f, true);
+    World_UpdateBH(w, 1.f);
 
     TEST_CHECK(bodies[0].vel.x > 0);
     TEST_CHECK(bodies[0].vel.y > 0);
@@ -42,7 +42,7 @@ void update_exact(void) {
     bodies[1] = BODY(9, 1);
     bodies[2] = BODY(1, 9);
     bodies[3] = BODY(9, 9);
-    World_Update(w, 1.f, false);
+    World_UpdateExact(w, 1.f);
 
     TEST_CHECK(bodies[0].vel.x > 0);
     TEST_CHECK(bodies[0].vel.y > 0);

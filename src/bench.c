@@ -32,9 +32,18 @@ static int int64_t_cmp(const void *a_ptr, const void *b_ptr) {
 
 static int64_t dt[BENCH_ITER];
 
+#define UPDATE(w, approx)                       \
+    do {                                        \
+        if (approx) {                           \
+            World_UpdateBH(w, UPDATE_STEP);     \
+        } else {                                \
+            World_UpdateExact(w, UPDATE_STEP);  \
+        }                                       \
+    } while(0)
+
 static int64_t bench(World *w, bool approx) {
     for (int i = 0; i < WARMUP_ITER; i++) {
-        World_Update(w, UPDATE_STEP, approx);
+        UPDATE(w, approx);
     }
 
     struct timespec start;
@@ -42,7 +51,7 @@ static int64_t bench(World *w, bool approx) {
 
     for (int i = 0; i < BENCH_ITER; i++) {
         now(&start);
-        World_Update(w, UPDATE_STEP, approx);
+        UPDATE(w, approx);
         now(&end);
 
         dt[i] = diff_us(&start, &end);
