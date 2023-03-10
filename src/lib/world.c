@@ -80,13 +80,23 @@ static void World_Move(World *w, float dt) {
         float max_x = width - min_x;
         float max_y = height - min_y;
 
-        if (p->pos.x < min_x || p->pos.x > max_x) {
-            p->pos.x = (p->pos.x < min_x) ? min_x : max_x;
+        if (p->pos.x < min_x) {
+            p->pos.x = min_x;
             b->vel.x *= BOUNCE_F;
             b->vel.y *= FRICTION_F;
         }
-        if (p->pos.y < min_y || p->pos.y > max_y) {
-            p->pos.y = (p->pos.y < min_y) ? min_y : max_y;
+        if (p->pos.x > max_x) {
+            p->pos.x = max_x;
+            b->vel.x *= BOUNCE_F;
+            b->vel.y *= FRICTION_F;
+        }
+        if (p->pos.y < min_y) {
+            p->pos.y = min_y;
+            b->vel.y *= BOUNCE_F;
+            b->vel.x *= FRICTION_F;
+        }
+        if (p->pos.y > max_y) {
+            p->pos.y = max_y;
             b->vel.y *= BOUNCE_F;
             b->vel.x *= FRICTION_F;
         }

@@ -11,7 +11,8 @@
 #define C   1.0f
 #define F   (4.0f * PI * C / 3.0f)
 
-#define VELOCITY_DECAY  0.01f
+/* A fraction of velocity that becomes friction. */
+#define FRICTION (-0.01f)
 
 /* Randomize position, mass and radius of P. */
 void Particle_InitRand(Particle *p, V2 min, V2 max);

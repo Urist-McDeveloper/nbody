@@ -31,8 +31,9 @@ void Body_ApplyGrav(Body *b, Particle p) {
 }
 
 void Body_Move(Body *body, float t) {
-    body->vel = V2_Add(body->vel, V2_Mul(body->acc, t));        // apply acceleration
-    body->vel = V2_Mul(body->vel, 1.0f - VELOCITY_DECAY * t);   // apply decay
-    body->p.pos = V2_Add(body->p.pos, V2_Mul(body->vel, t));    // apply velocity
+    V2 acc = V2_Add(body->acc, V2_Mul(body->vel, FRICTION));    // apply friction
     body->acc = V2_ZERO;                                        // reset acceleration
+
+    body->vel = V2_Add(body->vel, V2_Mul(acc, t));              // apply acceleration
+    body->p.pos = V2_Add(body->p.pos, V2_Mul(body->vel, t));    // apply velocity
 }

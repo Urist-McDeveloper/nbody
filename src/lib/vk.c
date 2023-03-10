@@ -93,9 +93,8 @@ static uint32_t InitDev(VkDevice *dev, VkPhysicalDevice pdev, bool need_gfx_queu
     for (uint32_t i = 0; i < queue_count; i++) {
         bool g = family_props[i].queueFlags & VK_QUEUE_GRAPHICS_BIT;
         bool c = family_props[i].queueFlags & VK_QUEUE_COMPUTE_BIT;
-        bool t = family_props[i].queueFlags & VK_QUEUE_TRANSFER_BIT;
-        if ((!need_gfx_queue || g) && c && t) {
-            printf("Using queue family #%u (count = %u, GCT = %d%d%d)\n", i, family_props[i].queueCount, g, c, t);
+        if ((!need_gfx_queue || g) && c) {
+            printf("Using queue family #%u (count = %u)\n", i, family_props[i].queueCount);
             index = i;
             break;
         }
