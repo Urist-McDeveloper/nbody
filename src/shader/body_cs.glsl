@@ -62,6 +62,7 @@ void main() {
     vec2 acc = FRICTION_F * old.arr[i].vel;
 
     for (uint j = 0; j < world.size; j++) {
+        if (i == j) continue;
         acc += GetGrav(old.arr[i], old.arr[j]);
     }
 

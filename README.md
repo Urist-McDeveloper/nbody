@@ -47,3 +47,4 @@ Done:
 - [x] Make GPU simulation respect simulation step change
 - [x] Use specialization constants to make sure CPU and GPU simulations always have the same parameters
 - [x] Add pushing force which is stronger than gravity at short distances
+- [x] Make GPU buffers device-local for performance improvements

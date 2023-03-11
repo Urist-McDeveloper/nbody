@@ -94,9 +94,10 @@ static uint32_t InitDev(VkDevice *dev, VkPhysicalDevice pdev) {
     for (uint32_t i = 0; i < family_count; i++) {
         bool g = family_props[i].queueFlags & VK_QUEUE_GRAPHICS_BIT;
         bool c = family_props[i].queueFlags & VK_QUEUE_COMPUTE_BIT;
+        bool t = family_props[i].queueFlags & VK_QUEUE_TRANSFER_BIT;
 
         // prefer compute only queue family
-        if (c && (!g || qf_idx == UINT32_MAX)) {
+        if (c && t && (!g || qf_idx == UINT32_MAX)) {
             qf_idx = i;
         }
     }
@@ -190,6 +191,8 @@ VkDeviceMemory VulkanCtx_AllocMemory(const VulkanCtx *ctx, VkDeviceSize size, Vk
         }
     }
     ASSERT_FMT(mem_type_idx != UINT32_MAX, "Failed to find suitable memory type for flags %x", flags);
+    printf("Requested %#08x, using memory #%d with flags = %#08xu\n",
+           flags, mem_type_idx, props.memoryTypes[mem_type_idx].propertyFlags);
 
     VkMemoryAllocateInfo allocate_info = {0};
     allocate_info.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;

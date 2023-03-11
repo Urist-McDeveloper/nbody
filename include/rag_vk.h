@@ -3,7 +3,6 @@
 
 #include "rag.h"
 
-#include <stdbool.h>
 #include <vulkan/vulkan.h>
 
 /* 16-byte aligned sizeof. */
