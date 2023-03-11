@@ -16,7 +16,7 @@ static const float STEPS[] = {0.1f, 0.25f, 0.5f, 1.f, 2.f, 4.f, 8.f};
 #define LAST_STEP_IDX   (STEPS_LENGTH - 1)
 #define DEF_STEP_IDX    3
 
-#define BODY_COUNT      1000
+#define BODY_COUNT      3000
 #define PHYS_STEP       0.01f
 
 #define MAX_PHYS_OVERWORK 3
@@ -26,12 +26,12 @@ static int dtoi(double f) {
 }
 
 static void DrawBodies(World *world) {
-    Body *bodies;
+    Body *arr;
     int size;
-    World_GetBodies(world, &bodies, &size);
+    World_GetBodies(world, &arr, &size);
 
     for (int i = 0; i < size; i++) {
-        Particle *p = &(bodies + i)->p;
+        Particle *p = &(arr + i)->p;
         DrawCircle(
                 dtoi(p->pos.x),
                 dtoi(p->pos.y),
@@ -46,7 +46,7 @@ int main(void) {
 
     SetConfigFlags(/*FLAG_FULLSCREEN_MODE |*/ FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT);
     SetTargetFPS((int)round(1.0 / PHYS_STEP));
-    InitWindow(800, 600, "RAG!");
+    InitWindow(1280, 720, "RAG!");
 
     VulkanCtx vk_ctx;
     VulkanCtx_Init(&vk_ctx);
@@ -55,7 +55,7 @@ int main(void) {
     World_InitVK(world, &vk_ctx, PHYS_STEP);
 
     bool pause = false;
-    bool use_gpu = false;
+    bool use_gpu = true;
 
     int speed_idx = 0;
     int step_idx = DEF_STEP_IDX;
@@ -70,6 +70,8 @@ int main(void) {
         }
         if (IsKeyPressed(KEY_TAB)) {
             use_gpu = !use_gpu;
+            phys_time = 0;
+            skipped_phys_frames = 0;
         }
         if (IsKeyPressed(KEY_LEFT) && speed_idx > 0) {
             speed_idx--;

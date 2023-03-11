@@ -1,4 +1,0 @@
-Simple 2D N-body simulation written in C.
-Requires:
-    * OpenMP support
-    * Vulkan SDK
