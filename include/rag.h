@@ -55,10 +55,10 @@ typedef struct Body {
  * "Negative" gravity; controls pushing force.
  *      n = RAG_N * mass / dist^3
  */
-#define RAG_N   (-0.8f * RAG_G * RAG_G * RAG_G)
+#define RAG_N   (-80.f * RAG_G)
 
 /* A fraction of velocity that becomes friction. */
-#define RAG_FRICTION    (-0.00f)
+#define RAG_FRICTION    (-0.01f)
 
 /* The simulated world with fixed boundaries and body count. */
 typedef struct World World;

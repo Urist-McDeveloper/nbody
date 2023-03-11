@@ -16,10 +16,10 @@ static const float STEPS[] = {0.1f, 0.25f, 0.5f, 1.f, 2.f, 4.f, 8.f};
 #define LAST_STEP_IDX   (STEPS_LENGTH - 1)
 #define DEF_STEP_IDX    3
 
-#define BODY_COUNT      1000
+#define BODY_COUNT      4000
 #define PHYS_STEP       0.01f
 
-#define MAX_PHYS_OVERWORK 3
+#define MAX_OVERWORK    3
 
 static int ftoi(float f) {
     return (int)roundf(f);
@@ -97,26 +97,19 @@ int main(void) {
 
         // update stuff
         if (!pause) {
-            float scale = SPEEDS[speed_idx] * STEPS[step_idx];
-            float step = PHYS_STEP;
+            phys_time += SPEEDS[speed_idx] * GetFrameTime();
+            float max_overwork = SPEEDS[speed_idx] * PHYS_STEP * MAX_OVERWORK;
 
-            // GPU simulation uses constant time delta (for now)
-            if (!use_gpu) {
-                step *= STEPS[step_idx];
-            }
-
-            phys_time += scale * GetFrameTime();
-            float max_phys_time = MAX_PHYS_OVERWORK * scale * step;
-
-            if (phys_time > max_phys_time) {
-                phys_time = max_phys_time;
+            if (phys_time > max_overwork) {
+                phys_time = max_overwork;
                 skipped_phys_frames++;
             } else {
                 skipped_phys_frames = 0;
             }
 
-            while (phys_time >= step) {
-                phys_time -= step;
+            float step = PHYS_STEP * STEPS[step_idx];
+            while (phys_time >= PHYS_STEP) {
+                phys_time -= PHYS_STEP;
                 if (use_gpu) {
                     World_UpdateVK(world, step);
                 } else {
@@ -134,7 +127,7 @@ int main(void) {
         DrawText(TextFormat("step x%.2f  speed x%d", STEPS[step_idx], (int)SPEEDS[speed_idx]), 10, 30, 20, GREEN);
         DrawFPS(10, 50);
 
-        if (skipped_phys_frames > MAX_PHYS_OVERWORK) {
+        if (skipped_phys_frames > MAX_OVERWORK) {
             DrawText("SKIPPING FRAMES", 10, 70, 20, RED);
         }
         EndDrawing();

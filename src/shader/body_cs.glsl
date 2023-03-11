@@ -38,6 +38,8 @@ layout (constant_id = 3) const float FRICTION_F = -0.01;
 
 /* Get acceleration enacted by B upon A. */
 vec2 GetGrav(Body a, Body b) {
+    if (a.pos == b.pos) return vec2(0);
+
     vec2 radv = b.pos - a.pos;
     float dist = max(length(radv), 0.5 * (a.radius + b.radius));
 
@@ -62,7 +64,6 @@ void main() {
     vec2 acc = FRICTION_F * old.arr[i].vel;
 
     for (uint j = 0; j < world.size; j++) {
-        if (i == j) continue;
         acc += GetGrav(old.arr[i], old.arr[j]);
     }
 
