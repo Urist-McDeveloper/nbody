@@ -1,4 +1,4 @@
-find_package(OpenMP REQUIRED)
+find_package(OpenMP)
 find_package(Vulkan REQUIRED)
 find_library(REQUIRED m)
 
@@ -13,7 +13,11 @@ set(rag_lib_sources
 
 add_library(rag-lib STATIC ${rag_lib_sources} ${rag_lib_headers})
 target_include_directories(rag-lib PUBLIC ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(rag-lib PUBLIC OpenMP::OpenMP_C Vulkan::Vulkan m)
+target_link_libraries(rag-lib PUBLIC Vulkan::Vulkan m)
+
+if (OpenMP_C_FOUND)
+    target_link_libraries(rag-lib PRIVATE OpenMP::OpenMP_C)
+endif ()
 
 compile_shaders(rag-lib STAGE comp SOURCE ../shader/body_cs.glsl)
 

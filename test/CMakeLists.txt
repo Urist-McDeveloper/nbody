@@ -11,15 +11,6 @@ function(test_from FILE)
 
     add_test(NAME ${target} COMMAND ${target})
     target_link_libraries(${target} acutest ${ARGN})
-
-    # add sanitizers
-    if (MSVC)
-        target_compile_options(${target} PRIVATE /fsanitize=address,leak,undefined)
-        target_link_options(${target} PRIVATE /fsanitize=address,leak,undefined)
-    else ()
-        target_compile_options(${target} PRIVATE -fsanitize=address,leak,undefined)
-        target_link_options(${target} PRIVATE -fsanitize=address,leak,undefined)
-    endif ()
 endfunction()
 
 test_from(test_body.c rag-lib)

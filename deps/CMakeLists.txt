@@ -1,5 +1,10 @@
-set(OpenGL_GL_PREFERENCE GLVND)
-add_subdirectory(raylib)
+find_library(raylib raylib)
+if (raylib-NOTFOUND)
+    set(OpenGL_GL_PREFERENCE GLVND)
+    add_subdirectory(raylib)
+else ()
+    message(STATUS "Using system raylib")
+endif ()
 
 add_library(acutest INTERFACE)
 target_include_directories(acutest INTERFACE acutest)
