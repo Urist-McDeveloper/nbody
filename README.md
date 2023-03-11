@@ -6,7 +6,7 @@ Written in C, built with Vulkan, shown on screen with [raylib](https://github.co
 
 ### Build prerequisites
 
-1. C compiler that supports C99 standard. Not too hard to find these days.
+1. C compiler that supports C99 standard; TCC works if you provide raylib externally.
    OpenMP support is optional, but it does drastically improve the speed of CPU simulation.
 2. CMake version 3.20 or later.
 3. Vulkan SDK, including `glslc` and validation layers. Only Vulkan 1.0 features are used.
@@ -19,8 +19,8 @@ Like any other CMake project.
 
 ### How to run
 
-1. Make sure that compiled shader is located at `./shader/body_cs.spv`.
-2. Run `rag`, wherever it is respective to your CWD.
+1. Make sure that the compiled shader is located at `./shader/body_cs.spv`.
+2. Run `rag`.
 
 ### What to do?
 

@@ -1,5 +1,5 @@
 find_library(raylib raylib)
-if (raylib-NOTFOUND)
+if (NOT raylib)
     set(OpenGL_GL_PREFERENCE GLVND)
     add_subdirectory(raylib)
 else ()
