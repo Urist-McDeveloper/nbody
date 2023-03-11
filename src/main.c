@@ -16,7 +16,7 @@ static const float STEPS[] = {0.1f, 0.25f, 0.5f, 1.f, 2.f, 4.f, 8.f};
 #define LAST_STEP_IDX   (STEPS_LENGTH - 1)
 #define DEF_STEP_IDX    3
 
-#define BODY_COUNT      3000
+#define BODY_COUNT      1000
 #define PHYS_STEP       0.01f
 
 #define MAX_PHYS_OVERWORK 3
@@ -55,7 +55,7 @@ int main(void) {
     World_InitVK(world, &vk_ctx);
 
     bool pause = false;
-    bool use_gpu = true;
+    bool use_gpu = BODY_COUNT < 300;
 
     int speed_idx = 0;
     int step_idx = DEF_STEP_IDX;

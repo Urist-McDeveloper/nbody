@@ -44,7 +44,7 @@ static void WorldComp_SetBodies(WorldComp *comp, Body *arr);
 #define MIN_R   2.0f
 
 /* Maximum radius of randomized Particle. */
-#define MAX_R   2.0f
+#define MAX_R   5.0f
 
 /* Density of a Particle (used to calculate mass from radius). */
 #define DENSITY 1.0f
