@@ -1,15 +1,8 @@
 #version 450
 
-struct Particle {
-    vec2 pos;
-    float mass;
-    float radius;
-};
-
 struct Body {
-    Particle p;
-    vec2 vel;
-    vec2 acc;
+    vec2 pos, vel, acc;
+    float mass, radius;
 };
 
 layout (std140, binding = 0) uniform WorldData {
@@ -43,8 +36,8 @@ layout (constant_id = 2) const float N = -1000;
 /* A fraction of velocity that becomes friction. */
 layout (constant_id = 3) const float FRICTION_F = -0.01;
 
-/* Get gravity acceleration of B upon A. */
-vec2 GetGrav(Particle a, Particle b) {
+/* Get acceleration enacted by B upon A. */
+vec2 GetGrav(Body a, Body b) {
     vec2 radv = b.pos - a.pos;
     float dist = max(length(radv), 0.5 * (a.radius + b.radius));
 
@@ -69,16 +62,16 @@ void main() {
     vec2 acc = FRICTION_F * old.arr[i].vel;
 
     for (uint j = 0; j < world.size; j++) {
-        acc += GetGrav(old.arr[i].p, old.arr[j].p);
+        acc += GetGrav(old.arr[i], old.arr[j]);
     }
 
     vec2 vel = old.arr[i].vel + (world.dt * acc);
-    vec2 pos = old.arr[i].p.pos + (world.dt * vel);
+    vec2 pos = old.arr[i].pos + (world.dt * vel);
 
     new.arr[i].vel = vel;
-    new.arr[i].p.pos = pos;
+    new.arr[i].pos = pos;
 
     // because old buffer could have been updated
-    new.arr[i].p.mass = old.arr[i].p.mass;
-    new.arr[i].p.radius = old.arr[i].p.radius;
+    new.arr[i].mass = old.arr[i].mass;
+    new.arr[i].radius = old.arr[i].radius;
 }

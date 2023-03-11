@@ -3,10 +3,6 @@
 
 #define READ_BUFFER_INC 1024
 
-/*
- * Fully read PATH as binary file and return its content.
- * Content length (in bytes) is stored in SIZE.
- */
 void *FIO_ReadFile(const char *path, size_t *size) {
     FILE *f = fopen(path, "rb");
     ASSERT(f != NULL);

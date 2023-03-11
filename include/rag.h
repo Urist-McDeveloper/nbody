@@ -40,17 +40,10 @@ static inline float V2_SqMag(V2 v) {
     return (v.x * v.x) + (v.y * v.y);
 }
 
-/* A point in space with mass and radius. */
-typedef struct Particle {
-    V2 pos;
-    float mass;
-    float radius;
-} Particle;
-
-/* A moving Particle with acceleration and velocity. */
+/* Simulation particle. */
 typedef struct Body {
-    Particle p;
-    V2 vel, acc;
+    V2 pos, vel, acc;
+    float mass, radius;
 } Body;
 
 /*

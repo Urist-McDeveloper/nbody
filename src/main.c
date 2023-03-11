@@ -31,11 +31,11 @@ static void DrawBodies(World *world) {
     World_GetBodies(world, &arr, &size);
 
     for (int i = 0; i < size; i++) {
-        Particle *p = &(arr + i)->p;
+        Body b = arr[i];
         DrawCircle(
-                ftoi(p->pos.x),
-                ftoi(p->pos.y),
-                (float)p->radius,
+                ftoi(b.pos.x),
+                ftoi(b.pos.y),
+                (float)b.radius,
                 RAYWHITE
         );
     }

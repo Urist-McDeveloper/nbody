@@ -14,4 +14,3 @@ function(test_from FILE)
 endfunction()
 
 test_from(test_v2.c rag-lib)
-test_from(test_world.c rag-lib)

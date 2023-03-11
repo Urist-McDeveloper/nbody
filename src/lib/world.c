@@ -40,13 +40,13 @@ static void WorldComp_GetBodies(WorldComp *comp, Body *arr);
 static void WorldComp_SetBodies(WorldComp *comp, Body *arr);
 
 
-/* Minimum radius of randomized Particle. */
+/* Minimum radius of randomized Body. */
 #define MIN_R   2.0f
 
-/* Maximum radius of randomized Particle. */
+/* Maximum radius of randomized Body. */
 #define MAX_R   5.0f
 
-/* Density of a Particle (used to calculate mass from radius). */
+/* Density of a Body (used to calculate mass from radius). */
 #define DENSITY 1.0f
 
 /* Homegrown constants are the best. */
@@ -98,15 +98,11 @@ World *World_Create(int size, V2 min, V2 max) {
         float x = RangeRand(min.x + r, max.x - r);
         float y = RangeRand(min.y + r, max.y - r);
 
-        arr[i] = (Body){
-                .p = (Particle){
-                        .pos = V2_From(x, y),
-                        .mass = R_TO_M(r),
-                        .radius = r,
-                },
-                .vel = V2_ZERO,
-                .acc = V2_ZERO,
-        };
+        arr[i].pos = V2_From(x, y);
+        arr[i].vel = V2_ZERO;
+        arr[i].acc = V2_ZERO;
+        arr[i].mass = R_TO_M(r);
+        arr[i].radius = r;
     }
 
     *world = (World){
@@ -138,20 +134,19 @@ void World_Update(World *w, float dt) {
 
     #pragma omp parallel for firstprivate(arr, size) default(none)
     for (int i = 0; i < size; i++) {
-        Body *body = &arr[i];
-        Particle a = body->p;
+        Body this = arr[i];
 
         // initial acceleration is friction
-        V2 acc = V2_Mul(body->vel, RAG_FRICTION);
+        this.acc = V2_Mul(this.vel, RAG_FRICTION);
 
         for (int j = 0; j < size; j++) {
             if (i == j) continue;
-            Particle b = arr[j].p;
+            Body that = arr[j];
 
-            V2 radv = V2_Sub(b.pos, a.pos);
+            V2 radv = V2_Sub(that.pos, this.pos);
             float dist = V2_Mag(radv);
 
-            float min_dist = 0.5f * (a.radius + b.radius);
+            float min_dist = 0.5f * (this.radius + that.radius);
             if (dist < min_dist) {
                 dist = min_dist;
             }
@@ -166,16 +161,16 @@ void World_Update(World *w, float dt) {
             float r2 = dist * dist;
             float r4 = r2 * r2;
 
-            acc = V2_Add(acc, V2_Mul(radv, b.mass * (gr + RAG_N) / r4));
+            this.acc = V2_Add(this.acc, V2_Mul(radv, that.mass * (gr + RAG_N) / r4));
         }
-        body->acc = acc;
+        arr[i].acc = this.acc;
     }
 
     #pragma omp parallel for firstprivate(arr, size, dt) default(none)
     for (int i = 0; i < size; i++) {
         Body *body = &arr[i];
-        body->vel = V2_Add(body->vel, V2_Mul(body->acc, dt));       // apply acceleration
-        body->p.pos = V2_Add(body->p.pos, V2_Mul(body->vel, dt));   // apply velocity
+        body->vel = V2_Add(body->vel, V2_Mul(body->acc, dt));
+        body->pos = V2_Add(body->pos, V2_Mul(body->vel, dt));
     }
 }
 
