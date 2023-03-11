@@ -38,14 +38,12 @@ VkDeviceMemory VulkanCtx_AllocMemory(const VulkanCtx *ctx, VkDeviceSize size, Vk
 VkBuffer VulkanCtx_CreateBuffer(const VulkanCtx *ctx, VkDeviceSize size, VkBufferUsageFlags usage);
 
 /*
- * Setup Vulkan pipeline for W. Updates will use constant time delta DT.
- * Does nothing if Vulkan was already set up.
- *
+ * Setup Vulkan pipeline for W. Does nothing if Vulkan was already set up.
  * CTX must remain a valid pointer to initialized VulkanCtx until W is destroyed.
  */
-void World_InitVK(World *w, const VulkanCtx *ctx, float dt);
+void World_InitVK(World *w, const VulkanCtx *ctx);
 
 /* Update W using Vulkan pipeline. Aborts if Vulkan has not been setup for W. */
-void World_UpdateVK(World *w);
+void World_UpdateVK(World *w, float dt);
 
 #endif //RAG_VK_H

@@ -32,11 +32,9 @@ static int int64_t_cmp(const void *a_ptr, const void *b_ptr) {
 
 static int64_t dt[BENCH_ITER];
 
-typedef void bench_f(World *);
-
-static int64_t bench(World *w, bench_f *update) {
+static int64_t bench(World *w, void update(World *, float)) {
     for (int i = 0; i < WARMUP_ITER; i++) {
-        update(w);
+        update(w, UPDATE_STEP);
     }
 
     struct timespec start;
@@ -44,7 +42,7 @@ static int64_t bench(World *w, bench_f *update) {
 
     for (int i = 0; i < BENCH_ITER; i++) {
         now(&start);
-        update(w);
+        update(w, UPDATE_STEP);
         now(&end);
 
         dt[i] = diff_us(&start, &end);
@@ -60,14 +58,6 @@ static int64_t bench(World *w, bench_f *update) {
 #endif
 }
 
-static void update_cpu(World *w) {
-    World_Update(w, UPDATE_STEP);
-}
-
-static void update_gpu(World *w) {
-    World_UpdateVK(w);
-}
-
 static const int WS[] = {10, 100, 250, 500, 800, 1200, 2000};
 static const int WS_LEN = sizeof(WS) / sizeof(WS[0]);
 
@@ -81,10 +71,10 @@ int main(void) {
     for (int i = 0; i < WS_LEN; i++) {
         World *cpu_w = World_Create(WS[i], V2_ZERO, V2_From(WORLD_WIDTH, WORLD_HEIGHT));
         World *gpu_w = World_Create(WS[i], V2_ZERO, V2_From(WORLD_WIDTH, WORLD_HEIGHT));
-        World_InitVK(gpu_w, &ctx, UPDATE_STEP);
+        World_InitVK(gpu_w, &ctx);
 
-        int64_t cpu = bench(cpu_w, &update_cpu);
-        int64_t gpu = bench(gpu_w, &update_gpu);
+        int64_t cpu = bench(cpu_w, &World_Update);
+        int64_t gpu = bench(gpu_w, &World_UpdateVK);
         printf("\t%4d\t%5ld\t%5ld\n", WS[i], cpu, gpu);
 
         World_Destroy(cpu_w);

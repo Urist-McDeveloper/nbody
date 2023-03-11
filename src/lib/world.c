@@ -27,11 +27,11 @@ typedef struct WorldComp WorldComp;
  */
 static WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data);
 
-/* De-initialize WC. */
+/* De-initialize COMP. */
 static void WorldComp_Destroy(WorldComp *comp);
 
-/* Update WC. */
-static void WorldComp_DoUpdate(WorldComp *comp);
+/* Perform update with specified time delta. */
+static void WorldComp_DoUpdate(WorldComp *comp, float DT);
 
 /* Copy bodies from GPU buffer into ARR. */
 static void WorldComp_GetBodies(WorldComp *comp, Body *arr);
@@ -175,27 +175,28 @@ void World_GetBodies(World *w, Body **bodies, int *size) {
 }
 
 
-void World_InitVK(World *w, const VulkanCtx *ctx, float dt) {
+void World_InitVK(World *w, const VulkanCtx *ctx) {
     if (w->comp == NULL) {
         WorldData data = (WorldData){
                 .size = w->size,
-                .dt = dt,
+                .dt = 0,
         };
         w->comp = WorldComp_Create(ctx, data);
         w->arr_sync = false;
     }
 }
 
-void World_UpdateVK(World *w) {
+void World_UpdateVK(World *w, float dt) {
     ASSERT(w->comp != NULL);
 
     SyncFromArrToGPU(w);
     w->gpu_sync = false;
 
-    WorldComp_DoUpdate(w->comp);
+    WorldComp_DoUpdate(w->comp, dt);
 }
 
 struct WorldComp {
+    WorldData world_data;
     uint32_t new_idx;                   // 0 -> {new, old}; 1 -> {old, new}
     const VulkanCtx *ctx;
     VkShaderModule shader;
@@ -264,6 +265,7 @@ static WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     WorldComp *comp = ALLOC(WorldComp);
     ASSERT(comp != NULL);
 
+    comp->world_data = data;
     comp->new_idx = 0;
     comp->ctx = ctx;
     comp->shader = VulkanCtx_LoadShader(ctx, "shader/body_cs.spv");
@@ -287,12 +289,6 @@ static WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     vkBindBufferMemory(ctx->dev, comp->uniform, comp->memory, 0);
     vkBindBufferMemory(ctx->dev, comp->storage[0], comp->memory, uniform_size);
     vkBindBufferMemory(ctx->dev, comp->storage[1], comp->memory, uniform_size + storage_size);
-
-    void *mapped;
-    ASSERT_VK(vkMapMemory(ctx->dev, comp->memory, 0, comp->uniform_size, 0, &mapped));
-
-    memcpy(mapped, &data, sizeof(WorldData));
-    vkUnmapMemory(ctx->dev, comp->memory);
 
     /*
      * Descriptors.
@@ -468,7 +464,20 @@ static void WorldComp_Destroy(WorldComp *comp) {
     }
 }
 
-static void WorldComp_DoUpdate(WorldComp *comp) {
+static void WorldComp_DoUpdate(WorldComp *comp, float dt) {
+    VkDevice dev = comp->ctx->dev;
+
+    // if DT has changed
+    if (comp->world_data.dt != dt) {
+        comp->world_data.dt = dt;
+
+        void *mapped;
+        ASSERT_VK(vkMapMemory(dev, comp->memory, 0, comp->uniform_size, 0, &mapped));
+
+        memcpy(mapped, &comp->world_data, sizeof(WorldData));
+        vkUnmapMemory(dev, comp->memory);
+    }
+
     // rotate new and old
     uint32_t new_idx = (comp->new_idx + 1) % 2;
     comp->new_idx = new_idx;
@@ -479,6 +488,6 @@ static void WorldComp_DoUpdate(WorldComp *comp) {
     submit_info.pCommandBuffers = &comp->cmd_buffers[new_idx];
 
     ASSERT_VK(vkQueueSubmit(comp->ctx->queue, 1, &submit_info, comp->fence));
-    ASSERT_VK(vkWaitForFences(comp->ctx->dev, 1, &comp->fence, VK_TRUE, UINT64_MAX));
-    ASSERT_VK(vkResetFences(comp->ctx->dev, 1, &comp->fence));
+    ASSERT_VK(vkWaitForFences(dev, 1, &comp->fence, VK_TRUE, UINT64_MAX));
+    ASSERT_VK(vkResetFences(dev, 1, &comp->fence));
 }

@@ -52,7 +52,7 @@ int main(void) {
     VulkanCtx_Init(&vk_ctx);
 
     World *world = World_Create(BODY_COUNT, V2_ZERO, V2_From(GetScreenWidth(), GetScreenHeight()));
-    World_InitVK(world, &vk_ctx, PHYS_STEP);
+    World_InitVK(world, &vk_ctx);
 
     bool pause = false;
     bool use_gpu = true;
@@ -118,7 +118,7 @@ int main(void) {
             while (phys_time >= step) {
                 phys_time -= step;
                 if (use_gpu) {
-                    World_UpdateVK(world);
+                    World_UpdateVK(world, step);
                 } else {
                     World_Update(world, step);
                 }
