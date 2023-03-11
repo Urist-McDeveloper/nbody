@@ -55,7 +55,7 @@ int main(void) {
     World_InitVK(world, &vk_ctx);
 
     bool pause = false;
-    bool use_gpu = BODY_COUNT < 300;
+    bool use_gpu = BODY_COUNT > 250;
 
     int speed_idx = 0;
     int step_idx = DEF_STEP_IDX;

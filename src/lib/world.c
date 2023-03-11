@@ -44,7 +44,7 @@ static void WorldComp_SetBodies(WorldComp *comp, Body *arr);
 #define MIN_R   2.0f
 
 /* Maximum radius of randomized Body. */
-#define MAX_R   5.0f
+#define MAX_R   2.0f
 
 /* Density of a Body (used to calculate mass from radius). */
 #define DENSITY 1.0f
@@ -225,7 +225,7 @@ struct WorldComp {
 };
 
 static void WorldComp_GetBodies(WorldComp *comp, Body *arr) {
-    // get new because it is new
+    // read from new because it is new
     VkDeviceSize offset = comp->uniform_size;
     if (comp->new_idx == 1) {
         offset += comp->storage_size;
@@ -281,28 +281,12 @@ static WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
 
     comp->shader = VulkanCtx_LoadShader(ctx, "shader/body_cs.spv");
 
-    VkSpecializationMapEntry shader_spec_map[4] = {
-            (VkSpecializationMapEntry){
-                    .constantID = 0,
-                    .offset = 0,
-                    .size = 4,
-            },
-            (VkSpecializationMapEntry){
-                    .constantID = 1,
-                    .offset = 4,
-                    .size = 4,
-            },
-            (VkSpecializationMapEntry){
-                    .constantID = 2,
-                    .offset = 8,
-                    .size = 4,
-            },
-            (VkSpecializationMapEntry){
-                    .constantID = 2,
-                    .offset = 12,
-                    .size = 4,
-            },
-    };
+    VkSpecializationMapEntry shader_spec_map[4];
+    for (int i = 0; i < 4; i++) {
+        shader_spec_map[i].constantID = i;
+        shader_spec_map[i].offset = 4 * i;
+        shader_spec_map[i].size = 4;
+    }
 
     char shader_spec_data[16];
     *(uint32_t *)shader_spec_data = LOCAL_SIZE_X;

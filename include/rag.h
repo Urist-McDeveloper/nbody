@@ -59,7 +59,7 @@ typedef struct Body {
 #define RAG_N   (-0.8f * RAG_G * RAG_G * RAG_G)
 
 /* A fraction of velocity that becomes friction. */
-#define RAG_FRICTION    (0.f)
+#define RAG_FRICTION    (-0.01f)
 
 /* The simulated world with fixed boundaries and body count. */
 typedef struct World World;
