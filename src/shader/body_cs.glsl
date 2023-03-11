@@ -25,13 +25,14 @@ layout (std140, binding = 2) buffer FrameNew {
     Body arr[];
 } new;
 
-layout (local_size_x = 16, local_size_y = 1, local_size_z = 1) in;
+/* Local group size as specialization constant. */
+layout (local_size_x_id = 0) in;
 
 /* Gravitational constant. */
-const float G = 10.0;
+layout (constant_id = 1) const float G = 10.0;
 
 /* A fraction of velocity that becomes friction. */
-const float FRICTION_F = -0.01;
+layout (constant_id = 2) const float FRICTION_F = -0.01;
 
 /* Get gravity acceleration of B upon A. */
 vec2 GetGrav(Particle a, Particle b) {

@@ -268,7 +268,48 @@ static WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     comp->world_data = data;
     comp->new_idx = 0;
     comp->ctx = ctx;
+
+    /*
+     * Shaders.
+     */
+
     comp->shader = VulkanCtx_LoadShader(ctx, "shader/body_cs.spv");
+
+    VkSpecializationMapEntry shader_spec_map[3] = {
+            (VkSpecializationMapEntry){
+                    .constantID = 0,
+                    .offset = 0,
+                    .size = 4,
+            },
+            (VkSpecializationMapEntry){
+                    .constantID = 1,
+                    .offset = 4,
+                    .size = 4,
+            },
+            (VkSpecializationMapEntry){
+                    .constantID = 2,
+                    .offset = 8,
+                    .size = 4,
+            },
+    };
+
+    char shader_spec_data[12];
+    *(uint32_t *)shader_spec_data = LOCAL_SIZE_X;
+    *(float *)(shader_spec_data + 4) = RAG_G;
+    *(float *)(shader_spec_data + 8) = RAG_FRICTION;
+
+    VkSpecializationInfo shader_spec_info = {0};
+    shader_spec_info.mapEntryCount = 3;
+    shader_spec_info.pMapEntries = shader_spec_map;
+    shader_spec_info.dataSize = 12;
+    shader_spec_info.pData = shader_spec_data;
+
+    VkPipelineShaderStageCreateInfo shader_stage_info = {0};
+    shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shader_stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+    shader_stage_info.module = comp->shader;
+    shader_stage_info.pName = "main";
+    shader_stage_info.pSpecializationInfo = &shader_spec_info;
 
     /*
      * Memory buffers.
@@ -384,7 +425,7 @@ static WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     vkUpdateDescriptorSets(comp->ctx->dev, 6, write_sets, 0, NULL);
 
     /*
-     * Pipelines.
+     * Pipeline.
      */
 
     VkPipelineLayoutCreateInfo layout_info = {0};
@@ -393,15 +434,9 @@ static WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     layout_info.pSetLayouts = &comp->ds_layout;
     ASSERT_VK(vkCreatePipelineLayout(ctx->dev, &layout_info, NULL, &comp->pipeline_layout));
 
-    VkPipelineShaderStageCreateInfo stage_info = {0};
-    stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    stage_info.module = comp->shader;
-    stage_info.pName = "main";
-
     VkComputePipelineCreateInfo pipeline_info = {0};
     pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-    pipeline_info.stage = stage_info;
+    pipeline_info.stage = shader_stage_info;
     pipeline_info.layout = comp->pipeline_layout;
     ASSERT_VK(vkCreateComputePipelines(ctx->dev, NULL, 1, &pipeline_info, NULL, &comp->pipeline));
 
