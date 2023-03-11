@@ -210,11 +210,13 @@ static void WorldComp_GetBodies(WorldComp *wc, Body *arr) {
 
 static void WorldComp_SetBodies(WorldComp *wc, Body *arr) {
     void *mapped;
-    // set all because I suck
-    ASSERT_VK(vkMapMemory(wc->ctx->dev, wc->memory, wc->uniform_size, 2 * wc->storage_size, 0, &mapped));
+    VkDeviceSize offset;
+
+    // write to new because it will become old in the next update
+    GetStorage(wc, NULL, &offset, NULL, NULL);
+    ASSERT_VK(vkMapMemory(wc->ctx->dev, wc->memory, offset, wc->storage_size, 0, &mapped));
 
     memcpy(mapped, arr, wc->storage_size);
-    memcpy(((char *)mapped) + wc->storage_size, arr, wc->storage_size);
     vkUnmapMemory(wc->ctx->dev, wc->memory);
 }
 

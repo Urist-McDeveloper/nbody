@@ -64,4 +64,8 @@ void main() {
     new.arr[i].acc = vec2(0);
     new.arr[i].vel = vel;
     new.arr[i].p.pos = pos;
+
+    // because old buffer could have been updated
+    new.arr[i].p.mass = old.arr[i].p.mass;
+    new.arr[i].p.radius = old.arr[i].p.radius;
 }

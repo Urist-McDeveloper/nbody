@@ -41,7 +41,6 @@ static void AssertDebugLayersSupported() {
     free(layers);
     done = true;
 }
-
 #endif //NDEBUG
 
 static void InitInstance(VkInstance *instance) {
