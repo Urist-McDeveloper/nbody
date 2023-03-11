@@ -6,7 +6,6 @@ set(rag_lib_headers
         ${CMAKE_SOURCE_DIR}/include/rag.h
         ${CMAKE_SOURCE_DIR}/include/rag_vk.h)
 set(rag_lib_sources
-        body.c
         fio.c
         vk_ctx.c
         world.c)

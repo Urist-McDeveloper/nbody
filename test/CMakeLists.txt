@@ -13,6 +13,5 @@ function(test_from FILE)
     target_link_libraries(${target} acutest ${ARGN})
 endfunction()
 
-test_from(test_body.c rag-lib)
 test_from(test_v2.c rag-lib)
 test_from(test_world.c rag-lib)

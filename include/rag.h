@@ -40,7 +40,6 @@ static inline float V2_SqMag(V2 v) {
     return (v.x * v.x) + (v.y * v.y);
 }
 
-
 /* A point in space with mass and radius. */
 typedef struct Particle {
     V2 pos;
@@ -54,20 +53,25 @@ typedef struct Body {
     V2 vel, acc;
 } Body;
 
+/* Gravitational constant. */
+#define RAG_G           10.0f
+
+/* A fraction of velocity that becomes friction. */
+#define RAG_FRICTION    (-0.01f)
 
 /* The simulated world with fixed boundaries and body count. */
 typedef struct World World;
 
-/* Allocate World of given SIZE and randomize positions within MIN and MAX. */
+/* Create World of given SIZE and randomize particle positions within MIN and MAX. */
 World *World_Create(int size, V2 min, V2 max);
 
-/* Free previously allocated W. */
+/* Destroy W. */
 void World_Destroy(World *w);
 
 /* Update W using exact simulation. */
 void World_Update(World *w, float dt);
 
-/* Get W's bodies and size into respective pointers. */
+/* Put W's body array and its size into respective pointers. */
 void World_GetBodies(World *w, Body **bodies, int *size);
 
 #endif //RAG_H

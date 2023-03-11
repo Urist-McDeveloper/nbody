@@ -1,10 +1,9 @@
 #include <rag.h>
 #include <rag_vk.h>
 
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
-#include "body.h"
 #include "util.h"
 
 
@@ -41,7 +40,26 @@ static void WorldComp_GetBodies(WorldComp *wc, Body *arr);
 static void WorldComp_SetBodies(WorldComp *wc, Body *arr);
 
 
-/* The simulated world with fixed boundaries and body count. */
+/* Minimum radius of randomized Particle. */
+#define MIN_R   2.0f
+
+/* Maximum radius of randomized Particle. */
+#define MAX_R   2.0f
+
+/* Density of a Particle (used to calculate mass from radius). */
+#define DENSITY 1.0f
+
+/* Homegrown constants are the best. */
+#define PI  3.14159274f
+
+/* Convert radius to mass (R is evaluated 3 times). */
+#define R_TO_M(R)   ((4.f * PI * DENSITY / 3.f) * (R) * (R) * (R))
+
+/* Get random float in range [MIN, MAX). */
+static float RangeRand(float min, float max) {
+    return min + (max - min) * ((float)rand() / (float)RAND_MAX);
+}
+
 struct World {
     Body *arr;          // array of Bodies
     int size;           // length of the array
@@ -49,6 +67,7 @@ struct World {
     bool gpu_sync;      // whether last change in GPU buffer is synced with the array
     bool arr_sync;      // whether last change in the array is synced with GPU buffer
 };
+
 
 /* Copy data from GPU buffer to RAM if necessary. */
 static void SyncToArrFromGPU(World *w) {
@@ -69,16 +88,25 @@ static void SyncFromArrToGPU(World *w) {
 }
 
 
-/* Allocate World of given SIZE and randomize positions within MIN and MAX. */
 World *World_Create(int size, V2 min, V2 max) {
     World *world = ALLOC(World);
     Body *arr = ALLOC_N(size, Body);
     ASSERT(world != NULL && arr != NULL);
 
     for (int i = 0; i < size; i++) {
-        Particle_InitRand(&(arr + i)->p, min, max);
-        arr[i].vel = V2_ZERO;
-        arr[i].acc = V2_ZERO;
+        float r = RangeRand(MIN_R, MAX_R);
+        float x = RangeRand(min.x + r, max.x - r);
+        float y = RangeRand(min.y + r, max.y - r);
+
+        arr[i] = (Body){
+                .p = (Particle){
+                        .pos = V2_From(x, y),
+                        .mass = R_TO_M(r),
+                        .radius = r,
+                },
+                .vel = V2_ZERO,
+                .acc = V2_ZERO,
+        };
     }
 
     *world = (World){
@@ -91,7 +119,6 @@ World *World_Create(int size, V2 min, V2 max) {
     return world;
 }
 
-/* Free previously allocated W. */
 void World_Destroy(World *w) {
     if (w != NULL) {
         if (w->comp != NULL) {
@@ -102,7 +129,6 @@ void World_Destroy(World *w) {
     }
 }
 
-/* Update W using exact simulation. */
 void World_Update(World *w, float dt) {
     SyncToArrFromGPU(w);
     w->arr_sync = false;
@@ -112,20 +138,36 @@ void World_Update(World *w, float dt) {
 
     #pragma omp parallel for firstprivate(arr, size) default(none)
     for (int i = 0; i < size; i++) {
+        Body *body = &arr[i];
+        Particle a = body->p;
+
+        // initial acceleration is friction
+        V2 acc = V2_Mul(body->vel, RAG_FRICTION);
+
         for (int j = 0; j < size; j++) {
-            if (i != j) {
-                Body_ApplyGrav(&arr[i], arr[j].p);
+            if (i == j) continue;
+            Particle b = arr[j].p;
+
+            V2 radv = V2_Sub(b.pos, a.pos);
+            float dist = V2_Mag(radv);
+
+            if (dist > a.radius + b.radius) {
+                float g = RAG_G * b.mass / (dist * dist);
+                // normalize(radv) * g  ==  (radv / dist) * g  ==  radv * (g / dist)
+                acc = V2_Add(acc, V2_Mul(radv, g / dist));
             }
         }
+        body->acc = acc;
     }
 
     #pragma omp parallel for firstprivate(arr, size, dt) default(none)
     for (int i = 0; i < size; i++) {
-        Body_Move(&arr[i], dt);
+        Body *body = &arr[i];
+        body->vel = V2_Add(body->vel, V2_Mul(body->acc, dt));       // apply acceleration
+        body->p.pos = V2_Add(body->p.pos, V2_Mul(body->vel, dt));   // apply velocity
     }
 }
 
-/* Get W's bodies and size into respective pointers. */
 void World_GetBodies(World *w, Body **bodies, int *size) {
     SyncToArrFromGPU(w);
     *bodies = w->arr;
@@ -133,10 +175,6 @@ void World_GetBodies(World *w, Body **bodies, int *size) {
 }
 
 
-/*
- * Setup Vulkan pipeline for W. Updates will use constant time delta DT.
- * CTX must remain a valid pointer to initialized VulkanCtx until W is destroyed.
- */
 void World_InitVK(World *w, const VulkanCtx *ctx, float dt) {
     if (w->comp == NULL) {
         WorldData data = (WorldData){
@@ -148,7 +186,6 @@ void World_InitVK(World *w, const VulkanCtx *ctx, float dt) {
     }
 }
 
-/* Update W using Vulkan pipeline. Aborts if Vulkan has not been setup for W. */
 void World_UpdateVK(World *w) {
     ASSERT(w->comp != NULL);
 
@@ -181,8 +218,8 @@ struct WorldComp {
 };
 
 static void GetStorage(const WorldComp *wc,
-                                 VkBuffer *new, VkDeviceSize *new_offset,
-                                 VkBuffer *old, VkDeviceSize *old_offset) {
+                       VkBuffer *new, VkDeviceSize *new_offset,
+                       VkBuffer *old, VkDeviceSize *old_offset) {
     if (wc->new_old_idx == 0) {
         if (new != NULL) *new = wc->storage[0];
         if (old != NULL) *old = wc->storage[1];

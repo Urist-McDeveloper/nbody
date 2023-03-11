@@ -51,7 +51,7 @@ void main() {
     uint i = gl_GlobalInvocationID.x;
     if (i >= world.size) return;
 
-    // initial acceleration
+    // initial acceleration is friction
     vec2 acc = FRICTION_F * old.arr[i].vel;
 
     for (uint j = 0; j < world.size; j++) {
@@ -61,7 +61,6 @@ void main() {
     vec2 vel = old.arr[i].vel + (world.dt * acc);
     vec2 pos = old.arr[i].p.pos + (world.dt * vel);
 
-    new.arr[i].acc = vec2(0);
     new.arr[i].vel = vel;
     new.arr[i].p.pos = pos;
 

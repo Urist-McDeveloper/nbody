@@ -21,8 +21,8 @@ static const float STEPS[] = {0.1f, 0.25f, 0.5f, 1.f, 2.f, 4.f, 8.f};
 
 #define MAX_PHYS_OVERWORK 3
 
-static int dtoi(double f) {
-    return (int)round(f);
+static int ftoi(float f) {
+    return (int)roundf(f);
 }
 
 static void DrawBodies(World *world) {
@@ -33,8 +33,8 @@ static void DrawBodies(World *world) {
     for (int i = 0; i < size; i++) {
         Particle *p = &(arr + i)->p;
         DrawCircle(
-                dtoi(p->pos.x),
-                dtoi(p->pos.y),
+                ftoi(p->pos.x),
+                ftoi(p->pos.y),
                 (float)p->radius,
                 RAYWHITE
         );

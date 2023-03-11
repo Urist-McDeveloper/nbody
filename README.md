@@ -43,3 +43,4 @@ Press some buttons:
 - [ ] Select optimal VkPhysicalDevice, not the first one in the list
 - [ ] Switch to SDL and write Vulkan renderer so particle data never has to leave GPU
 - [ ] Also moving viewport
+- [ ] Allow chaining multiple pipeline calls in a single command buffer
