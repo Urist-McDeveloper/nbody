@@ -44,15 +44,15 @@ static void DrawBodies(World *world) {
 int main(void) {
     srand(time(NULL));
 
-    SetConfigFlags(FLAG_FULLSCREEN_MODE | FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT);
-    SetTargetFPS((int)round(1.0 / PHYS_STEP));
-    InitWindow(0, 0, "RAG!");
-
     VulkanCtx vk_ctx;
     VulkanCtx_Init(&vk_ctx);
 
     World *world = World_Create(BODY_COUNT, V2_ZERO, V2_From(GetScreenWidth(), GetScreenHeight()));
     World_InitVK(world, &vk_ctx);
+
+    SetConfigFlags(FLAG_FULLSCREEN_MODE | FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT);
+    SetTargetFPS((int)round(1.0 / PHYS_STEP));
+    InitWindow(0, 0, "RAG!");
 
     bool pause = false;
     bool use_gpu = BODY_COUNT > 250;

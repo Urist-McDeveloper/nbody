@@ -5,20 +5,20 @@
 
 void *FIO_ReadFile(const char *path, size_t *size) {
     FILE *f = fopen(path, "rb");
-    ASSERT(f != NULL);
+    ASSERT_FMT(f != NULL, "Failed to open %s", path);
 
     size_t buf_len = 0;
     size_t buf_size = READ_BUFFER_INC;
 
     char *buf = ALLOC_N(buf_size, char);
-    ASSERT(buf != NULL);
+    ASSERT_FMT(buf != NULL, "Failed to alloc %zu bytes", buf_size);
 
     size_t req, got;
     do {
         if (buf_len >= buf_size) {
             buf_size += READ_BUFFER_INC;
             buf = REALLOC(buf, buf_size, char);
-            ASSERT(buf != NULL);
+            ASSERT_FMT(buf != NULL, "Failed to alloc %zu bytes", buf_size);
         }
 
         req = buf_size - buf_len;
@@ -26,8 +26,10 @@ void *FIO_ReadFile(const char *path, size_t *size) {
         buf_len += got;
     } while (req == got);
 
-    ASSERT(feof(f) != 0);   // returns non-zero if EOF is set
-    ASSERT(fclose(f) == 0); // returns zero if closed successfully
+    // returns non-zero if EOF is set
+    ASSERT_FMT(feof(f) != 0, "EOF not reached %s", path);
+    // returns zero if closed successfully
+    ASSERT_FMT(fclose(f) == 0, "Failed to close %s", path);
 
     *size = buf_len;
     return buf;

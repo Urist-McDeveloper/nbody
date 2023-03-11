@@ -90,8 +90,10 @@ static void SyncFromArrToGPU(World *w) {
 
 World *World_Create(int size, V2 min, V2 max) {
     World *world = ALLOC(World);
+    ASSERT_MSG(world != NULL, "Failed to alloc World");
+
     Body *arr = ALLOC_N(size, Body);
-    ASSERT(world != NULL && arr != NULL);
+    ASSERT_FMT(arr != NULL, "Failed to alloc %d Body", size);
 
     for (int i = 0; i < size; i++) {
         float r = RangeRand(MIN_R, MAX_R);
@@ -193,7 +195,7 @@ void World_InitVK(World *w, const VulkanCtx *ctx) {
 }
 
 void World_UpdateVK(World *w, float dt) {
-    ASSERT(w->comp != NULL);
+    ASSERT_FMT(w->comp != NULL, "Vulkan has not been initialized for World %p", w);
 
     SyncFromArrToGPU(w);
     w->gpu_sync = false;
@@ -232,7 +234,8 @@ static void WorldComp_GetBodies(WorldComp *comp, Body *arr) {
     }
 
     void *mapped;
-    ASSERT_VK(vkMapMemory(comp->ctx->dev, comp->memory, offset, comp->storage_size, 0, &mapped));
+    ASSERT_VKR(vkMapMemory(comp->ctx->dev, comp->memory, offset, comp->storage_size, 0, &mapped),
+               "Failed to map memory");
 
     memcpy(arr, mapped, comp->storage_size);
     vkUnmapMemory(comp->ctx->dev, comp->memory);
@@ -246,7 +249,8 @@ static void WorldComp_SetBodies(WorldComp *comp, Body *arr) {
     }
 
     void *mapped;
-    ASSERT_VK(vkMapMemory(comp->ctx->dev, comp->memory, offset, comp->storage_size, 0, &mapped));
+    ASSERT_VKR(vkMapMemory(comp->ctx->dev, comp->memory, offset, comp->storage_size, 0, &mapped),
+               "Failed to map memory");
 
     memcpy(mapped, arr, comp->storage_size);
     vkUnmapMemory(comp->ctx->dev, comp->memory);
@@ -269,7 +273,7 @@ static void CreateWriteDescriptorSet(VkDescriptorSet set,
 
 static WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     WorldComp *comp = ALLOC(WorldComp);
-    ASSERT(comp != NULL);
+    ASSERT_MSG(comp != NULL, "Failed to alloc WorldComp");
 
     comp->world_data = data;
     comp->new_idx = 0;
@@ -355,7 +359,8 @@ static WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     ds_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     ds_layout_info.bindingCount = 3;
     ds_layout_info.pBindings = bindings;
-    ASSERT_VK(vkCreateDescriptorSetLayout(ctx->dev, &ds_layout_info, NULL, &comp->ds_layout));
+    ASSERT_VKR(vkCreateDescriptorSetLayout(ctx->dev, &ds_layout_info, NULL, &comp->ds_layout),
+               "Failed to create descriptor set layout");
 
     VkDescriptorPoolSize ds_pool_size[2] = {0};
     ds_pool_size[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
@@ -368,7 +373,8 @@ static WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     ds_pool_info.maxSets = 2;
     ds_pool_info.poolSizeCount = 2;
     ds_pool_info.pPoolSizes = ds_pool_size;
-    ASSERT_VK(vkCreateDescriptorPool(ctx->dev, &ds_pool_info, NULL, &comp->ds_pool));
+    ASSERT_VKR(vkCreateDescriptorPool(ctx->dev, &ds_pool_info, NULL, &comp->ds_pool),
+               "Failed to create descriptor pool");
 
     VkDescriptorSetAllocateInfo ds_alloc_info = {0};
     ds_alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -376,8 +382,10 @@ static WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     ds_alloc_info.descriptorSetCount = 1;
     ds_alloc_info.pSetLayouts = &comp->ds_layout;
 
-    ASSERT_VK(vkAllocateDescriptorSets(comp->ctx->dev, &ds_alloc_info, &comp->sets[0]));
-    ASSERT_VK(vkAllocateDescriptorSets(comp->ctx->dev, &ds_alloc_info, &comp->sets[1]));
+    ASSERT_VKR(vkAllocateDescriptorSets(comp->ctx->dev, &ds_alloc_info, &comp->sets[0]),
+               "Failed to allocate descriptor set #0");
+    ASSERT_VKR(vkAllocateDescriptorSets(comp->ctx->dev, &ds_alloc_info, &comp->sets[1]),
+               "Failed to allocate descriptor set #0");
 
     /*
      * Update descriptor set.
@@ -428,13 +436,15 @@ static WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     layout_info.setLayoutCount = 1;
     layout_info.pSetLayouts = &comp->ds_layout;
-    ASSERT_VK(vkCreatePipelineLayout(ctx->dev, &layout_info, NULL, &comp->pipeline_layout));
+    ASSERT_VKR(vkCreatePipelineLayout(ctx->dev, &layout_info, NULL, &comp->pipeline_layout),
+               "Failed to create pipeline layout");
 
     VkComputePipelineCreateInfo pipeline_info = {0};
     pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     pipeline_info.stage = shader_stage_info;
     pipeline_info.layout = comp->pipeline_layout;
-    ASSERT_VK(vkCreateComputePipelines(ctx->dev, NULL, 1, &pipeline_info, NULL, &comp->pipeline));
+    ASSERT_VKR(vkCreateComputePipelines(ctx->dev, NULL, 1, &pipeline_info, NULL, &comp->pipeline),
+               "Failed to create compute pipeline");
 
     /*
      * Command buffers and synchronization.
@@ -451,7 +461,7 @@ static WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
 
     for (int i = 0; i < 2; i++) {
         VkCommandBuffer buffer = comp->cmd_buffers[i];
-        ASSERT_VK(vkBeginCommandBuffer(buffer, &cmd_begin_info));
+        ASSERT_VKR(vkBeginCommandBuffer(buffer, &cmd_begin_info), "Failed to begin command buffer");
 
         vkCmdBindDescriptorSets(buffer,
                                 VK_PIPELINE_BIND_POINT_COMPUTE,
@@ -462,12 +472,12 @@ static WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
         vkCmdBindPipeline(buffer, VK_PIPELINE_BIND_POINT_COMPUTE, comp->pipeline);
         vkCmdDispatch(buffer, group_count, 1, 1);
 
-        ASSERT_VK(vkEndCommandBuffer(buffer));
+        ASSERT_VKR(vkEndCommandBuffer(buffer), "Failed to end command buffer");
     }
 
     VkFenceCreateInfo fence_info = {0};
     fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    ASSERT_VK(vkCreateFence(ctx->dev, &fence_info, NULL, &comp->fence));
+    ASSERT_VKR(vkCreateFence(ctx->dev, &fence_info, NULL, &comp->fence), "Failed to create fence");
 
     return comp;
 }
@@ -503,7 +513,8 @@ static void WorldComp_DoUpdate(WorldComp *comp, float dt) {
         comp->world_data.dt = dt;
 
         void *mapped;
-        ASSERT_VK(vkMapMemory(dev, comp->memory, 0, comp->uniform_size, 0, &mapped));
+        ASSERT_VKR(vkMapMemory(dev, comp->memory, 0, comp->uniform_size, 0, &mapped),
+                   "Failed to map device memory");
 
         memcpy(mapped, &comp->world_data, sizeof(WorldData));
         vkUnmapMemory(dev, comp->memory);
@@ -518,7 +529,7 @@ static void WorldComp_DoUpdate(WorldComp *comp, float dt) {
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &comp->cmd_buffers[new_idx];
 
-    ASSERT_VK(vkQueueSubmit(comp->ctx->queue, 1, &submit_info, comp->fence));
-    ASSERT_VK(vkWaitForFences(dev, 1, &comp->fence, VK_TRUE, UINT64_MAX));
-    ASSERT_VK(vkResetFences(dev, 1, &comp->fence));
+    ASSERT_VKR(vkQueueSubmit(comp->ctx->queue, 1, &submit_info, comp->fence), "Failed to submit command buffer");
+    ASSERT_VKR(vkWaitForFences(dev, 1, &comp->fence, VK_TRUE, UINT64_MAX), "Failed to wait for fences");
+    ASSERT_VKR(vkResetFences(dev, 1, &comp->fence), "Failed to reset fence");
 }
