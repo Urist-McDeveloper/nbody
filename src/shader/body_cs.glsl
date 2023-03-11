@@ -28,24 +28,37 @@ layout (std140, binding = 2) buffer FrameNew {
 /* Local group size as specialization constant. */
 layout (local_size_x_id = 0) in;
 
-/* Gravitational constant. */
-layout (constant_id = 1) const float G = 10.0;
+/*
+ * Gravitational constant; controls pulling force.
+ *      g = RAG_G * mass / dist^2
+ */
+layout (constant_id = 1) const float G = 10;
+
+/*
+ * "Negative" gravity; controls pushing force.
+ *      n = RAG_N * mass / dist^3
+ */
+layout (constant_id = 2) const float N = -1000;
 
 /* A fraction of velocity that becomes friction. */
-layout (constant_id = 2) const float FRICTION_F = -0.01;
+layout (constant_id = 3) const float FRICTION_F = -0.01;
 
 /* Get gravity acceleration of B upon A. */
 vec2 GetGrav(Particle a, Particle b) {
     vec2 radv = b.pos - a.pos;
-    float len = length(radv);
+    float dist = max(length(radv), 0.5 * (a.radius + b.radius));
 
-    if (length(radv) > a.radius + b.radius) {
-        float g = G * b.mass / (len * len);
-        // normalize(radv) * g  ==  (radv / dist) * g  ==  radv * (g / dist)
-        return radv * (g / len);
-    } else {
-        return vec2(0, 0);
-    }
+    //          g  ==  Gm / r^2
+    //          n  ==  Nm / r^3
+    // norm(radv)  ==  radv * (1 / r)
+    //
+    // norm(radv) * (g + n)  ==  radv * m * (Gr + N) / r^4
+
+    float gr = G * dist;
+    float r2 = dist * dist;
+    float r4 = r2 * r2;
+
+    return radv * (b.mass * (gr + N) / r4);
 }
 
 void main() {

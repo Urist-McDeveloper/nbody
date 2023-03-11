@@ -37,13 +37,14 @@ Press some buttons:
 
 ## TODO list
 
-- [ ] Make particles interact when they are close to each other instead of ignoring each other's existence
 - [ ] Select optimal VkPhysicalDevice, not the first one in the list
 - [ ] Switch to SDL and write Vulkan renderer so particle data never has to leave GPU
 - [ ] Also moving viewport
 - [ ] Allow chaining multiple pipeline calls in a single command buffer
+- [ ] Allow setting simulation parameters through command line arguments
 
 Done:
 
 - [x] Make GPU simulation respect simulation step change (2023-03-11)
 - [x] Use specialization constants to make sure CPU and GPU simulations always have the same parameters (2023-03-11)
+- [x] Add pushing force which is stronger than gravity at short distances 

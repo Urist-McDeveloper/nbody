@@ -44,9 +44,9 @@ static void DrawBodies(World *world) {
 int main(void) {
     srand(time(NULL));
 
-    SetConfigFlags(/*FLAG_FULLSCREEN_MODE |*/ FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT);
+    SetConfigFlags(FLAG_FULLSCREEN_MODE | FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT);
     SetTargetFPS((int)round(1.0 / PHYS_STEP));
-    InitWindow(1280, 720, "RAG!");
+    InitWindow(0, 0, "RAG!");
 
     VulkanCtx vk_ctx;
     VulkanCtx_Init(&vk_ctx);

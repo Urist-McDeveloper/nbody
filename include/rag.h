@@ -53,8 +53,17 @@ typedef struct Body {
     V2 vel, acc;
 } Body;
 
-/* Gravitational constant. */
-#define RAG_G           10.0f
+/*
+ * Gravitational constant; controls pulling force.
+ *      g = RAG_G * mass / dist^2
+ */
+#define RAG_G   10.0f
+
+/*
+ * "Negative" gravity; controls pushing force.
+ *      n = RAG_N * mass / dist^3
+ */
+#define RAG_N   (-1.f * RAG_G * RAG_G * RAG_G)
 
 /* A fraction of velocity that becomes friction. */
 #define RAG_FRICTION    (-0.01f)
