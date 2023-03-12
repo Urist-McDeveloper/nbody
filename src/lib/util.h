@@ -7,33 +7,30 @@
 #include <string.h>     // strerror
 
 /* Allocate sizeof(T) bytes. */
-#define ALLOC(T)            ALLOC_N(1, T)
+#define ALLOC(T)                ALLOC_N(1, T)
 
 /* Allocate N*sizeof(T) bytes. */
-#define ALLOC_N(N, T)       (T*)malloc((N) * sizeof(T))
+#define ALLOC_N(N, T)           (T*)malloc((N) * sizeof(T))
 
-/* Reallocate P with N*sizeof(T) bytes. */
-#define REALLOC(P, N, T)    (T*)realloc(P, (N) * sizeof(T))
-
-/* Print error message and abort if COND is true. */
+/* Print error message and abort if COND is false. */
 #define ASSERT_MSG(COND, MSG)   ASSERT_FMT(COND, MSG, NULL)
 
-/* Print error message and abort if COND is true. */
-#define ASSERT_FMT(COND, MSG, ...)                                             \
-    do {                                                                       \
-        if (!(COND)) {                                                         \
-            fprintf(stderr, "%s:%d [%s] errno = %d, str = %s\n",               \
-                    __FILE__, __LINE__, __FUNCTION__, errno, strerror(errno)); \
-            fprintf(stderr, "%s:%d [%s] " MSG "\n",                            \
-                    __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__);            \
-            abort();                                                           \
-        }                                                                      \
+/* Print error message and abort if COND is false. */
+#define ASSERT_FMT(COND, MSG, ...)                                          \
+    do {                                                                    \
+        if (!(COND)) {                                                      \
+            fprintf(stderr, "%s:%d [%s] errno = %d, str = %s\n",            \
+                    __FILE__, __LINE__, __func__, errno, strerror(errno));  \
+            fprintf(stderr, "%s:%d [%s] " MSG "\n",                         \
+                    __FILE__, __LINE__, __func__, __VA_ARGS__);             \
+            abort();                                                        \
+        }                                                                   \
     } while (0)
 
 #ifdef VULKAN_H_
 
 /* Assert that Vulkan library function returned VK_SUCCESS. */
-#define ASSERT_VKR(X, MSG) util_assert_vkr(X, MSG, __FILE__, __LINE__, __FUNCTION__)
+#define ASSERT_VKR(X, MSG) util_assert_vkr(X, MSG, __FILE__, __LINE__, __func__)
 
 static const char *util_vkr_to_str(VkResult x) {
     switch (x) {
@@ -80,12 +77,12 @@ static const char *util_vkr_to_str(VkResult x) {
     }
 }
 
-static void util_assert_vkr(VkResult x, const char *msg, const char *file, int line, const char *function) {
+static void util_assert_vkr(VkResult x, char *msg, char *file, int line, char *func) {
     if (x != VK_SUCCESS) {
         fprintf(stderr, "%s:%d [%s] VkResult = %d, str = %s\n",
-                file, line, function, x, util_vkr_to_str(x));
+                file, line, func, x, util_vkr_to_str(x));
         fprintf(stderr, "%s:%d [%s] %s\n",
-                file, line, function, msg);
+                file, line, func, msg);
         abort();
     }
 }

@@ -1,36 +1,27 @@
 #include "fio.h"
 #include "util.h"
 
-#define READ_BUFFER_INC 1024
+#include <stdio.h>
+#include <sys/stat.h>
 
-void *FIO_ReadFile(const char *path, size_t *size) {
-    FILE *f = fopen(path, "rb");
-    ASSERT_FMT(f != NULL, "Failed to open %s", path);
+#ifdef _WIN32
+#define stat _stat
+#endif
 
-    size_t buf_len = 0;
-    size_t buf_size = READ_BUFFER_INC;
+void *FIO_ReadFile(const char *file, size_t *size) {
+    FILE *f = fopen(file, "rb");
+    ASSERT_FMT(f != NULL, "Failed to open %s", file);
 
-    char *buf = ALLOC_N(buf_size, char);
-    ASSERT_FMT(buf != NULL, "Failed to alloc %zu bytes", buf_size);
+    struct stat fs;
+    ASSERT_FMT(stat(file, &fs) == 0, "Failed to stat %s", file);
 
-    size_t req, got;
-    do {
-        if (buf_len >= buf_size) {
-            buf_size += READ_BUFFER_INC;
-            buf = REALLOC(buf, buf_size, char);
-            ASSERT_FMT(buf != NULL, "Failed to alloc %zu bytes", buf_size);
-        }
+    char *buf = ALLOC_N(fs.st_size, char);
+    ASSERT_FMT(buf != NULL, "Failed to alloc %zu bytes", fs.st_size);
 
-        req = buf_size - buf_len;
-        got = fread(buf + buf_len, 1, req, f);
-        buf_len += got;
-    } while (req == got);
+    fread(buf, 1, fs.st_size, f);
+    ASSERT_FMT(ferror(f) == 0, "Error while reading %s", file);
+    ASSERT_FMT(fclose(f) == 0, "Failed to close %s", file);
 
-    // returns non-zero if EOF is set
-    ASSERT_FMT(feof(f) != 0, "EOF not reached %s", path);
-    // returns zero if closed successfully
-    ASSERT_FMT(fclose(f) == 0, "Failed to close %s", path);
-
-    *size = buf_len;
+    *size = fs.st_size;
     return buf;
 }
