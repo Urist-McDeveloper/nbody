@@ -107,12 +107,17 @@ int main(void) {
                 skipped_phys_frames = 0;
             }
 
-            float step = PHYS_STEP * STEPS[step_idx];
+            int updates = 0;
             while (phys_time >= PHYS_STEP) {
                 phys_time -= PHYS_STEP;
-                if (use_gpu) {
-                    World_UpdateVK(world, step);
-                } else {
+                updates++;
+            }
+
+            float step = PHYS_STEP * STEPS[step_idx];
+            if (use_gpu) {
+                World_UpdateVK(world, step, updates);
+            } else {
+                for (int i = 0; i < updates; i++) {
                     World_Update(world, step);
                 }
             }

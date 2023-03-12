@@ -42,7 +42,10 @@ VkBuffer VulkanCtx_CreateBuffer(const VulkanCtx *ctx, VkDeviceSize size, VkBuffe
  */
 void World_InitVK(World *w, const VulkanCtx *ctx);
 
-/* Update W using Vulkan pipeline. Aborts if Vulkan has not been setup for W. */
-void World_UpdateVK(World *w, float dt);
+/*
+ * Perform N updates using Vulkan compute pipeline.
+ * Aborts if Vulkan has not been setup for W.
+ */
+void World_UpdateVK(World *w, float dt, uint32_t n);
 
 #endif //RAG_VK_H

@@ -35,14 +35,9 @@ static int int64_t_cmp(const void *a_ptr, const void *b_ptr) {
 
 static int64_t dt[BENCH_ITER];
 
-// for World_GetBodies
-static Body *world_bodies;
-static int world_size;
-
-static int64_t bench(World *w, void (*update)(World *, float)) {
+static int64_t bench_cpu(World *w) {
     for (int i = 0; i < WARMUP_ITER; i++) {
-        update(w, UPDATE_STEP);
-        World_GetBodies(w, &world_bodies, &world_size);
+        World_Update(w, UPDATE_STEP);
     }
 
     struct timespec start;
@@ -50,8 +45,7 @@ static int64_t bench(World *w, void (*update)(World *, float)) {
 
     for (int i = 0; i < BENCH_ITER; i++) {
         now(&start);
-        update(w, UPDATE_STEP);
-        World_GetBodies(w, &world_bodies, &world_size);
+        World_Update(w, UPDATE_STEP);
         now(&end);
 
         dt[i] = diff_us(&start, &end);
@@ -65,6 +59,18 @@ static int64_t bench(World *w, void (*update)(World *, float)) {
 #else
     return dt[middle];
 #endif
+}
+
+static int64_t bench_gpu(World *w) {
+    struct timespec start;
+    struct timespec end;
+
+    World_UpdateVK(w, UPDATE_STEP, WARMUP_ITER);
+    now(&start);
+    World_UpdateVK(w, UPDATE_STEP, BENCH_ITER);
+    now(&end);
+
+    return diff_us(&start, &end) / BENCH_ITER;
 }
 
 static const int WS[] = {10, 100, 250, 500, 800, 1200, 2000};
@@ -88,8 +94,8 @@ int main(int argc, char **argv) {
             World *gpu_w = World_Create(WS[i], V2_ZERO, V2_From(WORLD_WIDTH, WORLD_HEIGHT));
             World_InitVK(gpu_w, &ctx);
 
-            int64_t cpu = bench(cpu_w, &World_Update);
-            int64_t gpu = bench(gpu_w, &World_UpdateVK);
+            int64_t cpu = bench_cpu(cpu_w);
+            int64_t gpu = bench_gpu(gpu_w);
             printf("\t%4d\t%5ld\t%5ld\n", WS[i], cpu, gpu);
 
             World_Destroy(cpu_w);
@@ -99,15 +105,18 @@ int main(int argc, char **argv) {
         int size = WS[WS_LEN - 1];
         World *w = World_Create(size, V2_ZERO, V2_From(WORLD_WIDTH, WORLD_HEIGHT));
 
-        void (*update)(World *, float);
+        int64_t time;
         if (use_cpu) {
-            update = &World_Update;
+            time = bench_cpu(w);
         } else {
             World_InitVK(w, &ctx);
-            update = &World_UpdateVK;
+            time = bench_gpu(w);
         }
+        World_Destroy(w);
+
         printf("\t   N\t Time\n");
-        printf("\t%4d\t%5ld\n", size, bench(w, update));
+        printf("\t%4d\t%5ld\n", size, time);
+
     }
 
     if (use_gpu) VulkanCtx_DeInit(&ctx);

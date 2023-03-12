@@ -127,7 +127,6 @@ static uint32_t InitDev(VkDevice *dev, VkPhysicalDevice pdev) {
     return qf_idx;
 }
 
-/* Initialize CTX. */
 void VulkanCtx_Init(VulkanCtx *ctx) {
     InitInstance(&ctx->instance);
     InitPDev(&ctx->pdev, ctx->instance);
@@ -142,14 +141,12 @@ void VulkanCtx_Init(VulkanCtx *ctx) {
     ASSERT_VKR(vkCreateCommandPool(ctx->dev, &pool_create_info, NULL, &ctx->cmd_pool), "Failed to create command pool");
 }
 
-/* De-initialize VulkanCtx. */
 void VulkanCtx_DeInit(VulkanCtx *ctx) {
     vkDestroyCommandPool(ctx->dev, ctx->cmd_pool, NULL);
     vkDestroyDevice(ctx->dev, NULL);
     vkDestroyInstance(ctx->instance, NULL);
 }
 
-/* Load shader module from PATH. */
 VkShaderModule VulkanCtx_LoadShader(const VulkanCtx *ctx, const char *path) {
     size_t buf_size;
     uint32_t *buf = FIO_ReadFile(path, &buf_size);
@@ -166,7 +163,6 @@ VkShaderModule VulkanCtx_LoadShader(const VulkanCtx *ctx, const char *path) {
     return module;
 }
 
-/* Allocate primary command buffers. */
 void VulkanCtx_AllocCommandBuffers(const VulkanCtx *ctx, uint32_t count, VkCommandBuffer *buffers) {
     VkCommandBufferAllocateInfo allocate_info = {0};
     allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
@@ -176,7 +172,6 @@ void VulkanCtx_AllocCommandBuffers(const VulkanCtx *ctx, uint32_t count, VkComma
     ASSERT_VKR(vkAllocateCommandBuffers(ctx->dev, &allocate_info, buffers), "Failed to allocate command buffers");
 }
 
-/* Allocate device memory. FLAGS must not be 0. */
 VkDeviceMemory VulkanCtx_AllocMemory(const VulkanCtx *ctx, VkDeviceSize size, VkMemoryPropertyFlags flags) {
     ASSERT_MSG(flags != 0, "flags must not be 0");
 
@@ -202,7 +197,6 @@ VkDeviceMemory VulkanCtx_AllocMemory(const VulkanCtx *ctx, VkDeviceSize size, Vk
     return memory;
 }
 
-/* Create exclusive buffer. */
 VkBuffer VulkanCtx_CreateBuffer(const VulkanCtx *ctx, VkDeviceSize size, VkBufferUsageFlags usage) {
     VkBufferCreateInfo create_info = {0};
     create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
