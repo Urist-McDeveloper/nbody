@@ -37,7 +37,7 @@ Press some buttons:
 ## TODO list
 
 - [ ] Select optimal VkPhysicalDevice, not the first one in the list
-- [ ] Switch to SDL and write Vulkan renderer so that particle data never has to leave GPU
+- [ ] Write Vulkan renderer so that particle data never has to leave GPU
 - [ ] Also moving viewport
 - [ ] Allow setting simulation parameters through command line arguments
 
@@ -47,4 +47,4 @@ Done:
 - [x] Use specialization constants to make sure CPU and GPU simulations always have the same parameters
 - [x] Add pushing force which is stronger than gravity at short distances
 - [x] Make GPU buffers device-local for performance improvements
-- [x] Allow performing multiple updates in a single World_UpdateVK call by chaining pipeline dispatches  
+- [x] Allow performing multiple updates in a single World_UpdateVK call by chaining pipeline dispatches

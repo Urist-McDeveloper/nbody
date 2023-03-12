@@ -8,14 +8,6 @@ project(rag C)
 set(CMAKE_C_STANDARD 99)
 set(CMAKE_C_STANDARD_REQUIRED TRUE)
 
-# enable IPO on Release (if supported)
-include(CheckIPOSupported)
-check_ipo_supported(RESULT ipo_supported)
-if (ipo_supported)
-    set(CMAKE_POLICY_DEFAULT_CMP0069 NEW)
-    set(CMAKE_INTERPROCEDURAL_OPTIMIZATION_RELEASE TRUE)
-endif ()
-
 ##
 ## "Global" functions
 ##
