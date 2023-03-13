@@ -1,6 +1,6 @@
 #version 450
 
-struct Body {
+struct Particle {
     vec2 pos, vel, acc;
     float mass, radius;
 };
@@ -11,11 +11,11 @@ layout (std140, binding = 0) uniform WorldData {
 } world;
 
 layout (std140, binding = 1) readonly buffer FrameOld {
-    Body arr[];
+    Particle arr[];
 } old;
 
 layout (std140, binding = 2) buffer FrameNew {
-    Body arr[];
+    Particle arr[];
 } new;
 
 /* Local group size as specialization constant. */
@@ -37,7 +37,7 @@ layout (constant_id = 2) const float N = -1000;
 layout (constant_id = 3) const float FRICTION_F = -0.01;
 
 /* Get acceleration enacted by B upon A. */
-vec2 GetGrav(Body a, Body b) {
+vec2 GetGrav(Particle a, Particle b) {
     vec2 radv = b.pos - a.pos;
     float dist = max(length(radv), 0.5 * (a.radius + b.radius));
 

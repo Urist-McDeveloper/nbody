@@ -3,6 +3,21 @@
 
 #include <math.h>   // hypotf
 
+/*
+ * Gravitational constant; controls pulling force.
+ *      g = RAG_G * mass / dist^2
+ */
+#define RAG_G   10.0f
+
+/*
+ * "Negative" gravity; controls pushing force.
+ *      n = RAG_N * mass / dist^3
+ */
+#define RAG_N   (-80.f * RAG_G)
+
+/* A fraction of velocity that becomes friction. */
+#define RAG_FRICTION    (-0.01f)
+
 /* 2D vector of floats. */
 typedef struct V2 {
     float x, y;
@@ -19,60 +34,33 @@ static inline V2 V2_Add(V2 a, V2 b) {
     return V2_From(a.x + b.x, a.y + b.y);
 }
 
-/* Vector subtraction. */
-static inline V2 V2_Sub(V2 a, V2 b) {
-    return V2_From(a.x - b.x, a.y - b.y);
-}
-
 /* Scalar multiplication. */
 static inline V2 V2_Mul(V2 v, float f) {
     return V2_From(v.x * f, v.y * f);
 }
 
-/* Vector magnitude. */
-static inline float V2_Mag(V2 v) {
-    return hypotf(v.x, v.y);
-}
-
-/* Vector magnitude squared. */
-static inline float V2_SqMag(V2 v) {
-    return (v.x * v.x) + (v.y * v.y);
-}
-
 /* Simulation particle. */
-typedef struct Body {
+typedef struct Particle {
     V2 pos, vel, acc;
     float mass, radius;
-} Body;
+} Particle;
 
-/*
- * Gravitational constant; controls pulling force.
- *      g = RAG_G * mass / dist^2
- */
-#define RAG_G   10.0f
+// Vulkan requires structs to be aligned on 16 bytes
+_Static_assert(sizeof(Particle) == 32, "sizeof(Particle) must be 32");
 
-/*
- * "Negative" gravity; controls pushing force.
- *      n = RAG_N * mass / dist^3
- */
-#define RAG_N   (-80.f * RAG_G)
-
-/* A fraction of velocity that becomes friction. */
-#define RAG_FRICTION    (-0.01f)
-
-/* The simulated world with fixed boundaries and body count. */
+/* The simulated world with fixed particle count. */
 typedef struct World World;
 
 /* Create World of given SIZE and randomize particle positions within MIN and MAX. */
 World *World_Create(int size, V2 min, V2 max);
 
-/* Destroy W. */
+/* Destroy World. */
 void World_Destroy(World *w);
 
 /* Perform N updates using CPU simulation. */
 void World_Update(World *w, float dt, int n);
 
-/* Put W's body array and its size into respective pointers. */
-void World_GetBodies(World *w, Body **bodies, int *size);
+/* Get Particle array and its size. */
+void World_GetParticles(World *w, Particle **ps, int *size);
 
 #endif //RAG_H

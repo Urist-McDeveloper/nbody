@@ -45,7 +45,7 @@ static void SubmitAndWait(WorldComp *comp, VkCommandBuffer cmd_buf) {
     ASSERT_VKR(vkResetFences(comp->ctx->dev, 1, &comp->fence), "Failed to reset fence");
 }
 
-void WorldComp_GetBodies(WorldComp *comp, Body *arr) {
+void WorldComp_GetParticles(WorldComp *comp, Particle *arr) {
     // copy data from device-local buffer into host-accessible buffer
     SubmitAndWait(comp, comp->dth_storage_copy_cb[comp->new_idx]);
 
@@ -58,7 +58,7 @@ void WorldComp_GetBodies(WorldComp *comp, Body *arr) {
     vkUnmapMemory(comp->ctx->dev, comp->host_mem);
 }
 
-void WorldComp_SetBodies(WorldComp *comp, Body *arr) {
+void WorldComp_SetParticles(WorldComp *comp, Particle *arr) {
     void *mapped;
     ASSERT_VKR(vkMapMemory(comp->ctx->dev, comp->host_mem, 0, comp->storage_size, 0, &mapped),
                "Failed to map memory");
@@ -98,7 +98,7 @@ WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
      * Shaders.
      */
 
-    comp->shader = VulkanCtx_LoadShader(ctx, "shader/body_cs.spv");
+    comp->shader = VulkanCtx_LoadShader(ctx, "shader/particle_cs.spv");
 
     VkSpecializationMapEntry shader_spec_map[4];
     for (int i = 0; i < 4; i++) {
@@ -131,7 +131,7 @@ WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
      */
 
     const VkDeviceSize uniform_size = SIZE_OF_ALIGN_16(WorldData);
-    const VkDeviceSize storage_size = data.size * sizeof(Body);
+    const VkDeviceSize storage_size = data.size * sizeof(Particle);
     const VkDeviceSize dev_mem_size = uniform_size + 2 * storage_size;
 
     comp->uniform_size = uniform_size;

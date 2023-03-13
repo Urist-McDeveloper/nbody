@@ -20,7 +20,7 @@ if (OpenMP_C_FOUND)
     target_link_libraries(rag-lib PRIVATE OpenMP::OpenMP_C)
 endif()
 
-compile_shaders(rag-lib STAGE comp SOURCE ../shader/body_cs.glsl)
+compile_shaders(rag-lib STAGE comp SOURCE ../shader/particle_cs.glsl)
 
 set_target_properties(rag-lib PROPERTIES
         C_EXTENSIONS off

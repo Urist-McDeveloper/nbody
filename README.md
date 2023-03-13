@@ -7,7 +7,7 @@ Written in C, powered by Vulkan and AVX, shown on screen with [raylib](https://g
 ### Build prerequisites
 
 1. C compiler that supports:
-   * C11 standard (specifically `aligned_alloc` in stdlib);
+   * C11 standard (specifically `aligned_alloc` in stdlib and `_Static_assert` keyword);
    * AVX intrinsics;
    * (*optional*) OpenMP.
 2. Vulkan SDK, including `glslc` and validation layers. Only Vulkan 1.0 features are used.

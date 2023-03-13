@@ -26,10 +26,10 @@ void WorldComp_Destroy(WorldComp *comp);
 /* Perform N updates with specified time delta. */
 void WorldComp_DoUpdate(WorldComp *comp, float dt, uint32_t n);
 
-/* Copy bodies from GPU buffer into ARR. */
-void WorldComp_GetBodies(WorldComp *comp, Body *arr);
+/* Copy particles from GPU buffer into ARR. */
+void WorldComp_GetParticles(WorldComp *comp, Particle *arr);
 
-/* Copy bodies from ARR into GPU buffer. */
-void WorldComp_SetBodies(WorldComp *comp, Body *arr);
+/* Copy particles from ARR into GPU buffer. */
+void WorldComp_SetParticles(WorldComp *comp, Particle *arr);
 
 #endif //RAG_WORLD_VK_H

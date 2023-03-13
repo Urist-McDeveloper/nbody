@@ -32,7 +32,7 @@
 /* Assert that Vulkan library function returned VK_SUCCESS. */
 #define ASSERT_VKR(X, MSG) util_assert_vkr(X, MSG, __FILE__, __LINE__, __func__)
 
-static const char *util_vkr_to_str(VkResult x) {
+static inline const char *util_vkr_to_str(VkResult x) {
     switch (x) {
         case VK_SUCCESS:
             return "VK_SUCCESS";
@@ -77,7 +77,7 @@ static const char *util_vkr_to_str(VkResult x) {
     }
 }
 
-static void util_assert_vkr(VkResult x, const char *msg, const char *file, int line, const char *func) {
+static inline void util_assert_vkr(VkResult x, const char *msg, const char *file, int line, const char *func) {
     if (x != VK_SUCCESS) {
         fprintf(stderr, "%s:%d [%s] VkResult = %d, str = %s\n",
                 file, line, func, x, util_vkr_to_str(x));
