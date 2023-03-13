@@ -6,11 +6,11 @@
 #include <errno.h>      // errno
 #include <string.h>     // strerror
 
-/* Allocate sizeof(T) bytes. */
-#define ALLOC(T)                ALLOC_N(1, T)
-
 /* Allocate N*sizeof(T) bytes. */
-#define ALLOC_N(N, T)           (T*)malloc((N) * sizeof(T))
+#define ALLOC(N, T)             (T*)malloc((N) * sizeof(T))
+
+/* Allocate N*sizeof(T) bytes; returned pointer is guaranteed to be multiple of A. */
+#define ALLOC_ALIGNED(A, N, T)  (T*)aligned_alloc(A, (N) * sizeof(T))
 
 /* Print error message and abort if COND is false. */
 #define ASSERT_MSG(COND, MSG)   ASSERT_FMT(COND, MSG, NULL)

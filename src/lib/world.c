@@ -76,9 +76,8 @@ static void PackedUpdateAcc(Body *b, const int n, const PackedBody *packed) {
     const __m256 by = _mm256_set1_ps(b->pos.y);     // position y
     const __m256 br = _mm256_set1_ps(b->radius);    // r
 
-    V2 friction = V2_Mul(b->vel, RAG_FRICTION);
-    __m256 ax = _mm256_set1_ps(friction.x);         // acceleration x
-    __m256 ay = _mm256_set1_ps(friction.y);         // acceleration y
+    __m256 ax = _mm256_set1_ps(0.f);                // acceleration x
+    __m256 ay = _mm256_set1_ps(0.f);                // acceleration y
 
     for (int i = 0; i < n; i++) {
         // because writing p instead of p[i] is more convenient
@@ -89,7 +88,6 @@ static void PackedUpdateAcc(Body *b, const int n, const PackedBody *packed) {
         __m256 dy = _mm256_sub_ps(p.y, by);
         __m256 dist2 = _mm256_add_ps(_mm256_mul_ps(dx, dx),
                                      _mm256_mul_ps(dy, dy));
-
 
         // minimum distance == 0.5 * (radiusA + radiusB)
         __m256 min_r = _mm256_mul_ps(half, _mm256_add_ps(br, p.r));
@@ -105,7 +103,10 @@ static void PackedUpdateAcc(Body *b, const int n, const PackedBody *packed) {
         ax = _mm256_add_ps(ax, _mm256_mul_ps(dx, total));
         ay = _mm256_add_ps(ay, _mm256_mul_ps(dy, total));
     }
-    b->acc = V2_From(mm256_sum(ax), mm256_sum(ay));
+
+    V2 friction = V2_Mul(b->vel, RAG_FRICTION);
+    V2 acc = V2_From(mm256_sum(ax), mm256_sum(ay));
+    b->acc = V2_Add(friction, acc);
 }
 
 struct World {
@@ -126,7 +127,7 @@ static void UpdatePackedData(World *w) {
     PackedBody *pck = w->pck;
 
     // pack full 8
-    #pragma omp parallel for schedule(static, 100) firstprivate(arr, pck, n) default(none)
+    #pragma omp parallel for schedule(static, 25) firstprivate(arr, pck, n) default(none)
     for (int i = 0; i < n; i++) {
         pck[i] = PackBodies(&arr[i * PACK_SIZE]);
     }
@@ -137,7 +138,7 @@ static void UpdatePackedData(World *w) {
         for (int i = 0; i < rem; i++) {
             b[i] = w->arr[n * PACK_SIZE + i];
         }
-        for (int i = PACK_SIZE; i > rem; i++) {
+        for (int i = PACK_SIZE; i > rem; i--) {
             b[i - 1] = (Body){0};
         }
         w->pck[n] = PackBodies(b);
@@ -164,16 +165,16 @@ static void SyncFromArrToGPU(World *w) {
 }
 
 World *World_Create(const int size, V2 min, V2 max) {
-    World *world = ALLOC(World);
+    World *world = ALLOC(1, World);
     ASSERT_MSG(world != NULL, "Failed to alloc World");
 
-    Body *arr = ALLOC_N(size, Body);
+    Body *arr = ALLOC(size, Body);
     ASSERT_FMT(arr != NULL, "Failed to alloc %d Body", size);
 
     const int rem = size % PACK_SIZE;
     const int pck_size = size / PACK_SIZE + (rem == 0 ? 0 : 1);
 
-    PackedBody *pck = ALLOC_N(pck_size, PackedBody);
+    PackedBody *pck = ALLOC_ALIGNED(4 * PACK_SIZE, pck_size, PackedBody);
     ASSERT_FMT(pck != NULL, "Failed to alloc %d PackedBody", pck_size);
 
     for (int i = 0; i < size; i++) {

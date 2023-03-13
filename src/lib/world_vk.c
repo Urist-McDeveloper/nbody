@@ -87,7 +87,7 @@ static void CreateWriteDescriptorSet(VkDescriptorSet set,
 }
 
 WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
-    WorldComp *comp = ALLOC(WorldComp);
+    WorldComp *comp = ALLOC(1, WorldComp);
     ASSERT_MSG(comp != NULL, "Failed to alloc WorldComp");
 
     comp->world_data = data;

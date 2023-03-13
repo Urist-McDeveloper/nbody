@@ -19,7 +19,7 @@ static void AssertDebugLayersSupported() {
     ASSERT_VKR(vkEnumerateInstanceLayerProperties(&layer_count, NULL), "Failed to enumerate instance layers");
     ASSERT_MSG(layer_count > 0, "Instance layer count is 0");
 
-    VkLayerProperties *layers = ALLOC_N(layer_count, VkLayerProperties);
+    VkLayerProperties *layers = ALLOC(layer_count, VkLayerProperties);
     ASSERT_FMT(layers != NULL, "Failed to alloc %u VkLayerProperties", layer_count);
     ASSERT_VKR(vkEnumerateInstanceLayerProperties(&layer_count, layers), "Failed to enumerate instance layers");
 
@@ -67,7 +67,7 @@ static void InitPDev(VkPhysicalDevice *pdev, VkInstance instance) {
     ASSERT_VKR(vkEnumeratePhysicalDevices(instance, &pdev_count, NULL), "Failed to enumerate physical devices");
     ASSERT_MSG(pdev_count > 0, "Physical device count is 0");
 
-    VkPhysicalDevice *pds = ALLOC_N(pdev_count, VkPhysicalDevice);
+    VkPhysicalDevice *pds = ALLOC(pdev_count, VkPhysicalDevice);
     ASSERT_FMT(pds != NULL, "Failed to alloc %u VkPhysicalDevice", pdev_count);
     ASSERT_VKR(vkEnumeratePhysicalDevices(instance, &pdev_count, pds), "Failed to enumerate physical devices");
 
@@ -86,7 +86,7 @@ static uint32_t InitDev(VkDevice *dev, VkPhysicalDevice pdev) {
     vkGetPhysicalDeviceQueueFamilyProperties(pdev, &family_count, NULL);
     ASSERT_MSG(family_count > 0, "Queue family count is 0");
 
-    VkQueueFamilyProperties *family_props = ALLOC_N(family_count, VkQueueFamilyProperties);
+    VkQueueFamilyProperties *family_props = ALLOC(family_count, VkQueueFamilyProperties);
     ASSERT_FMT(family_props != NULL, "Failed to alloc %u VkQueueFamilyProperties", family_count);
     vkGetPhysicalDeviceQueueFamilyProperties(pdev, &family_count, family_props);
 

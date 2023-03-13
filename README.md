@@ -1,17 +1,17 @@
 # Direct 2D N-body simulation
 
-Written in C, built with Vulkan, shown on screen with [raylib](https://github.com/raysan5/raylib).
+Written in C, powered by Vulkan and AVX, shown on screen with [raylib](https://github.com/raysan5/raylib).
 
 ## Build and run
 
 ### Build prerequisites
 
 1. C compiler that supports:
-   * C99 standard;
+   * C11 standard (specifically `aligned_alloc` in stdlib);
    * AVX intrinsics;
    * (*optional*) OpenMP.
-2. CMake version 3.20 or later.
-3. Vulkan SDK, including `glslc` and validation layers. Only Vulkan 1.0 features are used.
+2. Vulkan SDK, including `glslc` and validation layers. Only Vulkan 1.0 features are used.
+3. CMake version 3.20 or later.
 
 Target `rag-bench` uses Linux-only monotonic clock and therefore is not available on other platforms.
 

@@ -15,7 +15,7 @@ void *FIO_ReadFile(const char *file, size_t *size) {
     struct stat fs;
     ASSERT_FMT(stat(file, &fs) == 0, "Failed to stat %s", file);
 
-    char *buf = ALLOC_N(fs.st_size, char);
+    char *buf = ALLOC(fs.st_size, char);
     ASSERT_FMT(buf != NULL, "Failed to alloc %zu bytes", fs.st_size);
 
     fread(buf, 1, fs.st_size, f);

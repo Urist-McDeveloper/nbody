@@ -5,8 +5,8 @@ project(rag C)
 ## General configuration
 ##
 
-set(CMAKE_C_STANDARD 99)
-set(CMAKE_C_STANDARD_REQUIRED TRUE)
+set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 
 ##
 ## "Global" functions
