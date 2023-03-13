@@ -2,39 +2,64 @@
 #include "util.h"
 
 #include <stdint.h>
+
+#ifdef USE_AVX
+
 #include <immintrin.h>
 
 /* How much floats are packed together. */
 #define PACK_SIZE   8
 
+/* Create __m256 from FIELD of 8 P members. */
+#define MMX_SET(P, FIELD) _mm256_set_ps(P[0].FIELD, P[1].FIELD, P[2].FIELD, P[3].FIELD, \
+                                        P[4].FIELD, P[5].FIELD, P[6].FIELD, P[7].FIELD)
+
+#define mx              __m256
+#define mmx_set1_ps     _mm256_set1_ps
+#define mmx_add_ps      _mm256_add_ps
+#define mmx_sub_ps      _mm256_sub_ps
+#define mmx_mul_ps      _mm256_mul_ps
+#define mmx_div_ps      _mm256_div_ps
+#define mmx_max_ps      _mm256_max_ps
+#define mmx_sqrt_ps     _mm256_sqrt_ps
+#define mmx_storeu_ps   _mm256_storeu_ps
+
+#else
+
+#include <xmmintrin.h>
+
+/* How much floats are packed together. */
+#define PACK_SIZE   4
+
+/* Create __m128 from FIELD of 4 P members. */
+#define MMX_SET(P, FIELD) _mm_set_ps(P[0].FIELD, P[1].FIELD, P[2].FIELD, P[3].FIELD)
+
+#define mx              __m128
+#define mmx_set1_ps     _mm_set1_ps
+#define mmx_add_ps      _mm_add_ps
+#define mmx_sub_ps      _mm_sub_ps
+#define mmx_mul_ps      _mm_mul_ps
+#define mmx_div_ps      _mm_div_ps
+#define mmx_max_ps      _mm_max_ps
+#define mmx_sqrt_ps     _mm_sqrt_ps
+#define mmx_storeu_ps   _mm_storeu_ps
+
+#endif
+
 struct ParticlePack {
-    __m256 x;   // position x
-    __m256 y;   // position y
-    __m256 m;   // mass
-    __m256 r;   // radius
+    mx x;   // position x
+    mx y;   // position y
+    mx m;   // mass
+    mx r;   // radius
 };
 
-/* Horizontal sun of X. Should probably be done with SIMD instructions. */
-static float mm256_sum(__m256 x) {
-    float f[PACK_SIZE], sum = 0;
-    _mm256_storeu_ps(f, x);
-
-    for (int i = 0; i < PACK_SIZE; i++) {
-        sum += f[i];
-    }
-    return sum;
-}
-
-#define MM256_SET(P, FIELD) _mm256_set_ps(P[0].FIELD, P[1].FIELD, P[2].FIELD, P[3].FIELD,\
-                                          P[4].FIELD, P[5].FIELD, P[6].FIELD, P[7].FIELD)
-
-/* Pack 8 particles. */
+/* Merge PACK_SIZE particles into a single pack. */
 static ParticlePack CreatePack(const Particle *p) {
     return (ParticlePack){
-            .x = MM256_SET(p, pos.x),
-            .y = MM256_SET(p, pos.y),
-            .m = MM256_SET(p, mass),
-            .r = MM256_SET(p, radius),
+            .x = MMX_SET(p, pos.x),
+            .y = MMX_SET(p, pos.y),
+            .m = MMX_SET(p, mass),
+            .r = MMX_SET(p, radius),
     };
 }
 
@@ -64,39 +89,50 @@ void PackParticles(uint32_t count, const Particle *ps, ParticlePack *packs) {
     }
 }
 
+/* Horizontal sun of X. Should probably be done with SIMD instructions. */
+static float mmx_sum(mx x) {
+    float f[PACK_SIZE], sum = 0;
+    mmx_storeu_ps(f, x);
+
+    for (int i = 0; i < PACK_SIZE; i++) {
+        sum += f[i];
+    }
+    return sum;
+}
+
 void PackedUpdate(Particle *p, float dt, size_t packs_len, ParticlePack *packs) {
-    const __m256 m_half = _mm256_set1_ps(0.5f);     // packed 0.5f
-    const __m256 m_g = _mm256_set1_ps(NB_G);       // packed NB_G
-    const __m256 m_n = _mm256_set1_ps(NB_N);       // packed NB_N
+    const mx m_half = mmx_set1_ps(0.5f);     // packed 0.5f
+    const mx m_g = mmx_set1_ps(NB_G);       // packed NB_G
+    const mx m_n = mmx_set1_ps(NB_N);       // packed NB_N
 
-    const __m256 m_x = _mm256_set1_ps(p->pos.x);    // position x
-    const __m256 m_y = _mm256_set1_ps(p->pos.y);    // position y
-    const __m256 m_r = _mm256_set1_ps(p->radius);   // radius
+    const mx m_x = mmx_set1_ps(p->pos.x);    // position x
+    const mx m_y = mmx_set1_ps(p->pos.y);    // position y
+    const mx m_r = mmx_set1_ps(p->radius);   // radius
 
-    __m256 m_ax = _mm256_set1_ps(0.f);              // acceleration x
-    __m256 m_ay = _mm256_set1_ps(0.f);              // acceleration y
+    mx m_ax = mmx_set1_ps(0.f);              // acceleration x
+    mx m_ay = mmx_set1_ps(0.f);              // acceleration y
 
     for (int i = 0; i < packs_len; i++) {
         // delta x, delta y and distance squared
-        __m256 dx = _mm256_sub_ps(packs[i].x, m_x);
-        __m256 dy = _mm256_sub_ps(packs[i].y, m_y);
-        __m256 dist2 = _mm256_add_ps(_mm256_mul_ps(dx, dx), _mm256_mul_ps(dy, dy));
+        mx dx = mmx_sub_ps(packs[i].x, m_x);
+        mx dy = mmx_sub_ps(packs[i].y, m_y);
+        mx dist2 = mmx_add_ps(mmx_mul_ps(dx, dx), mmx_mul_ps(dy, dy));
 
         // minimum distance == 0.5 * (radiusA + radiusB)
-        __m256 min_r = _mm256_mul_ps(m_half, _mm256_add_ps(m_r, packs[i].r));
-        dist2 = _mm256_max_ps(dist2, _mm256_mul_ps(min_r, min_r));
+        mx min_r = mmx_mul_ps(m_half, mmx_add_ps(m_r, packs[i].r));
+        dist2 = mmx_max_ps(dist2, mmx_mul_ps(min_r, min_r));
 
-        __m256 dist1 = _mm256_sqrt_ps(dist2);       // distance
-        __m256 dist4 = _mm256_mul_ps(dist2, dist2); // distance^4
+        mx dist1 = mmx_sqrt_ps(dist2);       // distance
+        mx dist4 = mmx_mul_ps(dist2, dist2); // distance^4
 
-        __m256 gd_n = _mm256_add_ps(_mm256_mul_ps(m_g, dist1), m_n);            // gd_n = G * dist + N
-        __m256 total = _mm256_mul_ps(packs[i].m, _mm256_div_ps(gd_n, dist4));   // f = m * (G * dist + N) / dist^4
+        mx gd_n = mmx_add_ps(mmx_mul_ps(m_g, dist1), m_n);            // gd_n = G * dist + N
+        mx total = mmx_mul_ps(packs[i].m, mmx_div_ps(gd_n, dist4));   // f = m * (G * dist + N) / dist^4
 
-        m_ax = _mm256_add_ps(m_ax, _mm256_mul_ps(dx, total));
-        m_ay = _mm256_add_ps(m_ay, _mm256_mul_ps(dy, total));
+        m_ax = mmx_add_ps(m_ax, mmx_mul_ps(dx, total));
+        m_ay = mmx_add_ps(m_ay, mmx_mul_ps(dy, total));
     }
 
-    V2 acc = V2_From(mm256_sum(m_ax), mm256_sum(m_ay));
+    V2 acc = V2_From(mmx_sum(m_ax), mmx_sum(m_ay));
     V2 friction = V2_Mul(p->vel, NB_FRICTION);
 
     p->acc = V2_Add(friction, acc);

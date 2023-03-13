@@ -1,6 +1,6 @@
 # 2D N-body simulation on CPU and GPU
 
-Written in C, powered by Vulkan and AVX, shown on screen with [raylib](https://github.com/raysan5/raylib).
+Written in C, powered by Vulkan and AVX (or SSE), shown on screen with [raylib](https://github.com/raysan5/raylib).
 
 ## Build and run
 
@@ -8,21 +8,30 @@ Written in C, powered by Vulkan and AVX, shown on screen with [raylib](https://g
 
 1. C compiler that supports:
    * C11 standard (specifically `aligned_alloc` in stdlib and `_Static_assert` keyword);
-   * AVX intrinsics;
+   * AVX or SSE intrinsics;
    * (*optional*) OpenMP.
 2. Vulkan SDK, including `glslc` and validation layers. Only Vulkan 1.0 features are used.
 3. CMake version 3.20 or later.
 
-Target `rag-bench` uses Linux-only monotonic clock and therefore is not available on other platforms.
+Target `nbody-bench` uses Linux-only monotonic clock and therefore is not available on other platforms.
 
 ### How to build
 
-Like any other CMake project.
+Like any other CMake project. Example on Linux:
+
+```shell
+mkdir build && cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make
+```
+
+Build options:
+* `USE_AVX` (default `ON`) -- indicates whether CPU simulation should use AVX or SSE.
 
 ### How to run
 
-1. Make sure that the compiled shader is located at `./shader/body_cs.spv`.
-2. Run `rag`.
+1. Make sure that the compiled shader is located at `./shader/particle_cs.spv`.
+2. Run `nbody`.
 
 ### What to do?
 
@@ -42,7 +51,6 @@ Press some buttons:
 - [ ] Write Vulkan renderer so that particle data never has to leave GPU
 - [ ] A moving camera would be nice
 - [ ] Allow setting simulation parameters through command line arguments
-- [ ] Add CMake option to disable AVX and fall back to SSE
 - [ ] Add CMake option to disable GPU simulation
 - [ ] Write tests that actually test something
 
@@ -54,3 +62,4 @@ Done:
 - [x] Make GPU buffers device-local for performance improvements
 - [x] Allow performing multiple updates in a single World_UpdateVK call by chaining pipeline dispatches
 - [x] Use AVX for CPU simulation
+- [x] Add CMake option to disable AVX and fall back to SSE

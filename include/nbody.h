@@ -2,7 +2,6 @@
 #define NB_H
 
 #include <stdint.h>
-#include <math.h>   // hypotf
 
 /*
  * Gravitational constant; controls pulling force.

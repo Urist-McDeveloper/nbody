@@ -1,8 +1,18 @@
 cmake_minimum_required(VERSION 3.20)
 project(nbody C)
 
+##
+##  General configuration
+##
+
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
+
+option(USE_AVX "Use AVX for CPU simulation" ON)
+
+##
+##  "Global" function; may need to be called from src and test subdirectories
+##
 
 find_package(Vulkan COMPONENTS glslc)
 find_program(GLSLC NAMES glslc HINTS Vulkan::glslc)
@@ -28,6 +38,10 @@ function(compile_shaders target stage)
         target_sources(${target} PRIVATE ${spv})
     endforeach ()
 endfunction()
+
+##
+##  Subdirectories
+##
 
 add_subdirectory(src)
 add_subdirectory(deps)

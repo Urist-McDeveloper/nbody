@@ -14,8 +14,12 @@ set(nbody_lib_sources
 
 add_library(nbody-lib STATIC ${nbody_lib_sources} ${nbody_lib_headers})
 target_include_directories(nbody-lib PUBLIC ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(nbody-lib PUBLIC Vulkan::Vulkan m)
-target_compile_options(nbody-lib PUBLIC -mavx)
+target_link_libraries(nbody-lib PUBLIC Vulkan::Vulkan)
+
+if (USE_AVX)
+    target_compile_options(nbody-lib PUBLIC -mavx)
+    target_compile_definitions(nbody-lib PUBLIC USE_AVX)
+endif()
 
 if (OpenMP_C_FOUND)
     target_link_libraries(nbody-lib PRIVATE OpenMP::OpenMP_C)
