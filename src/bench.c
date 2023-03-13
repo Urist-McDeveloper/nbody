@@ -76,7 +76,11 @@ static int64_t bench_gpu(World *w) {
 static const int WS[] = {10, 100, 250, 500, 800, 1200, 2000, 4000};
 static const int WS_LEN = sizeof(WS) / sizeof(WS[0]);
 
+#define WORLD_NEW(size)  World_Create(size, V2_ZERO, V2_From(WORLD_WIDTH, WORLD_HEIGHT))
+
 int main(int argc, char **argv) {
+    srand(11037);
+
     bool use_cpu = true, use_gpu = true;
     if (argc > 1) {
         if (memcmp(argv[1], "--cpu", 5) == 0) use_gpu = false;
@@ -86,38 +90,30 @@ int main(int argc, char **argv) {
     VulkanCtx ctx;
     if (use_gpu) VulkanCtx_Init(&ctx);
 
-    srand(11037);
-    if (use_gpu && use_cpu) {
-        printf("\t   N\t  CPU\t  GPU\n");
-        for (int i = 0; i < WS_LEN; i++) {
-            World *cpu_w = World_Create(WS[i], V2_ZERO, V2_From(WORLD_WIDTH, WORLD_HEIGHT));
-            World *gpu_w = World_Create(WS[i], V2_ZERO, V2_From(WORLD_WIDTH, WORLD_HEIGHT));
+    World *cpu_w;
+    World *gpu_w;
+
+    printf("\t   N");
+    if (use_cpu) printf("\t  CPU");
+    if (use_gpu) printf("\t  GPU");
+    printf("\n");
+
+    for (int i = 0; i < WS_LEN; i++) {
+        int world_size = WS[i];
+
+        if (use_cpu) cpu_w = WORLD_NEW(world_size);
+        if (use_gpu) {
+            gpu_w = WORLD_NEW(world_size);
             World_InitVK(gpu_w, &ctx);
-
-            int64_t cpu = bench_cpu(cpu_w);
-            int64_t gpu = bench_gpu(gpu_w);
-            printf("\t%4d\t%5ld\t%5ld\n", WS[i], cpu, gpu);
-
-            World_Destroy(cpu_w);
-            World_Destroy(gpu_w);
         }
-    } else {
-        int size = WS[WS_LEN - 1];
-        World *w = World_Create(size, V2_ZERO, V2_From(WORLD_WIDTH, WORLD_HEIGHT));
 
-        int64_t time;
-        if (use_cpu) {
-            time = bench_cpu(w);
-        } else {
-            World_InitVK(w, &ctx);
-            time = bench_gpu(w);
-        }
-        World_Destroy(w);
+        printf("\t%4d", world_size);
+        if (use_cpu) printf("\t%5ld", bench_cpu(cpu_w));
+        if (use_gpu) printf("\t%5ld", bench_gpu(gpu_w));
+        printf("\n");
 
-        printf("\t   N\t Time\n");
-        printf("\t%4d\t%5ld\n", size, time);
-
+        if (use_cpu) World_Destroy(cpu_w);
+        if (use_gpu) World_Destroy(gpu_w);
     }
-
     if (use_gpu) VulkanCtx_DeInit(&ctx);
 }

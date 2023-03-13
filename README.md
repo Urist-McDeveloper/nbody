@@ -1,4 +1,4 @@
-# Direct 2D N-body simulation
+# 2D N-body simulation on CPU and GPU
 
 Written in C, powered by Vulkan and AVX, shown on screen with [raylib](https://github.com/raysan5/raylib).
 
@@ -40,8 +40,11 @@ Press some buttons:
 
 - [ ] Select optimal VkPhysicalDevice, not the first one in the list
 - [ ] Write Vulkan renderer so that particle data never has to leave GPU
-- [ ] Also moving viewport
+- [ ] A moving camera would be nice
 - [ ] Allow setting simulation parameters through command line arguments
+- [ ] Add CMake option to disable AVX and fall back to SSE
+- [ ] Add CMake option to disable GPU simulation
+- [ ] Write tests that actually test something
 
 Done:
 

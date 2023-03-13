@@ -86,8 +86,7 @@ static void PackedUpdateAcc(Body *b, const int n, const PackedBody *packed) {
         // delta x, delta y and distance squared
         __m256 dx = _mm256_sub_ps(p.x, bx);
         __m256 dy = _mm256_sub_ps(p.y, by);
-        __m256 dist2 = _mm256_add_ps(_mm256_mul_ps(dx, dx),
-                                     _mm256_mul_ps(dy, dy));
+        __m256 dist2 = _mm256_add_ps(_mm256_mul_ps(dx, dx), _mm256_mul_ps(dy, dy));
 
         // minimum distance == 0.5 * (radiusA + radiusB)
         __m256 min_r = _mm256_mul_ps(half, _mm256_add_ps(br, p.r));
@@ -177,6 +176,7 @@ World *World_Create(const int size, V2 min, V2 max) {
     PackedBody *pck = ALLOC_ALIGNED(4 * PACK_SIZE, pck_size, PackedBody);
     ASSERT_FMT(pck != NULL, "Failed to alloc %d PackedBody", pck_size);
 
+    #pragma omp parallel for schedule(static, 100) firstprivate(arr, size, min, max) default(none)
     for (int i = 0; i < size; i++) {
         float r = RangeRand(MIN_R, MAX_R);
         float x = RangeRand(min.x + r, max.x - r);
@@ -222,7 +222,7 @@ void World_Update(World *w, float dt) {
     PackedBody *pck = w->pck;
     int pck_size = w->pck_size;
 
-    #pragma omp parallel for schedule(static, 20) firstprivate(arr, arr_size, pck, pck_size) default(none)
+    #pragma omp parallel for schedule(static, 25) firstprivate(arr, arr_size, pck, pck_size) default(none)
     for (int i = 0; i < arr_size; i++) {
         PackedUpdateAcc(&arr[i], pck_size, pck);
     }

@@ -53,10 +53,11 @@ int main(void) {
     World *world = World_Create(BODY_COUNT, V2_ZERO, V2_From(WINDOW_WIDTH, WINDOW_HEIGHT));
     World_InitVK(world, &vk_ctx);
 
+    SetTargetFPS((int)(1.f / PHYS_STEP));
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "RAG!");
 
     bool pause = false;
-    bool use_gpu = BODY_COUNT > 250;
+    bool use_gpu = BODY_COUNT > 500;
 
     int speed_idx = 0;
     int step_idx = DEF_STEP_IDX;
