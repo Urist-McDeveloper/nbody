@@ -119,9 +119,7 @@ int main(void) {
             if (use_gpu) {
                 World_UpdateVK(world, step, updates);
             } else {
-                for (int i = 0; i < updates; i++) {
-                    World_Update(world, step);
-                }
+                World_Update(world, step, updates);
             }
         }
 

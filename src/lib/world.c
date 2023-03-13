@@ -40,34 +40,32 @@ typedef struct PackedBody {
     __m256 r;   // radius
 } PackedBody;
 
+#define MM256_SET(A, FIELD) _mm256_set_ps(A[0].FIELD, A[1].FIELD, A[2].FIELD, A[3].FIELD,\
+                                          A[4].FIELD, A[5].FIELD, A[6].FIELD, A[7].FIELD)
+
 /* Pack 8 bodies. */
 static PackedBody PackBodies(const Body *b) {
     return (PackedBody){
-            .x = _mm256_set_ps(b[0].pos.x, b[1].pos.x, b[2].pos.x, b[3].pos.x,
-                               b[4].pos.x, b[5].pos.x, b[6].pos.x, b[7].pos.x),
-            .y = _mm256_set_ps(b[0].pos.y, b[1].pos.y, b[2].pos.y, b[3].pos.y,
-                               b[4].pos.y, b[5].pos.y, b[6].pos.y, b[7].pos.y),
-            .m = _mm256_set_ps(b[0].mass, b[1].mass, b[2].mass, b[3].mass,
-                               b[4].mass, b[5].mass, b[6].mass, b[7].mass),
-            .r = _mm256_set_ps(b[0].radius, b[1].radius, b[2].radius, b[3].radius,
-                               b[4].radius, b[5].radius, b[6].radius, b[7].radius),
+            .x = MM256_SET(b, pos.x),
+            .y = MM256_SET(b, pos.y),
+            .m = MM256_SET(b, mass),
+            .r = MM256_SET(b, radius),
     };
 }
 
 /* Horizontal sun of X. Should probably be done with SIMD instructions. */
 static float mm256_sum(__m256 x) {
-    float f[8];
+    float f[PACK_SIZE], sum = 0;
     _mm256_storeu_ps(f, x);
 
-    float r = 0.f;
-    for (int i = 0; i < 8; i++) {
-        r += f[i];
+    for (int i = 0; i < PACK_SIZE; i++) {
+        sum += f[i];
     }
-    return r;
+    return sum;
 }
 
 /* Update acceleration of B using N packed bodies. */
-static void PackedUpdateAcc(Body *b, const int n, const PackedBody *packed) {
+static void PackedUpdateAcc(Body *b, float dt, const int n, const PackedBody *packed) {
     const __m256 half = _mm256_set1_ps(0.5f);       // packed 0.5f
     const __m256 packed_g = _mm256_set1_ps(RAG_G);  // packed RAG_G
     const __m256 packed_n = _mm256_set1_ps(RAG_N);  // packed RAG_N
@@ -80,7 +78,6 @@ static void PackedUpdateAcc(Body *b, const int n, const PackedBody *packed) {
     __m256 ay = _mm256_set1_ps(0.f);                // acceleration y
 
     for (int i = 0; i < n; i++) {
-        // because writing p instead of p[i] is more convenient
         PackedBody p = packed[i];
 
         // delta x, delta y and distance squared
@@ -103,9 +100,12 @@ static void PackedUpdateAcc(Body *b, const int n, const PackedBody *packed) {
         ay = _mm256_add_ps(ay, _mm256_mul_ps(dy, total));
     }
 
-    V2 friction = V2_Mul(b->vel, RAG_FRICTION);
     V2 acc = V2_From(mm256_sum(ax), mm256_sum(ay));
+    V2 friction = V2_Mul(b->vel, RAG_FRICTION);
+
     b->acc = V2_Add(friction, acc);
+    b->vel = V2_Add(b->vel, V2_Mul(b->acc, dt));
+    b->pos = V2_Add(b->pos, V2_Mul(b->vel, dt));
 }
 
 struct World {
@@ -126,7 +126,7 @@ static void UpdatePackedData(World *w) {
     PackedBody *pck = w->pck;
 
     // pack full 8
-    #pragma omp parallel for schedule(static, 25) firstprivate(arr, pck, n) default(none)
+    #pragma omp parallel for schedule(static, 10) firstprivate(arr, pck, n) default(none)
     for (int i = 0; i < n; i++) {
         pck[i] = PackBodies(&arr[i * PACK_SIZE]);
     }
@@ -148,7 +148,6 @@ static void UpdatePackedData(World *w) {
 static void SyncToArrFromGPU(World *w) {
     if (!w->gpu_sync) {
         WorldComp_GetBodies(w->comp, w->arr);
-        UpdatePackedData(w);
         w->gpu_sync = true;
         w->arr_sync = true;
     }
@@ -176,7 +175,7 @@ World *World_Create(const int size, V2 min, V2 max) {
     PackedBody *pck = ALLOC_ALIGNED(4 * PACK_SIZE, pck_size, PackedBody);
     ASSERT_FMT(pck != NULL, "Failed to alloc %d PackedBody", pck_size);
 
-    #pragma omp parallel for schedule(static, 100) firstprivate(arr, size, min, max) default(none)
+    #pragma omp parallel for schedule(static, 80) firstprivate(arr, size, min, max) default(none)
     for (int i = 0; i < size; i++) {
         float r = RangeRand(MIN_R, MAX_R);
         float x = RangeRand(min.x + r, max.x - r);
@@ -208,12 +207,13 @@ void World_Destroy(World *w) {
         if (w->comp != NULL) {
             WorldComp_Destroy(w->comp);
         }
+        free(w->pck);
         free(w->arr);
         free(w);
     }
 }
 
-void World_Update(World *w, float dt) {
+void World_Update(World *w, float dt, int n) {
     SyncToArrFromGPU(w);
     w->arr_sync = false;
 
@@ -222,18 +222,14 @@ void World_Update(World *w, float dt) {
     PackedBody *pck = w->pck;
     int pck_size = w->pck_size;
 
-    #pragma omp parallel for schedule(static, 25) firstprivate(arr, arr_size, pck, pck_size) default(none)
-    for (int i = 0; i < arr_size; i++) {
-        PackedUpdateAcc(&arr[i], pck_size, pck);
-    }
+    for (int update_iter = 0; update_iter < n; update_iter++) {
+        UpdatePackedData(w);
 
-    #pragma omp parallel for schedule(static, 100) firstprivate(arr, arr_size, dt) default(none)
-    for (int i = 0; i < arr_size; i++) {
-        Body *body = &arr[i];
-        body->vel = V2_Add(body->vel, V2_Mul(body->acc, dt));
-        body->pos = V2_Add(body->pos, V2_Mul(body->vel, dt));
+        #pragma omp parallel for schedule(static, 20) firstprivate(dt, arr, arr_size, pck, pck_size) default(none)
+        for (int i = 0; i < arr_size; i++) {
+            PackedUpdateAcc(&arr[i], dt, pck_size, pck);
+        }
     }
-    UpdatePackedData(w);
 }
 
 void World_GetBodies(World *w, Body **bodies, int *size) {

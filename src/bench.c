@@ -20,54 +20,17 @@ static int64_t diff_us(struct timespec *from, struct timespec *to) {
     return (to->tv_sec - from->tv_sec) * US_PER_S + (to->tv_nsec - from->tv_nsec) / NS_PER_US;
 }
 
-static int int64_t_cmp(const void *a_ptr, const void *b_ptr) {
-    int a = (int)*((int64_t *)a_ptr);
-    int b = (int)*((int64_t *)b_ptr);
-    return a - b;
-}
-
-#define WORLD_WIDTH     1000
-#define WORLD_HEIGHT    1000
-
 #define UPDATE_STEP 0.01
 #define WARMUP_ITER 100
 #define BENCH_ITER  1000
 
-static int64_t dt[BENCH_ITER];
-
-static int64_t bench_cpu(World *w) {
-    for (int i = 0; i < WARMUP_ITER; i++) {
-        World_Update(w, UPDATE_STEP);
-    }
-
+static int64_t bench(World *w, void (*update)(World *, float, int)) {
     struct timespec start;
     struct timespec end;
 
-    for (int i = 0; i < BENCH_ITER; i++) {
-        now(&start);
-        World_Update(w, UPDATE_STEP);
-        now(&end);
-
-        dt[i] = diff_us(&start, &end);
-    }
-
-    qsort(dt, BENCH_ITER, sizeof(*dt), int64_t_cmp);
-    int middle = BENCH_ITER / 2;
-
-#if BENCH_ITER % 2 == 0
-    return (dt[middle - 1] + dt[middle]) / 2;
-#else
-    return dt[middle];
-#endif
-}
-
-static int64_t bench_gpu(World *w) {
-    struct timespec start;
-    struct timespec end;
-
-    World_UpdateVK(w, UPDATE_STEP, WARMUP_ITER);
+    update(w, UPDATE_STEP, WARMUP_ITER);
     now(&start);
-    World_UpdateVK(w, UPDATE_STEP, BENCH_ITER);
+    update(w, UPDATE_STEP, BENCH_ITER);
     now(&end);
 
     return diff_us(&start, &end) / BENCH_ITER;
@@ -76,7 +39,9 @@ static int64_t bench_gpu(World *w) {
 static const int WS[] = {10, 100, 250, 500, 800, 1200, 2000, 4000};
 static const int WS_LEN = sizeof(WS) / sizeof(WS[0]);
 
-#define WORLD_NEW(size)  World_Create(size, V2_ZERO, V2_From(WORLD_WIDTH, WORLD_HEIGHT))
+#define WORLD_WIDTH     1000
+#define WORLD_HEIGHT    1000
+#define WORLD_NEW(size) World_Create(size, V2_ZERO, V2_From(WORLD_WIDTH, WORLD_HEIGHT))
 
 int main(int argc, char **argv) {
     srand(11037);
@@ -108,8 +73,8 @@ int main(int argc, char **argv) {
         }
 
         printf("\t%4d", world_size);
-        if (use_cpu) printf("\t%5ld", bench_cpu(cpu_w));
-        if (use_gpu) printf("\t%5ld", bench_gpu(gpu_w));
+        if (use_cpu) printf("\t%5ld", bench(cpu_w, World_Update));
+        if (use_gpu) printf("\t%5ld", bench(gpu_w, World_UpdateVK));
         printf("\n");
 
         if (use_cpu) World_Destroy(cpu_w);
