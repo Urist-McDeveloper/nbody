@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include <rag.h>
-#include <rag_vk.h>
+#include <nbody.h>
+#include <nbody_vk.h>
 #include <raylib.h>
 
 static const float SPEEDS[] = {1, 2, 4, 8, 16, 32};
@@ -10,7 +10,7 @@ static const float SPEEDS[] = {1, 2, 4, 8, 16, 32};
 #define SPEEDS_LENGTH   (int)(sizeof(SPEEDS) / sizeof(SPEEDS[0]))
 #define LAST_SPEED_IDX  (SPEEDS_LENGTH - 1)
 
-static const float STEPS[] = {0.1f, 0.25f, 0.5f, 1.f, 2.f, 4.f, 8.f};
+static const float STEPS[] = {0.1f, 0.25f, 0.5f, 1.f, 2.f, 4.f};
 
 #define STEPS_LENGTH    (int)(sizeof(STEPS) / sizeof(STEPS[0]))
 #define LAST_STEP_IDX   (STEPS_LENGTH - 1)
@@ -54,7 +54,7 @@ int main(void) {
     World_InitVK(world, &vk_ctx);
 
     SetTargetFPS((int)(1.f / PHYS_STEP));
-    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "RAG!");
+    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "N-Body simulation");
 
     bool pause = false;
     bool use_gpu = PARTICLE_COUNT > 500;

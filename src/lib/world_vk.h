@@ -1,7 +1,7 @@
-#ifndef RAG_WORLD_VK_H
-#define RAG_WORLD_VK_H
+#ifndef NB_WORLD_VK_H
+#define NB_WORLD_VK_H
 
-#include <rag_vk.h>
+#include <nbody_vk.h>
 
 /* Constant data given to shaders in a uniform buffer. */
 typedef struct WorldData {
@@ -32,4 +32,4 @@ void WorldComp_GetParticles(WorldComp *comp, Particle *arr);
 /* Copy particles from ARR into GPU buffer. */
 void WorldComp_SetParticles(WorldComp *comp, Particle *arr);
 
-#endif //RAG_WORLD_VK_H
+#endif //NB_WORLD_VK_H

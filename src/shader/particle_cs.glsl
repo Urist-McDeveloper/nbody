@@ -23,13 +23,13 @@ layout (local_size_x_id = 0) in;
 
 /*
  * Gravitational constant; controls pulling force.
- *      g = RAG_G * mass / dist^2
+ *      g = G * mass / dist^2
  */
 layout (constant_id = 1) const float G = 10;
 
 /*
  * "Negative" gravity; controls pushing force.
- *      n = RAG_N * mass / dist^3
+ *      n = N * mass / dist^3
  */
 layout (constant_id = 2) const float N = -1000;
 

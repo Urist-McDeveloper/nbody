@@ -66,8 +66,8 @@ void PackParticles(uint32_t count, const Particle *ps, ParticlePack *packs) {
 
 void PackedUpdate(Particle *p, float dt, size_t packs_len, ParticlePack *packs) {
     const __m256 m_half = _mm256_set1_ps(0.5f);     // packed 0.5f
-    const __m256 m_g = _mm256_set1_ps(RAG_G);       // packed RAG_G
-    const __m256 m_n = _mm256_set1_ps(RAG_N);       // packed RAG_N
+    const __m256 m_g = _mm256_set1_ps(NB_G);       // packed NB_G
+    const __m256 m_n = _mm256_set1_ps(NB_N);       // packed NB_N
 
     const __m256 m_x = _mm256_set1_ps(p->pos.x);    // position x
     const __m256 m_y = _mm256_set1_ps(p->pos.y);    // position y
@@ -97,7 +97,7 @@ void PackedUpdate(Particle *p, float dt, size_t packs_len, ParticlePack *packs) 
     }
 
     V2 acc = V2_From(mm256_sum(m_ax), mm256_sum(m_ay));
-    V2 friction = V2_Mul(p->vel, RAG_FRICTION);
+    V2 friction = V2_Mul(p->vel, NB_FRICTION);
 
     p->acc = V2_Add(friction, acc);
     p->vel = V2_Add(p->vel, V2_Mul(p->acc, dt));

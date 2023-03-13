@@ -1,7 +1,7 @@
-#ifndef RAG_VK_H
-#define RAG_VK_H
+#ifndef NB_VK_H
+#define NB_VK_H
 
-#include "rag.h"
+#include "nbody.h"
 
 #include <vulkan/vulkan.h>
 
@@ -48,4 +48,4 @@ void World_InitVK(World *w, const VulkanCtx *ctx);
  */
 void World_UpdateVK(World *w, float dt, uint32_t n);
 
-#endif //RAG_VK_H
+#endif //NB_VK_H

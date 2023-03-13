@@ -1,5 +1,5 @@
-#ifndef RAG_FIO_H
-#define RAG_FIO_H
+#ifndef NB_FIO_H
+#define NB_FIO_H
 
 #include <stddef.h>
 
@@ -9,4 +9,4 @@
  */
 void *FIO_ReadFile(const char *path, size_t *size);
 
-#endif //RAG_FIO_H
+#endif //NB_FIO_H

@@ -1,7 +1,7 @@
-#ifndef RAG_PARTICLE_PACK_H
-#define RAG_PARTICLE_PACK_H
+#ifndef NB_PARTICLE_PACK_H
+#define NB_PARTICLE_PACK_H
 
-#include <rag.h>
+#include <nbody.h>
 #include <stddef.h>
 
 /* Some number of particles pack together for vectorization. */
@@ -16,4 +16,4 @@ void PackParticles(uint32_t count, const Particle *ps, ParticlePack *packs);
 /* Update P with PACKS. */
 void PackedUpdate(Particle *p, float dt, size_t packs_len, ParticlePack *packs);
 
-#endif //RAG_PARTICLE_PACK_H
+#endif //NB_PARTICLE_PACK_H

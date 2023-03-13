@@ -1,5 +1,5 @@
-#include <rag.h>
-#include <rag_vk.h>
+#include <nbody.h>
+#include <nbody_vk.h>
 
 #include <stdlib.h>
 #include <stdbool.h>

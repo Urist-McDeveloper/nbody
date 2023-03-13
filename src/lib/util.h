@@ -1,5 +1,5 @@
-#ifndef RAG_UTIL_H
-#define RAG_UTIL_H
+#ifndef NB_UTIL_H
+#define NB_UTIL_H
 
 #include <stdlib.h>     // malloc, realloc, abort
 #include <stdio.h>      // fprintf, stderr
@@ -88,4 +88,4 @@ static inline void util_assert_vkr(VkResult x, const char *msg, const char *file
 }
 
 #endif //VULKAN_H_
-#endif //RAG_UTIL_H
+#endif //NB_UTIL_H

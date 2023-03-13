@@ -1,4 +1,4 @@
-#include <rag_vk.h>
+#include <nbody_vk.h>
 
 #include <stdio.h>
 #include <stdint.h>
@@ -46,7 +46,7 @@ static void AssertDebugLayersSupported() {
 static void InitInstance(VkInstance *instance) {
     VkApplicationInfo app_info = {0};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app_info.pApplicationName = "rag";
+    app_info.pApplicationName = "nbody";
     app_info.applicationVersion = VK_MAKE_VERSION(0, 1, 0);
     app_info.apiVersion = VK_API_VERSION_1_0;
 

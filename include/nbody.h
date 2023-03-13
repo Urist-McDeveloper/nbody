@@ -1,23 +1,23 @@
-#ifndef RAG_H
-#define RAG_H
+#ifndef NB_H
+#define NB_H
 
 #include <stdint.h>
 #include <math.h>   // hypotf
 
 /*
  * Gravitational constant; controls pulling force.
- *      g = RAG_G * mass / dist^2
+ *      g = NB_G * mass / dist^2
  */
-#define RAG_G   10.0f
+#define NB_G        10.0f
 
 /*
  * "Negative" gravity; controls pushing force.
- *      n = RAG_N * mass / dist^3
+ *      n = NB_N * mass / dist^3
  */
-#define RAG_N   (-80.f * RAG_G)
+#define NB_N        (-80.f * NB_G)
 
 /* A fraction of velocity that becomes friction. */
-#define RAG_FRICTION    (-0.01f)
+#define NB_FRICTION (-0.01f)
 
 /* 2D vector of floats. */
 typedef struct V2 {
@@ -64,4 +64,4 @@ void World_Update(World *w, float dt, uint32_t n);
 /* Get Particle array and its size. */
 void World_GetParticles(World *w, Particle **ps, uint32_t *size);
 
-#endif //RAG_H
+#endif //NB_H

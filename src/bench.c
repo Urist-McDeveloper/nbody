@@ -6,8 +6,8 @@
 #include <string.h>
 #include <time.h>
 
-#include <rag.h>
-#include <rag_vk.h>
+#include <nbody.h>
+#include <nbody_vk.h>
 
 #define US_PER_S    (1000 * 1000)
 #define NS_PER_US   (1000)

@@ -109,9 +109,9 @@ WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
 
     char shader_spec_data[16];
     *(uint32_t *)shader_spec_data = LOCAL_SIZE_X;
-    *(float *)(shader_spec_data + 4) = RAG_G;
-    *(float *)(shader_spec_data + 8) = RAG_N;
-    *(float *)(shader_spec_data + 12) = RAG_FRICTION;
+    *(float *)(shader_spec_data + 4) = NB_G;
+    *(float *)(shader_spec_data + 8) = NB_N;
+    *(float *)(shader_spec_data + 12) = NB_FRICTION;
 
     VkSpecializationInfo shader_spec_info = {0};
     shader_spec_info.mapEntryCount = 4;
