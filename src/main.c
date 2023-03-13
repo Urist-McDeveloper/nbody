@@ -27,7 +27,7 @@ static int ftoi(float f) {
 
 static void DrawParticles(World *world) {
     Particle *arr;
-    int size;
+    uint32_t size;
     World_GetParticles(world, &arr, &size);
 
     for (int i = 0; i < size; i++) {

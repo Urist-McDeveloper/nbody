@@ -7,6 +7,7 @@ set(rag_lib_headers
         ${CMAKE_SOURCE_DIR}/include/rag_vk.h)
 set(rag_lib_sources
         fio.c
+        particle_pack.c
         vk_ctx.c
         world.c
         world_vk.c)

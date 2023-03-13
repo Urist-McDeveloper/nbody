@@ -67,7 +67,7 @@ static void InitPDev(VkPhysicalDevice *pdev, VkInstance instance) {
     ASSERT_MSG(pdev_count > 0, "Physical device count is 0");
 
     VkPhysicalDevice *pds = ALLOC(pdev_count, VkPhysicalDevice);
-    ASSERT_FMT(pds != NULL, "Failed to alloc %u VkPhysicalDevice", pdev_count);
+    ASSERT_FMT(pds != NULL, "Failed to alloc %u VkPhysicalDevices", pdev_count);
     ASSERT_VKR(vkEnumeratePhysicalDevices(instance, &pdev_count, pds), "Failed to enumerate physical devices");
 
     // TODO: choose the most suitable device if pdev_count > 1

@@ -24,7 +24,7 @@ static int64_t diff_us(struct timespec *from, struct timespec *to) {
 #define WARMUP_ITER 100
 #define BENCH_ITER  1000
 
-static int64_t bench(World *w, void (*update)(World *, float, int)) {
+static int64_t bench(World *w, void (*update)(World *, float, uint32_t)) {
     struct timespec start;
     struct timespec end;
 

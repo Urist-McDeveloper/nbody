@@ -1,6 +1,7 @@
 #ifndef RAG_H
 #define RAG_H
 
+#include <stdint.h>
 #include <math.h>   // hypotf
 
 /*
@@ -52,15 +53,15 @@ _Static_assert(sizeof(Particle) == 32, "sizeof(Particle) must be 32");
 typedef struct World World;
 
 /* Create World of given SIZE and randomize particle positions within MIN and MAX. */
-World *World_Create(int size, V2 min, V2 max);
+World *World_Create(uint32_t size, V2 min, V2 max);
 
 /* Destroy World. */
 void World_Destroy(World *w);
 
 /* Perform N updates using CPU simulation. */
-void World_Update(World *w, float dt, int n);
+void World_Update(World *w, float dt, uint32_t n);
 
 /* Get Particle array and its size. */
-void World_GetParticles(World *w, Particle **ps, int *size);
+void World_GetParticles(World *w, Particle **ps, uint32_t *size);
 
 #endif //RAG_H
