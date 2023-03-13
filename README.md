@@ -7,9 +7,9 @@ Written in C, powered by Vulkan and AVX (or SSE), shown on screen with [raylib](
 ### Build prerequisites
 
 1. C compiler that supports:
-   * C11 standard (specifically `aligned_alloc` in stdlib and `_Static_assert` keyword);
-   * AVX or SSE intrinsics;
-   * (*optional*) OpenMP.
+    * C11 standard (specifically `aligned_alloc` in stdlib and `_Static_assert` keyword);
+    * AVX or SSE intrinsics;
+    * (*optional*) OpenMP.
 2. Vulkan SDK, including `glslc` and validation layers. Only Vulkan 1.0 features are used.
 3. CMake version 3.20 or later.
 
@@ -26,6 +26,7 @@ make
 ```
 
 Build options:
+
 * `USE_AVX` (default `ON`) -- indicates whether CPU simulation should use AVX or SSE.
 
 ### How to run
@@ -33,7 +34,7 @@ Build options:
 1. Make sure that the compiled shader is located at `./shader/particle_cs.spv`.
 2. Run `nbody`.
 
-### What to do?
+### What to do
 
 Press some buttons:
 
@@ -44,6 +45,18 @@ Press some buttons:
 * `RIGHT` to increase simulation speed (more updates per second)
 * `UP` to increase simulation step (less accurate, simulation speeds up)
 * `DOWN` to decrease simulation step (more accurate, simulation slows down)
+
+### How to change parameters
+
+By changing some macros:
+
+* `WINDOW_WIDTH` and `WINDOW_HEIGHT` ([src/main.c](src/main.c#L39)) -- self explanatory;
+* `PARTICLE_COUNT` ([src/main.c](src/main.c#L18)) -- you guessed it, particle count;
+* `NB_G` ([include/nbody.h](include/nbody.h#L10)) -- gravitational constant;
+* `NB_N` ([include/nbody.h](include/nbody.h#L16)) -- repulsion constant;
+* `NB_F` ([include/nbody.h](include/nbody.h#L22)) -- velocity decay constant;
+* `MIN_R` ([src/lib/world.c](src/lib/world.c#L12)) -- minimum radius of a Particle;
+* `MAN_R` ([src/lib/world.c](src/lib/world.c#L15)) -- maximum radius of a Particle;
 
 ## TODO list
 

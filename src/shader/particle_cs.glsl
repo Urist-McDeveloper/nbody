@@ -22,19 +22,22 @@ layout (std140, binding = 2) buffer FrameNew {
 layout (local_size_x_id = 0) in;
 
 /*
- * Gravitational constant; controls pulling force.
+ * Gravitational constant; gravity is proportional to the inverse square of distance.
  *      g = G * mass / dist^2
  */
 layout (constant_id = 1) const float G = 10;
 
 /*
- * "Negative" gravity; controls pushing force.
+ * Repulsion constant; repulsion is proportional to the inverse cube of distance.
  *      n = N * mass / dist^3
  */
 layout (constant_id = 2) const float N = -1000;
 
-/* A fraction of velocity that becomes friction. */
-layout (constant_id = 3) const float FRICTION_F = -0.01;
+/*
+ * A fraction of velocity that becomes deceleration.
+ *      f = F * velocity
+ */
+layout (constant_id = 3) const float F = -0.01;
 
 /* Get acceleration enacted by B upon A. */
 vec2 GetGrav(Particle a, Particle b) {
@@ -59,7 +62,7 @@ void main() {
     if (i >= world.size) return;
 
     // initial acceleration is friction
-    vec2 acc = FRICTION_F * old.arr[i].vel;
+    vec2 acc = F * old.arr[i].vel;
 
     for (uint j = 0; j < world.size; j++) {
         acc += GetGrav(old.arr[i], old.arr[j]);

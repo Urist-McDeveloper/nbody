@@ -113,7 +113,7 @@ SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data) {
     *(uint32_t *)shader_spec_data = LOCAL_SIZE_X;
     *(float *)(shader_spec_data + 4) = NB_G;
     *(float *)(shader_spec_data + 8) = NB_N;
-    *(float *)(shader_spec_data + 12) = NB_FRICTION;
+    *(float *)(shader_spec_data + 12) = NB_F;
 
     VkSpecializationInfo shader_spec_info = {0};
     shader_spec_info.mapEntryCount = 4;

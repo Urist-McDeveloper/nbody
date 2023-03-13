@@ -4,19 +4,22 @@
 #include <vulkan/vulkan.h>
 
 /*
- * Gravitational constant; controls pulling force.
+ * Gravitational constant; gravity is proportional to the inverse square of distance.
  *      g = NB_G * mass / dist^2
  */
 #define NB_G        10.0f
 
 /*
- * "Negative" gravity; controls pushing force.
+ * Repulsion constant; repulsion is proportional to the inverse cube of distance.
  *      n = NB_N * mass / dist^3
  */
 #define NB_N        (-80.f * NB_G)
 
-/* A fraction of velocity that becomes friction. */
-#define NB_FRICTION (-0.01f)
+/*
+ * A fraction of velocity that becomes deceleration.
+ *      f = NB_F * velocity
+ */
+#define NB_F (-0.01f)
 
 
 /* Vulkan context. */
