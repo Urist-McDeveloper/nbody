@@ -10,26 +10,24 @@ typedef struct WorldData {
 } WorldData;
 
 /* Simulation pipeline-related stuff. */
-typedef struct WorldComp WorldComp;
+typedef struct SimPipeline SimPipeline;
 
 /*
  * Initialize necessary Vulkan stuff and setup uniform buffer with WORLD_DATA.
- * Note that WORLD_DATA cannot be changed after initialization.
- *
  * CTX must remain a valid pointer to initialized VulkanCtx until WC is de-initialized.
  */
-WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data);
+SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data);
 
 /* De-initialize COMP. */
-void WorldComp_Destroy(WorldComp *comp);
+void DestroySimPipeline(SimPipeline *sim);
 
 /* Perform N updates with specified time delta. */
-void WorldComp_DoUpdate(WorldComp *comp, float dt, uint32_t n);
+void PerformSimUpdate(SimPipeline *sim, float dt, uint32_t n);
 
 /* Copy particles from GPU buffer into ARR. */
-void WorldComp_GetParticles(WorldComp *comp, Particle *arr);
+void GetSimParticles(SimPipeline *sim, Particle *arr);
 
 /* Copy particles from ARR into GPU buffer. */
-void WorldComp_SetParticles(WorldComp *comp, Particle *arr);
+void SetSimParticles(SimPipeline *sim, Particle *arr);
 
 #endif //NB_WORLD_VK_H

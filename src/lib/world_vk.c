@@ -6,7 +6,7 @@
 /* Compute shader work group size. */
 #define LOCAL_SIZE_X 16
 
-struct WorldComp {
+struct SimPipeline {
     WorldData world_data;
     uint32_t new_idx;                       // which storage buffer is "new"
     const VulkanCtx *ctx;
@@ -36,41 +36,41 @@ struct WorldComp {
     VkFence fence;
 };
 
-static void SubmitAndWait(WorldComp *comp, VkCommandBuffer cmd_buf) {
+static void SubmitAndWait(SimPipeline *sim, VkCommandBuffer cmd_buf) {
     VkSubmitInfo submit_info = {0};
     submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &cmd_buf;
 
-    ASSERT_VKR(vkQueueSubmit(comp->ctx->queue, 1, &submit_info, comp->fence), "Failed to submit command buffer");
-    ASSERT_VKR(vkWaitForFences(comp->ctx->dev, 1, &comp->fence, VK_TRUE, UINT64_MAX), "Failed to wait for fences");
-    ASSERT_VKR(vkResetFences(comp->ctx->dev, 1, &comp->fence), "Failed to reset fence");
+    ASSERT_VKR(vkQueueSubmit(sim->ctx->queue, 1, &submit_info, sim->fence), "Failed to submit command buffer");
+    ASSERT_VKR(vkWaitForFences(sim->ctx->dev, 1, &sim->fence, VK_TRUE, UINT64_MAX), "Failed to wait for fences");
+    ASSERT_VKR(vkResetFences(sim->ctx->dev, 1, &sim->fence), "Failed to reset fence");
 }
 
-void WorldComp_GetParticles(WorldComp *comp, Particle *arr) {
+void GetSimParticles(SimPipeline *sim, Particle *arr) {
     // copy data from device-local buffer into host-accessible buffer
-    SubmitAndWait(comp, comp->dth_storage_copy_cb[comp->new_idx]);
+    SubmitAndWait(sim, sim->dth_storage_copy_cb[sim->new_idx]);
 
     void *mapped;
-    ASSERT_VKR(vkMapMemory(comp->ctx->dev, comp->host_mem, 0, comp->storage_size, 0, &mapped),
+    ASSERT_VKR(vkMapMemory(sim->ctx->dev, sim->host_mem, 0, sim->storage_size, 0, &mapped),
                "Failed to map memory");
 
     // copy data from host-accessible buffer
-    memcpy(arr, mapped, comp->storage_size);
-    vkUnmapMemory(comp->ctx->dev, comp->host_mem);
+    memcpy(arr, mapped, sim->storage_size);
+    vkUnmapMemory(sim->ctx->dev, sim->host_mem);
 }
 
-void WorldComp_SetParticles(WorldComp *comp, Particle *arr) {
+void SetSimParticles(SimPipeline *sim, Particle *arr) {
     void *mapped;
-    ASSERT_VKR(vkMapMemory(comp->ctx->dev, comp->host_mem, 0, comp->storage_size, 0, &mapped),
+    ASSERT_VKR(vkMapMemory(sim->ctx->dev, sim->host_mem, 0, sim->storage_size, 0, &mapped),
                "Failed to map memory");
 
     // copy data into host-accessible buffer
-    memcpy(mapped, arr, comp->storage_size);
-    vkUnmapMemory(comp->ctx->dev, comp->host_mem);
+    memcpy(mapped, arr, sim->storage_size);
+    vkUnmapMemory(sim->ctx->dev, sim->host_mem);
 
     // copy data from host-accessible buffer into device-local buffer
-    SubmitAndWait(comp, comp->htd_storage_copy_cb[comp->new_idx]);
+    SubmitAndWait(sim, sim->htd_storage_copy_cb[sim->new_idx]);
 }
 
 static void CreateWriteDescriptorSet(VkDescriptorSet set,
@@ -88,19 +88,19 @@ static void CreateWriteDescriptorSet(VkDescriptorSet set,
     }
 }
 
-WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
-    WorldComp *comp = ALLOC(1, WorldComp);
-    ASSERT_MSG(comp != NULL, "Failed to alloc WorldComp");
+SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data) {
+    SimPipeline *sim = ALLOC(1, SimPipeline);
+    ASSERT_MSG(sim != NULL, "Failed to alloc SimPipeline");
 
-    comp->world_data = data;
-    comp->new_idx = 0;
-    comp->ctx = ctx;
+    sim->world_data = data;
+    sim->new_idx = 0;
+    sim->ctx = ctx;
 
     /*
      * Shaders.
      */
 
-    comp->shader = VulkanCtx_LoadShader(ctx, "shader/particle_cs.spv");
+    sim->shader = LoadVkShaderModule(ctx, "shader/particle_cs.spv");
 
     VkSpecializationMapEntry shader_spec_map[4];
     for (int i = 0; i < 4; i++) {
@@ -124,7 +124,7 @@ WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     VkPipelineShaderStageCreateInfo shader_stage_info = {0};
     shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
     shader_stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    shader_stage_info.module = comp->shader;
+    shader_stage_info.module = sim->shader;
     shader_stage_info.pName = "main";
     shader_stage_info.pSpecializationInfo = &shader_spec_info;
 
@@ -136,25 +136,25 @@ WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     const VkDeviceSize storage_size = data.size * sizeof(Particle);
     const VkDeviceSize dev_mem_size = uniform_size + 2 * storage_size;
 
-    comp->uniform_size = uniform_size;
-    comp->storage_size = storage_size;
+    sim->uniform_size = uniform_size;
+    sim->storage_size = storage_size;
 
-    comp->host_mem = VulkanCtx_AllocMemory(ctx, storage_size, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-    comp->dev_mem = VulkanCtx_AllocMemory(ctx, dev_mem_size, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    sim->host_mem = AllocVkDeviceMemory(ctx, storage_size, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
+    sim->dev_mem = AllocVkDeviceMemory(ctx, dev_mem_size, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     VkBufferUsageFlags transfer_buf_flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     VkBufferUsageFlags uniform_buf_flags = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     VkBufferUsageFlags storage_buf_flags = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | transfer_buf_flags;
 
-    comp->uniform = VulkanCtx_CreateBuffer(ctx, uniform_size, uniform_buf_flags);
-    comp->storage[0] = VulkanCtx_CreateBuffer(ctx, storage_size, storage_buf_flags);
-    comp->storage[1] = VulkanCtx_CreateBuffer(ctx, storage_size, storage_buf_flags);
-    comp->transfer_buf = VulkanCtx_CreateBuffer(ctx, storage_size, transfer_buf_flags);
+    sim->uniform = CreateVkBuffer(ctx, uniform_size, uniform_buf_flags);
+    sim->storage[0] = CreateVkBuffer(ctx, storage_size, storage_buf_flags);
+    sim->storage[1] = CreateVkBuffer(ctx, storage_size, storage_buf_flags);
+    sim->transfer_buf = CreateVkBuffer(ctx, storage_size, transfer_buf_flags);
 
-    vkBindBufferMemory(ctx->dev, comp->uniform, comp->dev_mem, 0);
-    vkBindBufferMemory(ctx->dev, comp->storage[0], comp->dev_mem, uniform_size);
-    vkBindBufferMemory(ctx->dev, comp->storage[1], comp->dev_mem, uniform_size + storage_size);
-    vkBindBufferMemory(ctx->dev, comp->transfer_buf, comp->host_mem, 0);
+    vkBindBufferMemory(ctx->dev, sim->uniform, sim->dev_mem, 0);
+    vkBindBufferMemory(ctx->dev, sim->storage[0], sim->dev_mem, uniform_size);
+    vkBindBufferMemory(ctx->dev, sim->storage[1], sim->dev_mem, uniform_size + storage_size);
+    vkBindBufferMemory(ctx->dev, sim->transfer_buf, sim->host_mem, 0);
 
     /*
      * Descriptors.
@@ -184,7 +184,7 @@ WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     ds_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     ds_layout_info.bindingCount = 3;
     ds_layout_info.pBindings = bindings;
-    ASSERT_VKR(vkCreateDescriptorSetLayout(ctx->dev, &ds_layout_info, NULL, &comp->ds_layout),
+    ASSERT_VKR(vkCreateDescriptorSetLayout(ctx->dev, &ds_layout_info, NULL, &sim->ds_layout),
                "Failed to create descriptor set layout");
 
     VkDescriptorPoolSize ds_pool_size[2] = {0};
@@ -198,18 +198,18 @@ WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     ds_pool_info.maxSets = 2;
     ds_pool_info.poolSizeCount = 2;
     ds_pool_info.pPoolSizes = ds_pool_size;
-    ASSERT_VKR(vkCreateDescriptorPool(ctx->dev, &ds_pool_info, NULL, &comp->ds_pool),
+    ASSERT_VKR(vkCreateDescriptorPool(ctx->dev, &ds_pool_info, NULL, &sim->ds_pool),
                "Failed to create descriptor pool");
 
     VkDescriptorSetAllocateInfo ds_alloc_info = {0};
     ds_alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    ds_alloc_info.descriptorPool = comp->ds_pool;
+    ds_alloc_info.descriptorPool = sim->ds_pool;
     ds_alloc_info.descriptorSetCount = 1;
-    ds_alloc_info.pSetLayouts = &comp->ds_layout;
+    ds_alloc_info.pSetLayouts = &sim->ds_layout;
 
-    ASSERT_VKR(vkAllocateDescriptorSets(comp->ctx->dev, &ds_alloc_info, &comp->sets[0]),
+    ASSERT_VKR(vkAllocateDescriptorSets(sim->ctx->dev, &ds_alloc_info, &sim->sets[0]),
                "Failed to allocate descriptor set #0");
-    ASSERT_VKR(vkAllocateDescriptorSets(comp->ctx->dev, &ds_alloc_info, &comp->sets[1]),
+    ASSERT_VKR(vkAllocateDescriptorSets(sim->ctx->dev, &ds_alloc_info, &sim->sets[1]),
                "Failed to allocate descriptor set #0");
 
     /*
@@ -217,17 +217,17 @@ WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
      */
 
     VkDescriptorBufferInfo uniform_info = {0};
-    uniform_info.buffer = comp->uniform;
+    uniform_info.buffer = sim->uniform;
     uniform_info.offset = 0;
     uniform_info.range = uniform_size;
 
     VkDescriptorBufferInfo storage0_info = {0};
-    storage0_info.buffer = comp->storage[0];
+    storage0_info.buffer = sim->storage[0];
     storage0_info.offset = 0;
     storage0_info.range = storage_size;
 
     VkDescriptorBufferInfo storage1_info = {0};
-    storage1_info.buffer = comp->storage[1];
+    storage1_info.buffer = sim->storage[1];
     storage1_info.offset = 0;
     storage1_info.range = storage_size;
 
@@ -248,10 +248,10 @@ WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     };
 
     VkWriteDescriptorSet write_sets[6];
-    CreateWriteDescriptorSet(comp->sets[0], types, set0, write_sets);
-    CreateWriteDescriptorSet(comp->sets[1], types, set1, write_sets + 3);
+    CreateWriteDescriptorSet(sim->sets[0], types, set0, write_sets);
+    CreateWriteDescriptorSet(sim->sets[1], types, set1, write_sets + 3);
 
-    vkUpdateDescriptorSets(comp->ctx->dev, 6, write_sets, 0, NULL);
+    vkUpdateDescriptorSets(sim->ctx->dev, 6, write_sets, 0, NULL);
 
     /*
      * Pipeline.
@@ -260,15 +260,15 @@ WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     VkPipelineLayoutCreateInfo layout_info = {0};
     layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     layout_info.setLayoutCount = 1;
-    layout_info.pSetLayouts = &comp->ds_layout;
-    ASSERT_VKR(vkCreatePipelineLayout(ctx->dev, &layout_info, NULL, &comp->pipeline_layout),
+    layout_info.pSetLayouts = &sim->ds_layout;
+    ASSERT_VKR(vkCreatePipelineLayout(ctx->dev, &layout_info, NULL, &sim->pipeline_layout),
                "Failed to create pipeline layout");
 
     VkComputePipelineCreateInfo pipeline_info = {0};
     pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     pipeline_info.stage = shader_stage_info;
-    pipeline_info.layout = comp->pipeline_layout;
-    ASSERT_VKR(vkCreateComputePipelines(ctx->dev, NULL, 1, &pipeline_info, NULL, &comp->pipeline),
+    pipeline_info.layout = sim->pipeline_layout;
+    ASSERT_VKR(vkCreateComputePipelines(ctx->dev, NULL, 1, &pipeline_info, NULL, &sim->pipeline),
                "Failed to create compute pipeline");
 
     /*
@@ -276,14 +276,14 @@ WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
      */
 
     VkCommandBuffer buffers[6];
-    VulkanCtx_AllocCommandBuffers(ctx, 6, buffers);
+    AllocVkCommandBuffers(ctx, 6, buffers);
 
-    comp->pipeline_cb = buffers[0];
-    comp->htd_uniform_copy_cb = buffers[1];
-    comp->htd_storage_copy_cb[0] = buffers[2];
-    comp->htd_storage_copy_cb[1] = buffers[3];
-    comp->dth_storage_copy_cb[0] = buffers[4];
-    comp->dth_storage_copy_cb[1] = buffers[5];
+    sim->pipeline_cb = buffers[0];
+    sim->htd_uniform_copy_cb = buffers[1];
+    sim->htd_storage_copy_cb[0] = buffers[2];
+    sim->htd_storage_copy_cb[1] = buffers[3];
+    sim->dth_storage_copy_cb[0] = buffers[4];
+    sim->dth_storage_copy_cb[1] = buffers[5];
 
     VkCommandBufferBeginInfo cmd_begin_info = {0};
     cmd_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -300,23 +300,23 @@ WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
     };
 
     // host-to-dev uniform copy
-    ASSERT_VKR(vkBeginCommandBuffer(comp->htd_uniform_copy_cb, &cmd_begin_info), "Failed to begin command cmd");
-    vkCmdCopyBuffer(comp->htd_uniform_copy_cb, comp->transfer_buf, comp->uniform, 1, &uniform_copy);
-    ASSERT_VKR(vkEndCommandBuffer(comp->htd_uniform_copy_cb), "Failed to end command buffer");
+    ASSERT_VKR(vkBeginCommandBuffer(sim->htd_uniform_copy_cb, &cmd_begin_info), "Failed to begin command cmd");
+    vkCmdCopyBuffer(sim->htd_uniform_copy_cb, sim->transfer_buf, sim->uniform, 1, &uniform_copy);
+    ASSERT_VKR(vkEndCommandBuffer(sim->htd_uniform_copy_cb), "Failed to end command buffer");
 
     // host-to-dev storage copy
     for (int i = 0; i < 2; i++) {
-        VkCommandBuffer cmd = comp->htd_storage_copy_cb[i];
+        VkCommandBuffer cmd = sim->htd_storage_copy_cb[i];
         ASSERT_VKR(vkBeginCommandBuffer(cmd, &cmd_begin_info), "Failed to begin command buffer");
-        vkCmdCopyBuffer(cmd, comp->transfer_buf, comp->storage[i], 1, &storage_copy);
+        vkCmdCopyBuffer(cmd, sim->transfer_buf, sim->storage[i], 1, &storage_copy);
         ASSERT_VKR(vkEndCommandBuffer(cmd), "Failed to end command buffer");
     }
 
     // dev-to-host storage copy
     for (int i = 0; i < 2; i++) {
-        VkCommandBuffer cmd = comp->dth_storage_copy_cb[i];
+        VkCommandBuffer cmd = sim->dth_storage_copy_cb[i];
         ASSERT_VKR(vkBeginCommandBuffer(cmd, &cmd_begin_info), "Failed to begin command cmd");
-        vkCmdCopyBuffer(cmd, comp->storage[i], comp->transfer_buf, 1, &storage_copy);
+        vkCmdCopyBuffer(cmd, sim->storage[i], sim->transfer_buf, 1, &storage_copy);
         ASSERT_VKR(vkEndCommandBuffer(cmd), "Failed to end command cmd");
     }
 
@@ -325,77 +325,77 @@ WorldComp *WorldComp_Create(const VulkanCtx *ctx, WorldData data) {
      */
 
     for (int i = 0; i < 2; i++) {
-        comp->mem_barriers[i] = (VkBufferMemoryBarrier){0};
-        comp->mem_barriers[i].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-        comp->mem_barriers[i].srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
-        comp->mem_barriers[i].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-        comp->mem_barriers[i].buffer = comp->storage[i];
-        comp->mem_barriers[i].offset = 0;
-        comp->mem_barriers[i].size = comp->storage_size;
+        sim->mem_barriers[i] = (VkBufferMemoryBarrier){0};
+        sim->mem_barriers[i].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+        sim->mem_barriers[i].srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+        sim->mem_barriers[i].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+        sim->mem_barriers[i].buffer = sim->storage[i];
+        sim->mem_barriers[i].offset = 0;
+        sim->mem_barriers[i].size = sim->storage_size;
     }
 
     VkFenceCreateInfo fence_info = {0};
     fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    ASSERT_VKR(vkCreateFence(ctx->dev, &fence_info, NULL, &comp->fence), "Failed to create fence");
+    ASSERT_VKR(vkCreateFence(ctx->dev, &fence_info, NULL, &sim->fence), "Failed to create fence");
 
-    return comp;
+    return sim;
 }
 
-void WorldComp_Destroy(WorldComp *comp) {
-    if (comp != NULL) {
-        VkDevice dev = comp->ctx->dev;
-        VkCommandPool cmd_pool = comp->ctx->cmd_pool;
+void DestroySimPipeline(SimPipeline *sim) {
+    if (sim != NULL) {
+        VkDevice dev = sim->ctx->dev;
+        VkCommandPool cmd_pool = sim->ctx->cmd_pool;
 
-        vkDestroyFence(dev, comp->fence, NULL);
-        vkFreeCommandBuffers(dev, cmd_pool, 1, &comp->pipeline_cb);
-        vkFreeCommandBuffers(dev, cmd_pool, 1, &comp->htd_uniform_copy_cb);
-        vkFreeCommandBuffers(dev, cmd_pool, 2, comp->htd_storage_copy_cb);
-        vkFreeCommandBuffers(dev, cmd_pool, 2, comp->dth_storage_copy_cb);
+        vkDestroyFence(dev, sim->fence, NULL);
+        vkFreeCommandBuffers(dev, cmd_pool, 1, &sim->pipeline_cb);
+        vkFreeCommandBuffers(dev, cmd_pool, 1, &sim->htd_uniform_copy_cb);
+        vkFreeCommandBuffers(dev, cmd_pool, 2, sim->htd_storage_copy_cb);
+        vkFreeCommandBuffers(dev, cmd_pool, 2, sim->dth_storage_copy_cb);
 
-        vkDestroyPipeline(dev, comp->pipeline, NULL);
-        vkDestroyPipelineLayout(dev, comp->pipeline_layout, NULL);
+        vkDestroyPipeline(dev, sim->pipeline, NULL);
+        vkDestroyPipelineLayout(dev, sim->pipeline_layout, NULL);
 
-        vkDestroyDescriptorPool(dev, comp->ds_pool, NULL);
-        vkDestroyDescriptorSetLayout(dev, comp->ds_layout, NULL);
+        vkDestroyDescriptorPool(dev, sim->ds_pool, NULL);
+        vkDestroyDescriptorSetLayout(dev, sim->ds_layout, NULL);
 
-        vkDestroyBuffer(dev, comp->transfer_buf, NULL);
-        vkDestroyBuffer(dev, comp->storage[0], NULL);
-        vkDestroyBuffer(dev, comp->storage[1], NULL);
-        vkDestroyBuffer(dev, comp->uniform, NULL);
-        vkFreeMemory(dev, comp->host_mem, NULL);
-        vkFreeMemory(dev, comp->dev_mem, NULL);
+        vkDestroyBuffer(dev, sim->transfer_buf, NULL);
+        vkDestroyBuffer(dev, sim->storage[0], NULL);
+        vkDestroyBuffer(dev, sim->storage[1], NULL);
+        vkDestroyBuffer(dev, sim->uniform, NULL);
+        vkFreeMemory(dev, sim->host_mem, NULL);
+        vkFreeMemory(dev, sim->dev_mem, NULL);
 
-        vkDestroyShaderModule(dev, comp->shader, NULL);
-        free(comp);
+        vkDestroyShaderModule(dev, sim->shader, NULL);
+        free(sim);
     }
 }
 
-void WorldComp_DoUpdate(WorldComp *comp, float dt, const uint32_t n) {
+void PerformSimUpdate(SimPipeline *sim, float dt, uint32_t n) {
     // update uniform buffer if DT has changed
-    if (comp->world_data.dt != dt) {
-        comp->world_data.dt = dt;
+    if (sim->world_data.dt != dt) {
+        sim->world_data.dt = dt;
 
         void *mapped;
-        ASSERT_VKR(vkMapMemory(comp->ctx->dev, comp->host_mem, 0, comp->uniform_size, 0, &mapped),
+        ASSERT_VKR(vkMapMemory(sim->ctx->dev, sim->host_mem, 0, sim->uniform_size, 0, &mapped),
                    "Failed to map device memory");
 
         // copy data into host-accessible buffer
-        *(WorldData *)mapped = comp->world_data;
-        vkUnmapMemory(comp->ctx->dev, comp->host_mem);
+        *(WorldData *)mapped = sim->world_data;
+        vkUnmapMemory(sim->ctx->dev, sim->host_mem);
 
         // copy data from host-accessible buffer into device-local buffer
-        SubmitAndWait(comp, comp->htd_uniform_copy_cb);
+        SubmitAndWait(sim, sim->htd_uniform_copy_cb);
     }
 
-    VkCommandBuffer cmd_buf = comp->pipeline_cb;
+    VkCommandBuffer cmd_buf = sim->pipeline_cb;
     VkCommandBufferBeginInfo begin_info = {0};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
     ASSERT_VKR(vkBeginCommandBuffer(cmd_buf, &begin_info), "Failed to begin pipeline command buffer");
 
-    uint32_t new_idx = comp->new_idx;
-    uint32_t group_count = comp->world_data.size / LOCAL_SIZE_X;
-    if (comp->world_data.size % LOCAL_SIZE_X != 0) group_count++;
+    uint32_t new_idx = sim->new_idx;
+    uint32_t group_count = sim->world_data.size / LOCAL_SIZE_X;
+    if (sim->world_data.size % LOCAL_SIZE_X != 0) group_count++;
 
     for (uint32_t i = 0; i < n; i++) {
         // first dispatch does not need synchronization
@@ -404,22 +404,22 @@ void WorldComp_DoUpdate(WorldComp *comp, float dt, const uint32_t n) {
                                  VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                                  VK_DEPENDENCY_BY_REGION_BIT,
                                  0, NULL,
-                                 1, &comp->mem_barriers[new_idx],
+                                 1, &sim->mem_barriers[new_idx],
                                  0, NULL);
         }
         // rotate new_idx AFTER pipeline barrier
         new_idx = (new_idx + 1) % 2;
 
         vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
-                                comp->pipeline_layout, 0,
-                                1, &comp->sets[new_idx],
+                                sim->pipeline_layout, 0,
+                                1, &sim->sets[new_idx],
                                 0, 0);
-        vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, comp->pipeline);
+        vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, sim->pipeline);
         vkCmdDispatch(cmd_buf, group_count, 1, 1);
     }
-    comp->new_idx = new_idx;
+    sim->new_idx = new_idx;
 
     ASSERT_VKR(vkEndCommandBuffer(cmd_buf), "Failed to end pipeline command buffer");
-    SubmitAndWait(comp, cmd_buf);
+    SubmitAndWait(sim, cmd_buf);
     ASSERT_VKR(vkResetCommandBuffer(cmd_buf, 0), "Failed to reset pipeline command buffer");
 }

@@ -23,10 +23,10 @@
 typedef struct VulkanCtx VulkanCtx;
 
 /* Initialize CTX. */
-VulkanCtx *VulkanCtx_Create();
+VulkanCtx *CreateVulkanCtx();
 
 /* De-initialize CTX. */
-void VulkanCtx_Destroy(VulkanCtx *ctx);
+void DestroyVulkanCtx(VulkanCtx *ctx);
 
 
 /* 2D vector of floats. */
@@ -38,16 +38,16 @@ typedef struct V2 {
 #define V2_ZERO         (V2){ .x = 0.0, .y = 0.0 }
 
 /* Constructor macro. */
-#define V2_From(X, Y)   (V2){ .x = (X), .y = (Y) }
+#define V2_FROM(X, Y)   (V2){ .x = (X), .y = (Y) }
 
 /* Vector addition. */
-static inline V2 V2_Add(V2 a, V2 b) {
-    return V2_From(a.x + b.x, a.y + b.y);
+static inline V2 AddV2(V2 a, V2 b) {
+    return V2_FROM(a.x + b.x, a.y + b.y);
 }
 
 /* Scalar multiplication. */
-static inline V2 V2_Mul(V2 v, float f) {
-    return V2_From(v.x * f, v.y * f);
+static inline V2 ScaleV2(V2 v, float f) {
+    return V2_FROM(v.x * f, v.y * f);
 }
 
 /* Simulation particle. */
@@ -63,27 +63,27 @@ _Static_assert(sizeof(Particle) == 32, "sizeof(Particle) must be 32");
 typedef struct World World;
 
 /* Create World of given SIZE and randomize particle positions within MIN and MAX. */
-World *World_Create(uint32_t size, V2 min, V2 max);
+World *CreateWorld(uint32_t size, V2 min, V2 max);
 
 /* Destroy World. */
-void World_Destroy(World *w);
+void DestroyWorld(World *w);
 
 /* Perform N updates using CPU simulation. */
-void World_Update(World *w, float dt, uint32_t n);
+void UpdateWorld_CPU(World *w, float dt, uint32_t n);
 
 /* Get Particle array and its size. */
-void World_GetParticles(World *w, Particle **ps, uint32_t *size);
+void GetWorldParticles(World *w, Particle **ps, uint32_t *size);
 
 /*
  * Setup Vulkan pipeline for W. Does nothing if Vulkan was already set up.
  * CTX must remain a valid pointer to VulkanCtx until W is destroyed.
  */
-void World_InitVK(World *w, const VulkanCtx *ctx);
+void SetupWorldGPU(World *w, const VulkanCtx *ctx);
 
 /*
  * Perform N updates using GPU simulation.
  * Aborts if Vulkan has not been setup for W.
  */
-void World_UpdateVK(World *w, float dt, uint32_t n);
+void UpdateWorld_GPU(World *w, float dt, uint32_t n);
 
 #endif //NB_H

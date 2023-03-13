@@ -13,15 +13,15 @@ struct VulkanCtx {
 };
 
 /* Load shader module from PATH. */
-VkShaderModule VulkanCtx_LoadShader(const VulkanCtx *ctx, const char *path);
+VkShaderModule LoadVkShaderModule(const VulkanCtx *ctx, const char *path);
 
 /* Allocate primary command buffers. */
-void VulkanCtx_AllocCommandBuffers(const VulkanCtx *ctx, uint32_t count, VkCommandBuffer *buffers);
+void AllocVkCommandBuffers(const VulkanCtx *ctx, uint32_t count, VkCommandBuffer *buffers);
 
 /* Allocate device memory. FLAGS must not be 0. */
-VkDeviceMemory VulkanCtx_AllocMemory(const VulkanCtx *ctx, VkDeviceSize size, VkMemoryPropertyFlags flags);
+VkDeviceMemory AllocVkDeviceMemory(const VulkanCtx *ctx, VkDeviceSize size, VkMemoryPropertyFlags flags);
 
 /* Create exclusive buffer. */
-VkBuffer VulkanCtx_CreateBuffer(const VulkanCtx *ctx, VkDeviceSize size, VkBufferUsageFlags usage);
+VkBuffer CreateVkBuffer(const VulkanCtx *ctx, VkDeviceSize size, VkBufferUsageFlags usage);
 
 #endif //NB_VULKAN_CTX_H

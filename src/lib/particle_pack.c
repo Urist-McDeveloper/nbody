@@ -132,10 +132,10 @@ void PackedUpdate(Particle *p, float dt, size_t packs_len, ParticlePack *packs) 
         m_ay = mmx_add_ps(m_ay, mmx_mul_ps(dy, total));
     }
 
-    V2 acc = V2_From(mmx_sum(m_ax), mmx_sum(m_ay));
-    V2 friction = V2_Mul(p->vel, NB_FRICTION);
+    V2 acc = V2_FROM(mmx_sum(m_ax), mmx_sum(m_ay));
+    V2 friction = ScaleV2(p->vel, NB_FRICTION);
 
-    p->acc = V2_Add(friction, acc);
-    p->vel = V2_Add(p->vel, V2_Mul(p->acc, dt));
-    p->pos = V2_Add(p->pos, V2_Mul(p->vel, dt));
+    p->acc = AddV2(friction, acc);
+    p->vel = AddV2(p->vel, ScaleV2(p->acc, dt));
+    p->pos = AddV2(p->pos, ScaleV2(p->vel, dt));
 }

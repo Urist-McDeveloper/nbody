@@ -60,6 +60,6 @@ Done:
 - [x] Use specialization constants to make sure CPU and GPU simulations always have the same parameters
 - [x] Add pushing force which is stronger than gravity at short distances
 - [x] Make GPU buffers device-local for performance improvements
-- [x] Allow performing multiple updates in a single World_UpdateVK call by chaining pipeline dispatches
+- [x] Allow performing multiple updates in a single UpdateWorld_GPU call by chaining pipeline dispatches
 - [x] Use AVX for CPU simulation
 - [x] Add CMake option to disable AVX and fall back to SSE

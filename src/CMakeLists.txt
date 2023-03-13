@@ -1,11 +1,9 @@
 add_subdirectory(lib)
 
 # executable
-add_executable(nbody-bin main.c)
-target_link_libraries(nbody-bin PRIVATE nbody-lib raylib)
-set_target_properties(nbody-bin PROPERTIES
-        C_EXTENSIONS off
-        OUTPUT_NAME nbody)
+add_executable(nbody main.c)
+target_link_libraries(nbody PRIVATE nbody-lib raylib)
+set_target_properties(nbody PROPERTIES C_EXTENSIONS off)
 
 # benchmark uses clock_gettime which is not available on Windows and MacOS
 if (UNIX AND NOT APPLE)

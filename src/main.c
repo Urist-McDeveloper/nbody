@@ -23,7 +23,7 @@ static const float STEPS[] = {0.1f, 0.25f, 0.5f, 1.f, 2.f, 4.f};
 static void DrawParticles(World *world) {
     Particle *arr;
     uint32_t size;
-    World_GetParticles(world, &arr, &size);
+    GetWorldParticles(world, &arr, &size);
 
     for (int i = 0; i < size; i++) {
         Particle p = arr[i];
@@ -42,10 +42,10 @@ static void DrawParticles(World *world) {
 int main(void) {
     srand(time(NULL));
 
-    VulkanCtx *vk_ctx = VulkanCtx_Create();
+    VulkanCtx *vk_ctx = CreateVulkanCtx();
 
-    World *world = World_Create(PARTICLE_COUNT, V2_ZERO, V2_From(WINDOW_WIDTH, WINDOW_HEIGHT));
-    World_InitVK(world, vk_ctx);
+    World *world = CreateWorld(PARTICLE_COUNT, V2_ZERO, V2_FROM(WINDOW_WIDTH, WINDOW_HEIGHT));
+    SetupWorldGPU(world, vk_ctx);
 
     SetTargetFPS((int)(1.f / PHYS_STEP));
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "N-Body simulation");
@@ -111,9 +111,9 @@ int main(void) {
 
             float step = PHYS_STEP * STEPS[step_idx];
             if (use_gpu) {
-                World_UpdateVK(world, step, updates);
+                UpdateWorld_GPU(world, step, updates);
             } else {
-                World_Update(world, step, updates);
+                UpdateWorld_CPU(world, step, updates);
             }
         }
 
@@ -133,6 +133,6 @@ int main(void) {
     }
 
     CloseWindow();
-    World_Destroy(world);
-    VulkanCtx_Destroy(vk_ctx);
+    DestroyWorld(world);
+    DestroyVulkanCtx(vk_ctx);
 }

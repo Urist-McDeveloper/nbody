@@ -39,7 +39,7 @@ static const int WS_LEN = sizeof(WS) / sizeof(WS[0]);
 
 #define WORLD_WIDTH     1000
 #define WORLD_HEIGHT    1000
-#define WORLD_NEW(size) World_Create(size, V2_ZERO, V2_From(WORLD_WIDTH, WORLD_HEIGHT))
+#define WORLD_NEW(size) CreateWorld(size, V2_ZERO, V2_FROM(WORLD_WIDTH, WORLD_HEIGHT))
 
 int main(int argc, char **argv) {
     srand(11037);
@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
         if (memcmp(argv[1], "--gpu", 5) == 0) use_cpu = false;
     }
 
-    VulkanCtx *ctx = use_gpu ? VulkanCtx_Create() : NULL;
+    VulkanCtx *ctx = use_gpu ? CreateVulkanCtx() : NULL;
     World *cpu_w;
     World *gpu_w;
 
@@ -65,16 +65,16 @@ int main(int argc, char **argv) {
         if (use_cpu) cpu_w = WORLD_NEW(world_size);
         if (use_gpu) {
             gpu_w = WORLD_NEW(world_size);
-            World_InitVK(gpu_w, ctx);
+            SetupWorldGPU(gpu_w, ctx);
         }
 
         printf("\t%4d", world_size);
-        if (use_cpu) printf("\t%5ld", bench(cpu_w, World_Update));
-        if (use_gpu) printf("\t%5ld", bench(gpu_w, World_UpdateVK));
+        if (use_cpu) printf("\t%5ld", bench(cpu_w, UpdateWorld_CPU));
+        if (use_gpu) printf("\t%5ld", bench(gpu_w, UpdateWorld_GPU));
         printf("\n");
 
-        if (use_cpu) World_Destroy(cpu_w);
-        if (use_gpu) World_Destroy(gpu_w);
+        if (use_cpu) DestroyWorld(cpu_w);
+        if (use_gpu) DestroyWorld(gpu_w);
     }
-    VulkanCtx_Destroy(ctx);
+    DestroyVulkanCtx(ctx);
 }

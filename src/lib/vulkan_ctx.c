@@ -46,7 +46,7 @@ static void AssertDebugLayersSupported() {
 static void InitInstance(VkInstance *instance) {
     VkApplicationInfo app_info = {0};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app_info.pApplicationName = "nbody";
+    app_info.pApplicationName = "nbody-sim";
     app_info.applicationVersion = VK_MAKE_VERSION(0, 1, 0);
     app_info.apiVersion = VK_API_VERSION_1_0;
 
@@ -126,7 +126,7 @@ static uint32_t InitDev(VkDevice *dev, VkPhysicalDevice pdev) {
     return qf_idx;
 }
 
-VulkanCtx *VulkanCtx_Create() {
+VulkanCtx *CreateVulkanCtx() {
     VulkanCtx *ctx = ALLOC(1, VulkanCtx);
     ASSERT_MSG(ctx != NULL, "Failed to alloc VulkanCtx");
 
@@ -145,7 +145,7 @@ VulkanCtx *VulkanCtx_Create() {
     return ctx;
 }
 
-void VulkanCtx_Destroy(VulkanCtx *ctx) {
+void DestroyVulkanCtx(VulkanCtx *ctx) {
     if (ctx != NULL) {
         vkDestroyCommandPool(ctx->dev, ctx->cmd_pool, NULL);
         vkDestroyDevice(ctx->dev, NULL);
@@ -154,7 +154,7 @@ void VulkanCtx_Destroy(VulkanCtx *ctx) {
     }
 }
 
-VkShaderModule VulkanCtx_LoadShader(const VulkanCtx *ctx, const char *path) {
+VkShaderModule LoadVkShaderModule(const VulkanCtx *ctx, const char *path) {
     size_t buf_size;
     uint32_t *buf = FIO_ReadFile(path, &buf_size);
 
@@ -170,7 +170,7 @@ VkShaderModule VulkanCtx_LoadShader(const VulkanCtx *ctx, const char *path) {
     return module;
 }
 
-void VulkanCtx_AllocCommandBuffers(const VulkanCtx *ctx, uint32_t count, VkCommandBuffer *buffers) {
+void AllocVkCommandBuffers(const VulkanCtx *ctx, uint32_t count, VkCommandBuffer *buffers) {
     VkCommandBufferAllocateInfo allocate_info = {0};
     allocate_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocate_info.commandPool = ctx->cmd_pool;
@@ -179,7 +179,7 @@ void VulkanCtx_AllocCommandBuffers(const VulkanCtx *ctx, uint32_t count, VkComma
     ASSERT_VKR(vkAllocateCommandBuffers(ctx->dev, &allocate_info, buffers), "Failed to allocate command buffers");
 }
 
-VkDeviceMemory VulkanCtx_AllocMemory(const VulkanCtx *ctx, VkDeviceSize size, VkMemoryPropertyFlags flags) {
+VkDeviceMemory AllocVkDeviceMemory(const VulkanCtx *ctx, VkDeviceSize size, VkMemoryPropertyFlags flags) {
     ASSERT_MSG(flags != 0, "flags must not be 0");
 
     VkPhysicalDeviceMemoryProperties props;
@@ -204,7 +204,7 @@ VkDeviceMemory VulkanCtx_AllocMemory(const VulkanCtx *ctx, VkDeviceSize size, Vk
     return memory;
 }
 
-VkBuffer VulkanCtx_CreateBuffer(const VulkanCtx *ctx, VkDeviceSize size, VkBufferUsageFlags usage) {
+VkBuffer CreateVkBuffer(const VulkanCtx *ctx, VkDeviceSize size, VkBufferUsageFlags usage) {
     VkBufferCreateInfo create_info = {0};
     create_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
     create_info.size = size;
