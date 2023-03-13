@@ -38,8 +38,6 @@ layout (constant_id = 3) const float FRICTION_F = -0.01;
 
 /* Get acceleration enacted by B upon A. */
 vec2 GetGrav(Body a, Body b) {
-    if (a.pos == b.pos) return vec2(0);
-
     vec2 radv = b.pos - a.pos;
     float dist = max(length(radv), 0.5 * (a.radius + b.radius));
 

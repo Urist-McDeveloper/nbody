@@ -6,8 +6,10 @@ Written in C, built with Vulkan, shown on screen with [raylib](https://github.co
 
 ### Build prerequisites
 
-1. C compiler that supports C99 standard; TCC works if you provide raylib externally.
-   OpenMP support is optional, but it does drastically improve the speed of CPU simulation.
+1. C compiler that supports:
+   * C99 standard;
+   * AVX intrinsics;
+   * (*optional*) OpenMP.
 2. CMake version 3.20 or later.
 3. Vulkan SDK, including `glslc` and validation layers. Only Vulkan 1.0 features are used.
 
@@ -48,3 +50,4 @@ Done:
 - [x] Add pushing force which is stronger than gravity at short distances
 - [x] Make GPU buffers device-local for performance improvements
 - [x] Allow performing multiple updates in a single World_UpdateVK call by chaining pipeline dispatches
+- [x] Use AVX for CPU simulation

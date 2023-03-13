@@ -46,6 +46,6 @@ void World_InitVK(World *w, const VulkanCtx *ctx);
  * Perform N updates using Vulkan compute pipeline.
  * Aborts if Vulkan has not been setup for W.
  */
-void World_UpdateVK(World *w, float dt, uint32_t n);
+void World_UpdateVK(World *w, float dt, int n);
 
 #endif //RAG_VK_H

@@ -69,7 +69,7 @@ World *World_Create(int size, V2 min, V2 max);
 /* Destroy W. */
 void World_Destroy(World *w);
 
-/* Update W using exact simulation. */
+/* Update W using CPU simulation. */
 void World_Update(World *w, float dt);
 
 /* Put W's body array and its size into respective pointers. */
