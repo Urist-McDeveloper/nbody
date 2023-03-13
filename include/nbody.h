@@ -1,6 +1,7 @@
 #ifndef NB_H
 #define NB_H
 
+#include <stdint.h>
 #include <vulkan/vulkan.h>
 
 /*

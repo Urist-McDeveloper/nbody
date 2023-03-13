@@ -13,12 +13,12 @@ typedef struct WorldData {
 typedef struct SimPipeline SimPipeline;
 
 /*
- * Initialize necessary Vulkan stuff and setup uniform buffer with WORLD_DATA.
+ * Initialize necessary Vulkan stuff.
  * CTX must remain a valid pointer to initialized VulkanCtx until WC is de-initialized.
  */
 SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data);
 
-/* De-initialize COMP. */
+/* Destroy SIM. */
 void DestroySimPipeline(SimPipeline *sim);
 
 /* Perform N updates with specified time delta. */

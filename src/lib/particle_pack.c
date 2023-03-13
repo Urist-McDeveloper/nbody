@@ -1,8 +1,6 @@
 #include "particle_pack.h"
 #include "util.h"
 
-#include <stdint.h>
-
 #ifdef USE_AVX
 
 #include <immintrin.h>
@@ -100,17 +98,17 @@ static float mmx_sum(mx x) {
     return sum;
 }
 
-void PackedUpdate(Particle *p, float dt, size_t packs_len, ParticlePack *packs) {
-    const mx m_half = mmx_set1_ps(0.5f);     // packed 0.5f
-    const mx m_g = mmx_set1_ps(NB_G);       // packed NB_G
-    const mx m_n = mmx_set1_ps(NB_N);       // packed NB_N
+void PackedUpdate(Particle *p, float dt, uint32_t packs_len, ParticlePack *packs) {
+    const mx m_half = mmx_set1_ps(0.5f);    // 0.5f
+    const mx m_g = mmx_set1_ps(NB_G);       // gravitational constant
+    const mx m_n = mmx_set1_ps(NB_N);       // repulsion constant
 
-    const mx m_x = mmx_set1_ps(p->pos.x);    // position x
-    const mx m_y = mmx_set1_ps(p->pos.y);    // position y
-    const mx m_r = mmx_set1_ps(p->radius);   // radius
+    const mx m_x = mmx_set1_ps(p->pos.x);   // position x
+    const mx m_y = mmx_set1_ps(p->pos.y);   // position y
+    const mx m_r = mmx_set1_ps(p->radius);  // radius
 
-    mx m_ax = mmx_set1_ps(0.f);              // acceleration x
-    mx m_ay = mmx_set1_ps(0.f);              // acceleration y
+    mx m_ax = mmx_set1_ps(0.f);             // acceleration x
+    mx m_ay = mmx_set1_ps(0.f);             // acceleration y
 
     for (int i = 0; i < packs_len; i++) {
         // delta x, delta y and distance squared
@@ -125,11 +123,11 @@ void PackedUpdate(Particle *p, float dt, size_t packs_len, ParticlePack *packs) 
         mx dist1 = mmx_sqrt_ps(dist2);       // distance
         mx dist4 = mmx_mul_ps(dist2, dist2); // distance^4
 
-        mx gd_n = mmx_add_ps(mmx_mul_ps(m_g, dist1), m_n);            // gd_n = G * dist + N
-        mx total = mmx_mul_ps(packs[i].m, mmx_div_ps(gd_n, dist4));   // f = m * (G * dist + N) / dist^4
+        mx gd_n = mmx_add_ps(mmx_mul_ps(m_g, dist1), m_n);          // gd_n = G * dist + N
+        mx res = mmx_mul_ps(packs[i].m, mmx_div_ps(gd_n, dist4));   // res = m * (G * dist + N) / dist^4
 
-        m_ax = mmx_add_ps(m_ax, mmx_mul_ps(dx, total));
-        m_ay = mmx_add_ps(m_ay, mmx_mul_ps(dy, total));
+        m_ax = mmx_add_ps(m_ax, mmx_mul_ps(dx, res));
+        m_ay = mmx_add_ps(m_ay, mmx_mul_ps(dy, res));
     }
 
     V2 acc = V2_FROM(mmx_sum(m_ax), mmx_sum(m_ay));

@@ -1,7 +1,6 @@
 #include "vulkan_ctx.h"
 
 #include <stdio.h>
-#include <stdint.h>
 #include <stdbool.h>
 
 #include "fio.h"

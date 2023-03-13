@@ -1,6 +1,5 @@
 find_package(OpenMP)
 find_package(Vulkan REQUIRED)
-find_library(REQUIRED m)
 
 set(nbody_lib_headers ${CMAKE_SOURCE_DIR}/include/nbody.h)
 set(nbody_lib_sources

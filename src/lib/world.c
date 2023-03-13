@@ -2,7 +2,6 @@
 
 #include <stdlib.h>
 #include <stdbool.h>
-#include <string.h>
 
 #include "particle_pack.h"
 #include "util.h"
@@ -34,11 +33,11 @@ struct World {
     uint32_t arr_len;   // length of arr
     uint32_t pack_len;  // length of pack
     SimPipeline *comp;  // Vulkan-related stuff
-    bool gpu_sync;      // whether last change in GPU buffer is synced with the array
-    bool arr_sync;      // whether last change in the array is synced with GPU buffer
+    bool gpu_sync;      // whether the last change in GPU buffer is synced with the array
+    bool arr_sync;      // whether the last change in the array is synced with GPU buffer
 };
 
-/* Copy data from GPU buffer to RAM if necessary. */
+/* Copy data from GPU buffer into Particle array if necessary. */
 static void SyncToArrFromGPU(World *w) {
     if (!w->gpu_sync) {
         GetSimParticles(w->comp, w->arr);
@@ -47,7 +46,7 @@ static void SyncToArrFromGPU(World *w) {
     }
 }
 
-/* Copy data from RAM to GPU buffer if necessary. */
+/* Copy data from Particle array into GPU buffer if necessary. */
 static void SyncFromArrToGPU(World *w) {
     if (!w->arr_sync) {
         SetSimParticles(w->comp, w->arr);
@@ -107,7 +106,7 @@ void UpdateWorld_CPU(World *w, float dt, uint32_t n) {
     uint32_t pack_len = w->pack_len;
 
     for (int update_iter = 0; update_iter < n; update_iter++) {
-        PackParticles(w->arr_len, w->arr, w->pack);
+        PackParticles(arr_len, arr, pack);
 
         #pragma omp parallel for schedule(static, 20) firstprivate(dt, arr, arr_len, pack, pack_len) default(none)
         for (int i = 0; i < arr_len; i++) {
