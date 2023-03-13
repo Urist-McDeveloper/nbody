@@ -16,7 +16,7 @@ static const float STEPS[] = {0.1f, 0.25f, 0.5f, 1.f, 2.f, 4.f, 8.f};
 #define LAST_STEP_IDX   (STEPS_LENGTH - 1)
 #define DEF_STEP_IDX    3
 
-#define BODY_COUNT      4000
+#define BODY_COUNT      2000
 #define PHYS_STEP       0.01f
 
 #define MAX_OVERWORK    3
@@ -41,18 +41,19 @@ static void DrawBodies(World *world) {
     }
 }
 
+#define WINDOW_WIDTH    1280
+#define WINDOW_HEIGHT   720
+
 int main(void) {
     srand(time(NULL));
 
     VulkanCtx vk_ctx;
     VulkanCtx_Init(&vk_ctx);
 
-    SetConfigFlags(FLAG_VSYNC_HINT | FLAG_MSAA_4X_HINT);
-    SetTargetFPS((int)round(1.0 / PHYS_STEP));
-    InitWindow(1280, 720, "RAG!");
-
-    World *world = World_Create(BODY_COUNT, V2_ZERO, V2_From(GetScreenWidth(), GetScreenHeight()));
+    World *world = World_Create(BODY_COUNT, V2_ZERO, V2_From(WINDOW_WIDTH, WINDOW_HEIGHT));
     World_InitVK(world, &vk_ctx);
+
+    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "RAG!");
 
     bool pause = false;
     bool use_gpu = BODY_COUNT > 250;

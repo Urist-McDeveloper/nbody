@@ -77,7 +77,7 @@ static const char *util_vkr_to_str(VkResult x) {
     }
 }
 
-static void util_assert_vkr(VkResult x, char *msg, char *file, int line, char *func) {
+static void util_assert_vkr(VkResult x, const char *msg, const char *file, int line, const char *func) {
     if (x != VK_SUCCESS) {
         fprintf(stderr, "%s:%d [%s] VkResult = %d, str = %s\n",
                 file, line, func, x, util_vkr_to_str(x));

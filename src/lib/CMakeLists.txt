@@ -8,7 +8,8 @@ set(rag_lib_headers
 set(rag_lib_sources
         fio.c
         vk_ctx.c
-        world.c)
+        world.c
+        world_vk.c)
 
 add_library(rag-lib STATIC ${rag_lib_sources} ${rag_lib_headers})
 target_include_directories(rag-lib PUBLIC ${CMAKE_SOURCE_DIR}/include)
