@@ -1,5 +1,7 @@
 #include "world_vk.h"
+
 #include "util.h"
+#include "vulkan_ctx.h"
 
 /* Compute shader work group size. */
 #define LOCAL_SIZE_X 16

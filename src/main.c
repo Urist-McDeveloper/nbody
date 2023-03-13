@@ -2,7 +2,6 @@
 #include <time.h>
 
 #include <nbody.h>
-#include <nbody_vk.h>
 #include <raylib.h>
 
 static const float SPEEDS[] = {1, 2, 4, 8, 16, 32};
@@ -43,11 +42,10 @@ static void DrawParticles(World *world) {
 int main(void) {
     srand(time(NULL));
 
-    VulkanCtx vk_ctx;
-    VulkanCtx_Init(&vk_ctx);
+    VulkanCtx *vk_ctx = VulkanCtx_Create();
 
     World *world = World_Create(PARTICLE_COUNT, V2_ZERO, V2_From(WINDOW_WIDTH, WINDOW_HEIGHT));
-    World_InitVK(world, &vk_ctx);
+    World_InitVK(world, vk_ctx);
 
     SetTargetFPS((int)(1.f / PHYS_STEP));
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "N-Body simulation");
@@ -136,5 +134,5 @@ int main(void) {
 
     CloseWindow();
     World_Destroy(world);
-    VulkanCtx_DeInit(&vk_ctx);
+    VulkanCtx_Destroy(vk_ctx);
 }

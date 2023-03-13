@@ -29,6 +29,9 @@
 
 #ifdef VULKAN_H_
 
+/* 16-byte aligned sizeof. */
+#define SIZE_OF_ALIGN_16(T) (sizeof(T) + (sizeof(T) % 16))
+
 /* Assert that Vulkan library function returned VK_SUCCESS. */
 #define ASSERT_VKR(X, MSG) util_assert_vkr(X, MSG, __FILE__, __LINE__, __func__)
 

@@ -1,7 +1,7 @@
 #ifndef NB_WORLD_VK_H
 #define NB_WORLD_VK_H
 
-#include <nbody_vk.h>
+#include <nbody.h>
 
 /* Constant data given to shaders in a uniform buffer. */
 typedef struct WorldData {

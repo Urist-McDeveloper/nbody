@@ -1,4 +1,4 @@
-#include <nbody_vk.h>
+#include "vulkan_ctx.h"
 
 #include <stdio.h>
 #include <stdint.h>
@@ -126,7 +126,10 @@ static uint32_t InitDev(VkDevice *dev, VkPhysicalDevice pdev) {
     return qf_idx;
 }
 
-void VulkanCtx_Init(VulkanCtx *ctx) {
+VulkanCtx *VulkanCtx_Create() {
+    VulkanCtx *ctx = ALLOC(1, VulkanCtx);
+    ASSERT_MSG(ctx != NULL, "Failed to alloc VulkanCtx");
+
     InitInstance(&ctx->instance);
     InitPDev(&ctx->pdev, ctx->instance);
 
@@ -138,12 +141,17 @@ void VulkanCtx_Init(VulkanCtx *ctx) {
     pool_create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     pool_create_info.queueFamilyIndex = ctx->queue_family_idx;
     ASSERT_VKR(vkCreateCommandPool(ctx->dev, &pool_create_info, NULL, &ctx->cmd_pool), "Failed to create command pool");
+
+    return ctx;
 }
 
-void VulkanCtx_DeInit(VulkanCtx *ctx) {
-    vkDestroyCommandPool(ctx->dev, ctx->cmd_pool, NULL);
-    vkDestroyDevice(ctx->dev, NULL);
-    vkDestroyInstance(ctx->instance, NULL);
+void VulkanCtx_Destroy(VulkanCtx *ctx) {
+    if (ctx != NULL) {
+        vkDestroyCommandPool(ctx->dev, ctx->cmd_pool, NULL);
+        vkDestroyDevice(ctx->dev, NULL);
+        vkDestroyInstance(ctx->instance, NULL);
+        free(ctx);
+    }
 }
 
 VkShaderModule VulkanCtx_LoadShader(const VulkanCtx *ctx, const char *path) {

@@ -2,12 +2,10 @@
 #include <stdio.h>
 #include <stdint.h>
 #include <stdbool.h>
-
 #include <string.h>
 #include <time.h>
 
 #include <nbody.h>
-#include <nbody_vk.h>
 
 #define US_PER_S    (1000 * 1000)
 #define NS_PER_US   (1000)
@@ -52,9 +50,7 @@ int main(int argc, char **argv) {
         if (memcmp(argv[1], "--gpu", 5) == 0) use_cpu = false;
     }
 
-    VulkanCtx ctx;
-    if (use_gpu) VulkanCtx_Init(&ctx);
-
+    VulkanCtx *ctx = use_gpu ? VulkanCtx_Create() : NULL;
     World *cpu_w;
     World *gpu_w;
 
@@ -69,7 +65,7 @@ int main(int argc, char **argv) {
         if (use_cpu) cpu_w = WORLD_NEW(world_size);
         if (use_gpu) {
             gpu_w = WORLD_NEW(world_size);
-            World_InitVK(gpu_w, &ctx);
+            World_InitVK(gpu_w, ctx);
         }
 
         printf("\t%4d", world_size);
@@ -80,5 +76,5 @@ int main(int argc, char **argv) {
         if (use_cpu) World_Destroy(cpu_w);
         if (use_gpu) World_Destroy(gpu_w);
     }
-    if (use_gpu) VulkanCtx_DeInit(&ctx);
+    VulkanCtx_Destroy(ctx);
 }

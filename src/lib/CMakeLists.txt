@@ -2,13 +2,11 @@ find_package(OpenMP)
 find_package(Vulkan REQUIRED)
 find_library(REQUIRED m)
 
-set(nbody_lib_headers
-        ${CMAKE_SOURCE_DIR}/include/nbody.h
-        ${CMAKE_SOURCE_DIR}/include/nbody_vk.h)
+set(nbody_lib_headers ${CMAKE_SOURCE_DIR}/include/nbody.h)
 set(nbody_lib_sources
         fio.c
         particle_pack.c
-        vk_ctx.c
+        vulkan_ctx.c
         world.c
         world_vk.c)
 

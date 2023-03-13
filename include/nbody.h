@@ -1,7 +1,7 @@
 #ifndef NB_H
 #define NB_H
 
-#include <stdint.h>
+#include <vulkan/vulkan.h>
 
 /*
  * Gravitational constant; controls pulling force.
@@ -17,6 +17,17 @@
 
 /* A fraction of velocity that becomes friction. */
 #define NB_FRICTION (-0.01f)
+
+
+/* Vulkan context. */
+typedef struct VulkanCtx VulkanCtx;
+
+/* Initialize CTX. */
+VulkanCtx *VulkanCtx_Create();
+
+/* De-initialize CTX. */
+void VulkanCtx_Destroy(VulkanCtx *ctx);
+
 
 /* 2D vector of floats. */
 typedef struct V2 {
@@ -62,5 +73,17 @@ void World_Update(World *w, float dt, uint32_t n);
 
 /* Get Particle array and its size. */
 void World_GetParticles(World *w, Particle **ps, uint32_t *size);
+
+/*
+ * Setup Vulkan pipeline for W. Does nothing if Vulkan was already set up.
+ * CTX must remain a valid pointer to VulkanCtx until W is destroyed.
+ */
+void World_InitVK(World *w, const VulkanCtx *ctx);
+
+/*
+ * Perform N updates using GPU simulation.
+ * Aborts if Vulkan has not been setup for W.
+ */
+void World_UpdateVK(World *w, float dt, uint32_t n);
 
 #endif //NB_H
