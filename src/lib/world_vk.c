@@ -4,35 +4,32 @@
 #include "vulkan_ctx.h"
 
 /* Compute shader work group size. */
-#define LOCAL_SIZE_X 16
+#define LOCAL_SIZE_X 256
 
 struct SimPipeline {
     WorldData world_data;
-    uint32_t new_idx;                       // which storage buffer is "new"
     const VulkanCtx *ctx;
     VkShaderModule shader;
     // Memory
     VkDeviceMemory dev_mem;                 // device-local memory
     VkDeviceMemory host_mem;                // host-accessible memory
     VkBuffer uniform;
-    VkBuffer storage[2];                    // one for new data, one for old
+    VkBuffer storage[2];                    // storage[0] for old data, storage[1] for new
     VkBuffer transfer_buf;                  // buffer from host-accessible memory
     VkDeviceSize uniform_size;
     VkDeviceSize storage_size;
     // Descriptor
     VkDescriptorSetLayout ds_layout;
     VkDescriptorPool ds_pool;
-    VkDescriptorSet sets[2];                // for new_idx of 0 and 1
+    VkDescriptorSet set;
     // Pipeline
     VkPipelineLayout pipeline_layout;
     VkPipeline pipeline;
     // Commands
-    VkCommandBuffer pipeline_cb;            // transient buffer for pipeline dispatch
-    VkCommandBuffer htd_uniform_copy_cb;    // transfer_buf to uniform
-    VkCommandBuffer htd_storage_copy_cb[2]; // transfer_buf to storage[new_idx]
-    VkCommandBuffer dth_storage_copy_cb[2]; // storage[new_idx] to transfer_buf
-    // Sync
-    VkBufferMemoryBarrier mem_barriers[2];  // between write and read of storage[new_idx]
+    VkCommandBuffer pipeline_cb;            // transient buffer for pipeline dispatches
+    VkCommandBuffer htd_uniform_copy_cb;    // copy transfer_buf to uniform
+    VkCommandBuffer htd_storage_copy_cb;    // copy transfer_buf to storage[1]
+    VkCommandBuffer dth_storage_copy_cb;    // copy storage[1] to transfer_buf
     VkFence fence;
 };
 
@@ -49,11 +46,10 @@ static void SubmitAndWait(SimPipeline *sim, VkCommandBuffer cmd_buf) {
 
 void GetSimParticles(SimPipeline *sim, Particle *arr) {
     // copy data from device-local buffer into host-accessible buffer
-    SubmitAndWait(sim, sim->dth_storage_copy_cb[sim->new_idx]);
+    SubmitAndWait(sim, sim->dth_storage_copy_cb);
 
     void *mapped;
-    ASSERT_VKR(vkMapMemory(sim->ctx->dev, sim->host_mem, 0, sim->storage_size, 0, &mapped),
-               "Failed to map memory");
+    ASSERT_VKR(vkMapMemory(sim->ctx->dev, sim->host_mem, 0, sim->storage_size, 0, &mapped), "Failed to map memory");
 
     // copy data from host-accessible buffer
     memcpy(arr, mapped, sim->storage_size);
@@ -62,30 +58,14 @@ void GetSimParticles(SimPipeline *sim, Particle *arr) {
 
 void SetSimParticles(SimPipeline *sim, Particle *arr) {
     void *mapped;
-    ASSERT_VKR(vkMapMemory(sim->ctx->dev, sim->host_mem, 0, sim->storage_size, 0, &mapped),
-               "Failed to map memory");
+    ASSERT_VKR(vkMapMemory(sim->ctx->dev, sim->host_mem, 0, sim->storage_size, 0, &mapped), "Failed to map memory");
 
     // copy data into host-accessible buffer
     memcpy(mapped, arr, sim->storage_size);
     vkUnmapMemory(sim->ctx->dev, sim->host_mem);
 
     // copy data from host-accessible buffer into device-local buffer
-    SubmitAndWait(sim, sim->htd_storage_copy_cb[sim->new_idx]);
-}
-
-static void CreateWriteDescriptorSet(VkDescriptorSet set,
-                                     const VkDescriptorType *types,
-                                     const VkDescriptorBufferInfo *info,
-                                     VkWriteDescriptorSet *writes) {
-    for (int i = 0; i < 3; i++) {
-        writes[i] = (VkWriteDescriptorSet){0};
-        writes[i].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        writes[i].dstSet = set;
-        writes[i].dstBinding = i;
-        writes[i].descriptorCount = 1;
-        writes[i].descriptorType = types[i];
-        writes[i].pBufferInfo = &info[i];
-    }
+    SubmitAndWait(sim, sim->htd_storage_copy_cb);
 }
 
 SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data) {
@@ -93,7 +73,6 @@ SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data) {
     ASSERT_MSG(sim != NULL, "Failed to alloc SimPipeline");
 
     sim->world_data = data;
-    sim->new_idx = 0;
     sim->ctx = ctx;
 
     /*
@@ -189,13 +168,13 @@ SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data) {
 
     VkDescriptorPoolSize ds_pool_size[2] = {0};
     ds_pool_size[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    ds_pool_size[0].descriptorCount = 2;
+    ds_pool_size[0].descriptorCount = 1;
     ds_pool_size[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    ds_pool_size[1].descriptorCount = 4;
+    ds_pool_size[1].descriptorCount = 2;
 
     VkDescriptorPoolCreateInfo ds_pool_info = {0};
     ds_pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    ds_pool_info.maxSets = 2;
+    ds_pool_info.maxSets = 1;
     ds_pool_info.poolSizeCount = 2;
     ds_pool_info.pPoolSizes = ds_pool_size;
     ASSERT_VKR(vkCreateDescriptorPool(ctx->dev, &ds_pool_info, NULL, &sim->ds_pool),
@@ -206,11 +185,7 @@ SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data) {
     ds_alloc_info.descriptorPool = sim->ds_pool;
     ds_alloc_info.descriptorSetCount = 1;
     ds_alloc_info.pSetLayouts = &sim->ds_layout;
-
-    ASSERT_VKR(vkAllocateDescriptorSets(sim->ctx->dev, &ds_alloc_info, &sim->sets[0]),
-               "Failed to allocate descriptor set #0");
-    ASSERT_VKR(vkAllocateDescriptorSets(sim->ctx->dev, &ds_alloc_info, &sim->sets[1]),
-               "Failed to allocate descriptor set #0");
+    ASSERT_VKR(vkAllocateDescriptorSets(sim->ctx->dev, &ds_alloc_info, &sim->set), "Failed to allocate descriptor set");
 
     /*
      * Update descriptor set.
@@ -221,37 +196,30 @@ SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data) {
     uniform_info.offset = 0;
     uniform_info.range = uniform_size;
 
-    VkDescriptorBufferInfo storage0_info = {0};
-    storage0_info.buffer = sim->storage[0];
-    storage0_info.offset = 0;
-    storage0_info.range = storage_size;
+    VkDescriptorBufferInfo storage_info[2] = {0};
+    storage_info[0].buffer = sim->storage[0];
+    storage_info[0].offset = 0;
+    storage_info[0].range = storage_size;
+    storage_info[1].buffer = sim->storage[1];
+    storage_info[1].offset = 0;
+    storage_info[1].range = storage_size;
 
-    VkDescriptorBufferInfo storage1_info = {0};
-    storage1_info.buffer = sim->storage[1];
-    storage1_info.offset = 0;
-    storage1_info.range = storage_size;
+    VkWriteDescriptorSet write_sets[2] = {0};
+    write_sets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_sets[0].dstSet = sim->set;
+    write_sets[0].dstBinding = 0;
+    write_sets[0].descriptorCount = 1;
+    write_sets[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    write_sets[0].pBufferInfo = &uniform_info;
 
-    VkDescriptorType types[3] = {
-            VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,  // uniform
-            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,  // old
-            VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,  // new
-    };
-    VkDescriptorBufferInfo set0[3] = {
-            uniform_info,   // uniform
-            storage1_info,  // old
-            storage0_info,  // new
-    };
-    VkDescriptorBufferInfo set1[3] = {
-            uniform_info,   // uniform
-            storage0_info,  // old
-            storage1_info,  // new
-    };
+    write_sets[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    write_sets[1].dstSet = sim->set;
+    write_sets[1].dstBinding = 1;
+    write_sets[1].descriptorCount = 2;
+    write_sets[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    write_sets[1].pBufferInfo = storage_info;
 
-    VkWriteDescriptorSet write_sets[6];
-    CreateWriteDescriptorSet(sim->sets[0], types, set0, write_sets);
-    CreateWriteDescriptorSet(sim->sets[1], types, set1, write_sets + 3);
-
-    vkUpdateDescriptorSets(sim->ctx->dev, 6, write_sets, 0, NULL);
+    vkUpdateDescriptorSets(sim->ctx->dev, 2, write_sets, 0, NULL);
 
     /*
      * Pipeline.
@@ -275,15 +243,13 @@ SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data) {
      * Command buffers.
      */
 
-    VkCommandBuffer buffers[6];
-    AllocVkCommandBuffers(ctx, 6, buffers);
+    VkCommandBuffer buffers[4];
+    AllocVkCommandBuffers(ctx, 4, buffers);
 
     sim->pipeline_cb = buffers[0];
     sim->htd_uniform_copy_cb = buffers[1];
-    sim->htd_storage_copy_cb[0] = buffers[2];
-    sim->htd_storage_copy_cb[1] = buffers[3];
-    sim->dth_storage_copy_cb[0] = buffers[4];
-    sim->dth_storage_copy_cb[1] = buffers[5];
+    sim->htd_storage_copy_cb = buffers[2];
+    sim->dth_storage_copy_cb = buffers[3];
 
     VkCommandBufferBeginInfo cmd_begin_info = {0};
     cmd_begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
@@ -305,34 +271,14 @@ SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data) {
     ASSERT_VKR(vkEndCommandBuffer(sim->htd_uniform_copy_cb), "Failed to end command buffer");
 
     // host-to-dev storage copy
-    for (int i = 0; i < 2; i++) {
-        VkCommandBuffer cmd = sim->htd_storage_copy_cb[i];
-        ASSERT_VKR(vkBeginCommandBuffer(cmd, &cmd_begin_info), "Failed to begin command buffer");
-        vkCmdCopyBuffer(cmd, sim->transfer_buf, sim->storage[i], 1, &storage_copy);
-        ASSERT_VKR(vkEndCommandBuffer(cmd), "Failed to end command buffer");
-    }
+    ASSERT_VKR(vkBeginCommandBuffer(sim->htd_storage_copy_cb, &cmd_begin_info), "Failed to begin command buffer");
+    vkCmdCopyBuffer(sim->htd_storage_copy_cb, sim->transfer_buf, sim->storage[1], 1, &storage_copy);
+    ASSERT_VKR(vkEndCommandBuffer(sim->htd_storage_copy_cb), "Failed to end command buffer");
 
     // dev-to-host storage copy
-    for (int i = 0; i < 2; i++) {
-        VkCommandBuffer cmd = sim->dth_storage_copy_cb[i];
-        ASSERT_VKR(vkBeginCommandBuffer(cmd, &cmd_begin_info), "Failed to begin command cmd");
-        vkCmdCopyBuffer(cmd, sim->storage[i], sim->transfer_buf, 1, &storage_copy);
-        ASSERT_VKR(vkEndCommandBuffer(cmd), "Failed to end command cmd");
-    }
-
-    /*
-     * Synchronization.
-     */
-
-    for (int i = 0; i < 2; i++) {
-        sim->mem_barriers[i] = (VkBufferMemoryBarrier){0};
-        sim->mem_barriers[i].sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-        sim->mem_barriers[i].srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
-        sim->mem_barriers[i].dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-        sim->mem_barriers[i].buffer = sim->storage[i];
-        sim->mem_barriers[i].offset = 0;
-        sim->mem_barriers[i].size = sim->storage_size;
-    }
+    ASSERT_VKR(vkBeginCommandBuffer(sim->dth_storage_copy_cb, &cmd_begin_info), "Failed to begin command cmd");
+    vkCmdCopyBuffer(sim->dth_storage_copy_cb, sim->storage[1], sim->transfer_buf, 1, &storage_copy);
+    ASSERT_VKR(vkEndCommandBuffer(sim->dth_storage_copy_cb), "Failed to end command cmd");
 
     VkFenceCreateInfo fence_info = {0};
     fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
@@ -344,13 +290,11 @@ SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data) {
 void DestroySimPipeline(SimPipeline *sim) {
     if (sim != NULL) {
         VkDevice dev = sim->ctx->dev;
-        VkCommandPool cmd_pool = sim->ctx->cmd_pool;
-
         vkDestroyFence(dev, sim->fence, NULL);
-        vkFreeCommandBuffers(dev, cmd_pool, 1, &sim->pipeline_cb);
-        vkFreeCommandBuffers(dev, cmd_pool, 1, &sim->htd_uniform_copy_cb);
-        vkFreeCommandBuffers(dev, cmd_pool, 2, sim->htd_storage_copy_cb);
-        vkFreeCommandBuffers(dev, cmd_pool, 2, sim->dth_storage_copy_cb);
+
+        VkCommandBuffer buffers[4] = {sim->pipeline_cb, sim->htd_uniform_copy_cb,
+                                      sim->htd_storage_copy_cb, sim->dth_storage_copy_cb};
+        vkFreeCommandBuffers(dev, sim->ctx->cmd_pool, 4, buffers);
 
         vkDestroyPipeline(dev, sim->pipeline, NULL);
         vkDestroyPipelineLayout(dev, sim->pipeline_layout, NULL);
@@ -387,39 +331,67 @@ void PerformSimUpdate(SimPipeline *sim, float dt, uint32_t n) {
         SubmitAndWait(sim, sim->htd_uniform_copy_cb);
     }
 
-    VkCommandBuffer cmd_buf = sim->pipeline_cb;
+    VkCommandBuffer cmd = sim->pipeline_cb;
     VkCommandBufferBeginInfo begin_info = {0};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-    ASSERT_VKR(vkBeginCommandBuffer(cmd_buf, &begin_info), "Failed to begin pipeline command buffer");
+    ASSERT_VKR(vkBeginCommandBuffer(cmd, &begin_info), "Failed to begin pipeline command buffer");
 
-    uint32_t new_idx = sim->new_idx;
     uint32_t group_count = sim->world_data.size / LOCAL_SIZE_X;
     if (sim->world_data.size % LOCAL_SIZE_X != 0) group_count++;
+
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_COMPUTE, sim->pipeline);
+    vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_COMPUTE,
+                            sim->pipeline_layout, 0,
+                            1, &sim->set,
+                            0, 0);
+
+    VkBufferCopy storage_copy = {0};
+    storage_copy.srcOffset = 0;
+    storage_copy.dstOffset = 0;
+    storage_copy.size = sim->storage_size;
+
+    // wait for pipeline to finish before copying storage[1] into storage[0]
+    VkBufferMemoryBarrier pipeline_finished_mem_barrier = {0};
+    pipeline_finished_mem_barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    pipeline_finished_mem_barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+    pipeline_finished_mem_barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    pipeline_finished_mem_barrier.srcQueueFamilyIndex = sim->ctx->queue_family_idx;
+    pipeline_finished_mem_barrier.dstQueueFamilyIndex = sim->ctx->queue_family_idx;
+    pipeline_finished_mem_barrier.buffer = sim->storage[1];
+    pipeline_finished_mem_barrier.offset = 0;
+    pipeline_finished_mem_barrier.size = sim->storage_size;
+
+    // wait for copy to finish before running pipeline
+    VkBufferMemoryBarrier transfer_finished_mem_barrier = {0};
+    transfer_finished_mem_barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
+    transfer_finished_mem_barrier.srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT;
+    transfer_finished_mem_barrier.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+    transfer_finished_mem_barrier.srcQueueFamilyIndex = sim->ctx->queue_family_idx;
+    transfer_finished_mem_barrier.dstQueueFamilyIndex = sim->ctx->queue_family_idx;
+    transfer_finished_mem_barrier.buffer = sim->storage[0];
+    transfer_finished_mem_barrier.offset = 0;
+    transfer_finished_mem_barrier.size = sim->storage_size;
 
     for (uint32_t i = 0; i < n; i++) {
         // first dispatch does not need synchronization
         if (i != 0) {
-            vkCmdPipelineBarrier(cmd_buf,
-                                 VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+            vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
                                  VK_DEPENDENCY_BY_REGION_BIT,
                                  0, NULL,
-                                 1, &sim->mem_barriers[new_idx],
+                                 1, &pipeline_finished_mem_barrier,
                                  0, NULL);
         }
-        // rotate new_idx AFTER pipeline barrier
-        new_idx = (new_idx + 1) % 2;
-
-        vkCmdBindDescriptorSets(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE,
-                                sim->pipeline_layout, 0,
-                                1, &sim->sets[new_idx],
-                                0, 0);
-        vkCmdBindPipeline(cmd_buf, VK_PIPELINE_BIND_POINT_COMPUTE, sim->pipeline);
-        vkCmdDispatch(cmd_buf, group_count, 1, 1);
+        vkCmdCopyBuffer(cmd, sim->storage[1], sim->storage[0], 1, &storage_copy);
+        vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+                             VK_DEPENDENCY_BY_REGION_BIT,
+                             0, NULL,
+                             1, &transfer_finished_mem_barrier,
+                             0, NULL);
+        vkCmdDispatch(cmd, group_count, 1, 1);
     }
-    sim->new_idx = new_idx;
 
-    ASSERT_VKR(vkEndCommandBuffer(cmd_buf), "Failed to end pipeline command buffer");
-    SubmitAndWait(sim, cmd_buf);
-    ASSERT_VKR(vkResetCommandBuffer(cmd_buf, 0), "Failed to reset pipeline command buffer");
+    ASSERT_VKR(vkEndCommandBuffer(cmd), "Failed to end pipeline command buffer");
+    SubmitAndWait(sim, cmd);
+    ASSERT_VKR(vkResetCommandBuffer(cmd, 0), "Failed to reset pipeline command buffer");
 }

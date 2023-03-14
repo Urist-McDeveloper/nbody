@@ -30,7 +30,7 @@ function(compile_shaders target stage)
                 OUTPUT ${spv}
                 DEPENDS ${source} ${arg_DEPENDS}
                 COMMAND
-                ${GLSLC} -o ${spv}
+                ${GLSLC} -O -o ${spv}
                 --target-env=${GLSLC_ENV}
                 $<$<BOOL:${arg_STAGE}>:-fshader-stage=${arg_STAGE}>
                 ${CMAKE_CURRENT_SOURCE_DIR}/${source}

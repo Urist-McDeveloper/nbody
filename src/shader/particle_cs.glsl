@@ -39,38 +39,36 @@ layout (constant_id = 2) const float N = -1000;
  */
 layout (constant_id = 3) const float F = -0.01;
 
-/* Get acceleration enacted by B upon A. */
-vec2 GetGrav(Particle a, Particle b) {
-    vec2 radv = b.pos - a.pos;
-    float dist = max(length(radv), 0.5 * (a.radius + b.radius));
-
-    //          g  ==  Gm / r^2
-    //          n  ==  Nm / r^3
-    // norm(radv)  ==  radv * (1 / r)
-    //
-    // norm(radv) * (g + n)  ==  radv * m * (Gr + N) / r^4
-
-    float gr = G * dist;
-    float r2 = dist * dist;
-    float r4 = r2 * r2;
-
-    return radv * (b.mass * (gr + N) / r4);
-}
-
 void main() {
     uint i = gl_GlobalInvocationID.x;
     if (i >= world.size) return;
 
-    // initial acceleration is friction
+    Particle a = old.arr[i];
     vec2 acc = F * old.arr[i].vel;
 
     for (uint j = 0; j < world.size; j++) {
-        acc += GetGrav(old.arr[i], old.arr[j]);
+        Particle b = old.arr[j];
+
+        vec2 radv = b.pos - a.pos;
+        float dist = max(length(radv), 0.5 * (a.radius + b.radius));
+
+        //          g  ==  Gm / r^2
+        //          n  ==  Nm / r^3
+        // norm(radv)  ==  radv * (1 / r)
+        //
+        // norm(radv) * (g + n)  ==  radv * m * (Gr + N) / r^4
+
+        float gr = G * dist;
+        float r2 = dist * dist;
+        float r4 = r2 * r2;
+
+        acc += radv * (b.mass * (gr + N) / r4);
     }
 
     vec2 vel = old.arr[i].vel + (world.dt * acc);
     vec2 pos = old.arr[i].pos + (world.dt * vel);
 
+    new.arr[i].acc = acc;
     new.arr[i].vel = vel;
     new.arr[i].pos = pos;
 

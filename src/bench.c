@@ -17,9 +17,9 @@ static int64_t diff_us(struct timespec *from, struct timespec *to) {
     return (to->tv_sec - from->tv_sec) * US_PER_S + (to->tv_nsec - from->tv_nsec) / NS_PER_US;
 }
 
-#define UPDATE_STEP 0.01
-#define WARMUP_ITER 100
-#define BENCH_ITER  1000
+#define UPDATE_STEP 1.f
+#define WARMUP_ITER 10
+#define BENCH_ITER  100
 
 static int64_t bench(World *w, void (*update)(World *, float, uint32_t)) {
     struct timespec start;
@@ -33,12 +33,10 @@ static int64_t bench(World *w, void (*update)(World *, float, uint32_t)) {
     return diff_us(&start, &end) / BENCH_ITER;
 }
 
-static const int WS[] = {10, 100, 250, 500, 800, 1200, 2000, 4000};
+static const int WS[] = {10, 100, 250, 500, 800, 1200, 2000, 4000, 10000, 20000, 50000, 100000};
 static const int WS_LEN = sizeof(WS) / sizeof(WS[0]);
 
-#define WORLD_WIDTH     1000
-#define WORLD_HEIGHT    1000
-#define WORLD_NEW(size) CreateWorld(size, V2_ZERO, V2_FROM(WORLD_WIDTH, WORLD_HEIGHT))
+#define WORLD_NEW(size) CreateWorld(size, V2_ZERO, V2_FROM(size, size))
 
 int main(int argc, char **argv) {
     srand(11037);
@@ -53,9 +51,9 @@ int main(int argc, char **argv) {
     World *cpu_w;
     World *gpu_w;
 
-    printf("\t   N");
-    if (use_cpu) printf("\t  CPU");
-    if (use_gpu) printf("\t  GPU");
+    printf("\t      N");
+    if (use_cpu) printf("\t    CPU");
+    if (use_gpu) printf("\t    GPU");
     printf("\n");
 
     for (int i = 0; i < WS_LEN; i++) {
@@ -67,9 +65,9 @@ int main(int argc, char **argv) {
             SetupWorldGPU(gpu_w, ctx);
         }
 
-        printf("\t%4d", world_size);
-        if (use_cpu) printf("\t%5ld", bench(cpu_w, UpdateWorld_CPU));
-        if (use_gpu) printf("\t%5ld", bench(gpu_w, UpdateWorld_GPU));
+        printf("\t%7d", world_size);
+        if (use_cpu) printf("\t%7ld", bench(cpu_w, UpdateWorld_CPU));
+        if (use_gpu) printf("\t%7ld", bench(gpu_w, UpdateWorld_GPU));
         printf("\n");
 
         if (use_cpu) DestroyWorld(cpu_w);
