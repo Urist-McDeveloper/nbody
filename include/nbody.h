@@ -79,7 +79,7 @@ void GetWorldParticles(World *w, Particle **ps, uint32_t *size);
 
 /*
  * Setup Vulkan pipeline for W. Does nothing if Vulkan was already set up.
- * CTX must remain a valid pointer to VulkanCtx until W is destroyed.
+ * CTX must not be destroyed until W is destroyed.
  */
 void SetupWorldGPU(World *w, const VulkanCtx *ctx);
 

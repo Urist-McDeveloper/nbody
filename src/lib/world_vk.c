@@ -77,8 +77,8 @@ SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data) {
     const VkDeviceSize host_mem_size = uniform_size + storage_size;
     const VkDeviceSize dev_mem_size = uniform_size + 2 * storage_size;
 
-    sim->host_mem = CreateDeviceMemory(ctx, host_mem_size, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
-    sim->dev_mem = CreateDeviceMemory(ctx, dev_mem_size, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    sim->host_mem = CreateHostCoherentMemory(ctx, host_mem_size);
+    sim->dev_mem = CreateDeviceLocalMemory(ctx, dev_mem_size);
 
     VkBufferUsageFlags transfer_buf_flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     VkBufferUsageFlags uniform_buf_flags = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -238,7 +238,7 @@ void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt, Particle *arr, boo
     if (sim->world_data.dt != dt) {
         sim->world_data.dt = dt;
 
-        SetVulkanBufferData(&sim->transfer_buf[0], &sim->world_data);
+        CopyIntoVulkanBuffer(&sim->transfer_buf[0], &sim->world_data);
         CopyVulkanBuffer(sim->cmd, &sim->transfer_buf[0], &sim->uniform);
 
         // pipeline should wait until copy command is finished
@@ -254,7 +254,7 @@ void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt, Particle *arr, boo
 
     // copy new data to storage[0] either from ARR or from storage[1]
     if (new_data) {
-        SetVulkanBufferData(&sim->transfer_buf[1], arr);
+        CopyIntoVulkanBuffer(&sim->transfer_buf[1], arr);
         CopyVulkanBuffer(sim->cmd, &sim->transfer_buf[1], &sim->storage[0]);
     } else {
         CopyVulkanBuffer(sim->cmd, &sim->storage[1], &sim->storage[0]);
@@ -324,6 +324,6 @@ void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt, Particle *arr, boo
     ASSERT_VKR(vkResetFences(sim->ctx->dev, 1, &sim->fence), "Failed to reset fence");
     ASSERT_VKR(vkResetCommandBuffer(sim->cmd, 0), "Failed to reset command buffer");
 
-    // write new data from transfer_buf[1] to ARR
-    GetVulkanBufferData(&sim->transfer_buf[1], arr);
+    // copy new data from transfer_buf[1] to ARR
+    CopyFromVulkanBuffer(&sim->transfer_buf[1], arr);
 }

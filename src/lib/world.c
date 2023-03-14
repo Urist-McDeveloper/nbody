@@ -32,7 +32,7 @@ struct World {
     ParticlePack *pack; // array of packed particle data
     uint32_t arr_len;   // length of arr
     uint32_t pack_len;  // length of pack
-    SimPipeline *comp;  // Vulkan-related stuff
+    SimPipeline *sim;  // Vulkan-related stuff
     bool arr_gpu_sync;  // whether ARR and GPU buffer hold the same data
 };
 
@@ -40,7 +40,7 @@ World *CreateWorld(uint32_t size, V2 min, V2 max) {
     World *world = ALLOC(1, World);
     ASSERT_MSG(world != NULL, "Failed to alloc World");
 
-    world->comp = NULL;             // must be explicitly initialized by calling SetupWorldGPU
+    world->sim = NULL;             // must be explicitly initialized by calling SetupWorldGPU
     world->arr_gpu_sync = false;    // GPU buffers are uninitialized
 
     world->arr_len = size;
@@ -65,10 +65,8 @@ World *CreateWorld(uint32_t size, V2 min, V2 max) {
 
 void DestroyWorld(World *w) {
     if (w != NULL) {
-        if (w->comp != NULL) {
-            DestroySimPipeline(w->comp);
-        }
-//        free(w->pack);
+        DestroySimPipeline(w->sim);
+        free(w->pack);
         free(w->arr);
         free(w);
     }
@@ -92,19 +90,19 @@ void GetWorldParticles(World *w, Particle **ps, uint32_t *size) {
 }
 
 void SetupWorldGPU(World *w, const VulkanCtx *ctx) {
-    if (w->comp == NULL) {
+    if (w->sim == NULL) {
         WorldData data = (WorldData){
                 .size = w->arr_len,
                 .dt = 0,
         };
-        w->comp = CreateSimPipeline(ctx, data);
+        w->sim = CreateSimPipeline(ctx, data);
     }
 }
 
 void UpdateWorld_GPU(World *w, float dt, uint32_t n) {
-    ASSERT_FMT(w->comp != NULL, "Vulkan has not been initialized for World %p", w);
+    ASSERT_FMT(w->sim != NULL, "Vulkan has not been initialized for World %p", w);
     if (n > 0) {
-        PerformSimUpdate(w->comp, n, dt, w->arr, !w->arr_gpu_sync);
+        PerformSimUpdate(w->sim, n, dt, w->arr, !w->arr_gpu_sync);
         w->arr_gpu_sync = true;
     }
 }
