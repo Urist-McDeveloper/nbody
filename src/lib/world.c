@@ -33,7 +33,7 @@ struct World {
     uint32_t arr_len;   // length of arr
     uint32_t pack_len;  // length of pack
     SimPipeline *comp;  // Vulkan-related stuff
-    bool arr_gpu_sync;  // whether ARR ang GPU buffer hold the same data
+    bool arr_gpu_sync;  // whether ARR and GPU buffer hold the same data
 };
 
 World *CreateWorld(uint32_t size, V2 min, V2 max) {
