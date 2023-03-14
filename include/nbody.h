@@ -13,13 +13,13 @@
  * Repulsion constant; repulsion is proportional to the inverse cube of distance.
  *      n = NB_N * mass / dist^3
  */
-#define NB_N    (-0.f)
+#define NB_N    (-800.f)
 
 /*
  * A fraction of velocity that becomes deceleration.
  *      f = NB_F * velocity
  */
-#define NB_F    (-0.f)
+#define NB_F    (-0.01f)
 
 
 /* Vulkan context. */

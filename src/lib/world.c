@@ -49,7 +49,7 @@ World *CreateWorld(uint32_t size, V2 min, V2 max) {
 
     AllocPackArray(size, &world->pack, &world->pack_len);
 
-    #pragma omp parallel for firstprivate(world, size, min, max) default(none)
+    #pragma omp parallel for schedule(static, 20) firstprivate(world, size, min, max) default(none)
     for (int i = 0; i < size; i++) {
         float r = RangeRand(MIN_R, MAX_R);
         float x = RangeRand(min.x + r, max.x - r);
@@ -103,7 +103,8 @@ void SetupWorldGPU(World *w, const VulkanCtx *ctx) {
 
 void UpdateWorld_GPU(World *w, float dt, uint32_t n) {
     ASSERT_FMT(w->comp != NULL, "Vulkan has not been initialized for World %p", w);
-
-    PerformSimUpdate(w->comp, n, dt, w->arr, !w->arr_gpu_sync);
-    w->arr_gpu_sync = true;
+    if (n > 0) {
+        PerformSimUpdate(w->comp, n, dt, w->arr, !w->arr_gpu_sync);
+        w->arr_gpu_sync = true;
+    }
 }

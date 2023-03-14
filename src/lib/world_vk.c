@@ -247,6 +247,8 @@ void DestroySimPipeline(SimPipeline *sim) {
 }
 
 void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt, Particle *arr, bool new_data) {
+    ASSERT_MSG(n > 0, "Performing 0 GPU simulation updates is not allowed");
+
     // start recording command buffer
     VkCommandBufferBeginInfo begin_info = {0};
     begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;

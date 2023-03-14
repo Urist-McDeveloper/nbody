@@ -12,7 +12,7 @@ typedef struct WorldData {
     float dt;
 } WorldData;
 
-/* Simulation pipeline-related stuff. */
+/* GPU simulation pipeline. */
 typedef struct SimPipeline SimPipeline;
 
 /*
@@ -25,7 +25,7 @@ SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data);
 void DestroySimPipeline(SimPipeline *sim);
 
 /*
- * Perform N updates with specified time delta and write results into ARR.
+ * Perform N > 0 updates with specified time delta and write results into ARR.
  * If NEW_DATA is true, then update GPU buffers with data from ARR before running simulation.
  */
 void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt, Particle *arr, bool new_data);
