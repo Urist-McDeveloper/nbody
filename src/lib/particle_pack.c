@@ -71,10 +71,6 @@ void PackParticles(uint32_t count, const Particle *ps, ParticlePack *packs) {
     uint32_t rem = count % PACK_SIZE;
     uint32_t n = count / PACK_SIZE;
 
-    if (n > 0 && rem != 0) {
-        n--;
-    }
-
     #pragma omp parallel for schedule(static, 10) firstprivate(ps, packs, n) default(none)
     for (int i = 0; i < n; i++) {
         packs[i] = CreatePack(&ps[i * PACK_SIZE]);
