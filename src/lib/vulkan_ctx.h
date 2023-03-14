@@ -2,6 +2,7 @@
 #define NB_VULKAN_CTX_H
 
 #include <nbody.h>
+#include <vulkan/vulkan.h>
 
 struct VulkanCtx {
     VkInstance instance;

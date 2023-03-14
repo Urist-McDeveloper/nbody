@@ -2,7 +2,6 @@
 #define NB_H
 
 #include <stdint.h>
-#include <vulkan/vulkan.h>
 
 /*
  * Gravitational constant; gravity is proportional to the inverse square of distance.

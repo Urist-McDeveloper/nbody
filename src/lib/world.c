@@ -33,54 +33,32 @@ struct World {
     uint32_t arr_len;   // length of arr
     uint32_t pack_len;  // length of pack
     SimPipeline *comp;  // Vulkan-related stuff
-    bool gpu_sync;      // whether the last change in GPU buffer is synced with the array
-    bool arr_sync;      // whether the last change in the array is synced with GPU buffer
+    bool arr_gpu_sync;  // whether ARR ang GPU buffer hold the same data
 };
-
-/* Copy data from GPU buffer into Particle array if necessary. */
-static void SyncToArrFromGPU(World *w) {
-    if (!w->gpu_sync) {
-        GetSimParticles(w->comp, w->arr);
-        w->gpu_sync = true;
-        w->arr_sync = true;
-    }
-}
-
-/* Copy data from Particle array into GPU buffer if necessary. */
-static void SyncFromArrToGPU(World *w) {
-    if (!w->arr_sync) {
-        SetSimParticles(w->comp, w->arr);
-        w->gpu_sync = true;
-        w->arr_sync = true;
-    }
-}
 
 World *CreateWorld(uint32_t size, V2 min, V2 max) {
     World *world = ALLOC(1, World);
     ASSERT_MSG(world != NULL, "Failed to alloc World");
 
-    world->comp = NULL;
-    world->gpu_sync = true;
-    world->arr_sync = true;
+    world->comp = NULL;             // must be explicitly initialized by calling SetupWorldGPU
+    world->arr_gpu_sync = false;    // GPU buffers are uninitialized
 
-    Particle *arr = ALLOC(size, Particle);
-    ASSERT_FMT(arr != NULL, "Failed to alloc %u Particles", size);
-
-    world->arr = arr;
     world->arr_len = size;
+    world->arr = ALLOC(size, Particle);
+    ASSERT_FMT(world->arr != NULL, "Failed to alloc %u Particles", size);
 
     AllocPackArray(size, &world->pack, &world->pack_len);
 
-    #pragma omp parallel for schedule(static, 80) firstprivate(arr, size, min, max) default(none)
+    #pragma omp parallel for firstprivate(world, size, min, max) default(none)
     for (int i = 0; i < size; i++) {
         float r = RangeRand(MIN_R, MAX_R);
         float x = RangeRand(min.x + r, max.x - r);
         float y = RangeRand(min.y + r, max.y - r);
 
-        arr[i] = (Particle){0};
-        arr[i].pos = V2_FROM(x, y);
-        arr[i].mass = R_TO_M(r);
-        arr[i].radius = r;
+        world->arr[i] = (Particle){0};
+        world->arr[i].pos = V2_FROM(x, y);
+        world->arr[i].mass = R_TO_M(r);
+        world->arr[i].radius = r;
     }
     return world;
 }
@@ -90,33 +68,25 @@ void DestroyWorld(World *w) {
         if (w->comp != NULL) {
             DestroySimPipeline(w->comp);
         }
-        free(w->pack);
+//        free(w->pack);
         free(w->arr);
         free(w);
     }
 }
 
 void UpdateWorld_CPU(World *w, float dt, uint32_t n) {
-    SyncToArrFromGPU(w);
-    w->arr_sync = false;
-
-    Particle *arr = w->arr;
-    uint32_t arr_len = w->arr_len;
-    ParticlePack *pack = w->pack;
-    uint32_t pack_len = w->pack_len;
-
     for (int update_iter = 0; update_iter < n; update_iter++) {
-        PackParticles(arr_len, arr, pack);
+        PackParticles(w->arr_len, w->arr, w->pack);
 
-        #pragma omp parallel for schedule(static, 20) firstprivate(dt, arr, arr_len, pack, pack_len) default(none)
-        for (int i = 0; i < arr_len; i++) {
-            PackedUpdate(&arr[i], dt, pack_len, pack);
+        #pragma omp parallel for schedule(static, 20) firstprivate(dt, w) default(none)
+        for (int i = 0; i < w->arr_len; i++) {
+            PackedUpdate(&w->arr[i], dt, w->pack_len, w->pack);
         }
     }
+    w->arr_gpu_sync = false;
 }
 
 void GetWorldParticles(World *w, Particle **ps, uint32_t *size) {
-    SyncToArrFromGPU(w);
     *ps = w->arr;
     *size = w->arr_len;
 }
@@ -128,13 +98,12 @@ void SetupWorldGPU(World *w, const VulkanCtx *ctx) {
                 .dt = 0,
         };
         w->comp = CreateSimPipeline(ctx, data);
-        w->arr_sync = false;
     }
 }
 
 void UpdateWorld_GPU(World *w, float dt, uint32_t n) {
     ASSERT_FMT(w->comp != NULL, "Vulkan has not been initialized for World %p", w);
-    SyncFromArrToGPU(w);
-    w->gpu_sync = false;
-    PerformSimUpdate(w->comp, dt, n);
+
+    PerformSimUpdate(w->comp, n, dt, w->arr, !w->arr_gpu_sync);
+    w->arr_gpu_sync = true;
 }

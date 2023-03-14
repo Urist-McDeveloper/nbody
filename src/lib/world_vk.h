@@ -3,6 +3,9 @@
 
 #include <nbody.h>
 
+#include <stdbool.h>
+#include <vulkan/vulkan.h>
+
 /* Constant data given to shaders in a uniform buffer. */
 typedef struct WorldData {
     uint32_t size;
@@ -21,13 +24,10 @@ SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data);
 /* Destroy SIM. */
 void DestroySimPipeline(SimPipeline *sim);
 
-/* Perform N updates with specified time delta. */
-void PerformSimUpdate(SimPipeline *sim, float dt, uint32_t n);
-
-/* Copy particles from GPU buffer into ARR. */
-void GetSimParticles(SimPipeline *sim, Particle *arr);
-
-/* Copy particles from ARR into GPU buffer. */
-void SetSimParticles(SimPipeline *sim, Particle *arr);
+/*
+ * Perform N updates with specified time delta and write results into ARR.
+ * If NEW_DATA is true, then update GPU buffers with data from ARR before running simulation.
+ */
+void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt, Particle *arr, bool new_data);
 
 #endif //NB_WORLD_VK_H

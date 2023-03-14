@@ -15,7 +15,7 @@ static const float STEPS[] = {0.1f, 0.25f, 0.5f, 1.f, 2.f, 4.f};
 #define LAST_STEP_IDX   (STEPS_LENGTH - 1)
 #define DEF_STEP_IDX    3
 
-#define PARTICLE_COUNT  2
+#define PARTICLE_COUNT  2000
 #define PHYS_STEP       0.01f
 
 #define MAX_OVERWORK    3
@@ -48,7 +48,7 @@ int main(void) {
     SetupWorldGPU(world, vk_ctx);
 
     SetTargetFPS((int)(1.f / PHYS_STEP));
-    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "N-Body simulation");
+    InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "N-Body Simulation");
 
     bool pause = false;
     bool use_gpu = PARTICLE_COUNT > 500;
