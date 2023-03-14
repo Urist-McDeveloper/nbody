@@ -7,7 +7,7 @@ set(nbody_lib_sources
         particle_pack.c
         vulkan_ctx.c
         world.c
-        world_vk.c)
+        world_gpu.c)
 
 add_library(nbody-lib STATIC ${nbody_lib_sources} ${nbody_lib_headers})
 set_target_properties(nbody-lib PROPERTIES

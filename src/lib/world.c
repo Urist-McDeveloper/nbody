@@ -5,7 +5,7 @@
 
 #include "particle_pack.h"
 #include "util.h"
-#include "world_vk.h"
+#include "world_gpu.h"
 
 /* Minimum radius of randomized particles. */
 #define MIN_R   2.0f

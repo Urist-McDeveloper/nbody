@@ -55,8 +55,7 @@ By changing some macros:
 * `NB_G` ([include/nbody.h](include/nbody.h#L10)) -- gravitational constant;
 * `NB_N` ([include/nbody.h](include/nbody.h#L16)) -- repulsion constant;
 * `NB_F` ([include/nbody.h](include/nbody.h#L22)) -- velocity decay constant;
-* `MIN_R` ([src/lib/world.c](src/lib/world.c#L12)) -- minimum radius of a Particle;
-* `MAN_R` ([src/lib/world.c](src/lib/world.c#L15)) -- maximum radius of a Particle;
+* `MIN_R` and `MAX_R` ([src/lib/world.c](src/lib/world.c#L11)) -- minimum and maximum radius of a Particle;
 
 ## TODO list
 

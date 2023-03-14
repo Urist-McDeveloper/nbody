@@ -1,4 +1,4 @@
-#include "world_vk.h"
+#include "world_gpu.h"
 
 #include "util.h"
 #include "vulkan_ctx.h"
@@ -243,7 +243,7 @@ void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt, Particle *arr, boo
 
         // pipeline should wait until copy command is finished
         VkBufferMemoryBarrier uniform_copy_barrier;
-        FillVulkanBufferWriteReadBarrier(&sim->uniform, &uniform_copy_barrier);
+        FillWriteReadBufferBarrier(&sim->uniform, &uniform_copy_barrier);
 
         vkCmdPipelineBarrier(sim->cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                              VK_DEPENDENCY_BY_REGION_BIT,
@@ -262,11 +262,11 @@ void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt, Particle *arr, boo
 
     // wait for pipeline to finish before copying storage[1] into storage[0]
     VkBufferMemoryBarrier pipeline_barrier;
-    FillVulkanBufferWriteReadBarrier(&sim->storage[1], &pipeline_barrier);
+    FillWriteReadBufferBarrier(&sim->storage[1], &pipeline_barrier);
 
     // wait for copy command to finish before running pipeline
     VkBufferMemoryBarrier transfer_barrier;
-    FillVulkanBufferWriteReadBarrier(&sim->storage[0], &transfer_barrier);
+    FillWriteReadBufferBarrier(&sim->storage[0], &transfer_barrier);
 
     // bind pipeline and descriptor set
     uint32_t group_count = sim->world_data.size / LOCAL_SIZE_X;
