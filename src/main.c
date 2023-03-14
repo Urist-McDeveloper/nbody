@@ -15,7 +15,7 @@ static const float STEPS[] = {0.1f, 0.25f, 0.5f, 1.f, 2.f, 4.f};
 #define LAST_STEP_IDX   (STEPS_LENGTH - 1)
 #define DEF_STEP_IDX    3
 
-#define PARTICLE_COUNT  2000
+#define PARTICLE_COUNT  2
 #define PHYS_STEP       0.01f
 
 #define MAX_OVERWORK    3
