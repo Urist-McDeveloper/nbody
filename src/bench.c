@@ -13,8 +13,8 @@ static void now(struct timespec *ts) {
     clock_gettime(CLOCK_MONOTONIC, ts);
 }
 
-static int64_t diff_us(struct timespec *from, struct timespec *to) {
-    return (to->tv_sec - from->tv_sec) * US_PER_S + (to->tv_nsec - from->tv_nsec) / NS_PER_US;
+static int64_t diff_us(struct timespec from, struct timespec to) {
+    return (to.tv_sec - from.tv_sec) * US_PER_S + (to.tv_nsec - from.tv_nsec) / NS_PER_US;
 }
 
 #define UPDATE_STEP 1.f
@@ -30,7 +30,7 @@ static int64_t bench(World *w, void (*update)(World *, float, uint32_t)) {
     update(w, UPDATE_STEP, BENCH_ITER);
     now(&end);
 
-    return diff_us(&start, &end) / BENCH_ITER;
+    return diff_us(start, end) / BENCH_ITER;
 }
 
 static const int WS[] = {10, 100, 250, 500, 800, 1200, 2000, 4000, 10000, 20000, 50000, 100000};

@@ -47,15 +47,16 @@ static void AssertDebugLayersSupported() {
 #endif //NDEBUG
 
 static void InitInstance(VkInstance *instance) {
-    VkApplicationInfo app_info = {0};
-    app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
-    app_info.pApplicationName = "nbody-sim";
-    app_info.applicationVersion = VK_MAKE_VERSION(0, 1, 0);
-    app_info.apiVersion = VK_API_VERSION_1_0;
-
-    VkInstanceCreateInfo instance_create_info = {0};
-    instance_create_info.sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO;
-    instance_create_info.pApplicationInfo = &app_info;
+    VkApplicationInfo app_info = {
+            .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
+            .pApplicationName = "nbody-sim",
+            .applicationVersion = VK_MAKE_VERSION(0, 1, 0),
+            .apiVersion = VK_API_VERSION_1_0,
+    };
+    VkInstanceCreateInfo instance_create_info = {
+            .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+            .pApplicationInfo = &app_info,
+    };
 #ifndef NDEBUG
     AssertDebugLayersSupported();
     instance_create_info.enabledLayerCount = 1;
@@ -116,18 +117,18 @@ static void InitDev(VkDevice *dev, uint32_t *queue_family_idx, VkPhysicalDevice 
     printf("Using queue family #%u\n", qf_idx);
     *queue_family_idx = qf_idx;
 
-    VkDeviceQueueCreateInfo queue_create_info = {0};
-    queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-    queue_create_info.queueFamilyIndex = qf_idx;
-    queue_create_info.queueCount = 1;
-
-    const float priority = 1.f;
-    queue_create_info.pQueuePriorities = &priority;
-
-    VkDeviceCreateInfo device_create_info = {0};
-    device_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-    device_create_info.queueCreateInfoCount = 1;
-    device_create_info.pQueueCreateInfos = &queue_create_info;
+    const float queue_priority = 1.f;
+    VkDeviceQueueCreateInfo queue_create_info = {
+            .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+            .queueFamilyIndex = qf_idx,
+            .queueCount = 1,
+            .pQueuePriorities = &queue_priority,
+    };
+    VkDeviceCreateInfo device_create_info = {
+            .sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+            .queueCreateInfoCount = 1,
+            .pQueueCreateInfos = &queue_create_info,
+    };
 #ifndef NDEBUG
     AssertDebugLayersSupported();
     device_create_info.enabledLayerCount = 1;
@@ -142,10 +143,11 @@ void InitGlobalVulkanContext() {
     InitDev(&vulkan_ctx.dev, &vulkan_ctx.queue_family_idx, vulkan_ctx.pdev);
     vkGetDeviceQueue(vulkan_ctx.dev, vulkan_ctx.queue_family_idx, 0, &vulkan_ctx.queue);
 
-    VkCommandPoolCreateInfo pool_create_info = {0};
-    pool_create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    pool_create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    pool_create_info.queueFamilyIndex = vulkan_ctx.queue_family_idx;
+    VkCommandPoolCreateInfo pool_create_info = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+            .flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT,
+            .queueFamilyIndex = vulkan_ctx.queue_family_idx,
+    };
     ASSERT_VK(vkCreateCommandPool(vulkan_ctx.dev, &pool_create_info, NULL, &vulkan_ctx.cmd_pool),
               "Failed to create global command pool");
 }
@@ -154,11 +156,11 @@ VkShaderModule LoadShaderModule(const char *path) {
     size_t buf_size;
     uint32_t *buf = FIO_ReadFile(path, &buf_size);
 
-    VkShaderModuleCreateInfo create_info = {0};
-    create_info.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    create_info.codeSize = buf_size;
-    create_info.pCode = buf;
-
+    VkShaderModuleCreateInfo create_info = {
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .codeSize = buf_size,
+            .pCode = buf,
+    };
     VkShaderModule module;
     ASSERT_VK(vkCreateShaderModule(vulkan_ctx.dev, &create_info, NULL, &module),
               "Failed to create shader module from %s", path);

@@ -26,8 +26,7 @@
 #   define ASSERT_DBG(COND, ...)   ASSERT(COND, __VA_ARGS__)
 #else
 #   define ASSERT_DBG(COND, ...)   (void)(COND)
-#endif
-
+#endif //NDEBUG
 #endif //NB_UTIL_H
 
 #ifdef VULKAN_H_

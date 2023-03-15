@@ -41,13 +41,8 @@ World *CreateWorld(uint32_t size, V2 min, V2 max) {
     World *world = ALLOC(1, World);
     ASSERT(world != NULL, "Failed to alloc World");
 
-    Particle *arr = ALLOC(size, Particle);;
+    Particle *arr = ALLOC(size, Particle);
     ASSERT(arr != NULL, "Failed to alloc %u Particles", size);
-
-    world->sim = NULL;          // must be explicitly initialized by calling SetupWorldGPU
-    world->gpu_sync = false;    // GPU buffers are uninitialized
-    world->total_len = size;
-    world->arr = arr;
 
     #pragma omp parallel for schedule(static, 20) firstprivate(arr, size, min, max) default(none)
     for (uint32_t i = 0; i < size; i++) {
@@ -81,10 +76,13 @@ World *CreateWorld(uint32_t size, V2 min, V2 max) {
         arr[j] = tmp;
     }
 
-    // j == index of the first particle without mass == number of particles with mass
-    world->mass_len = j;
+    *world = (World){
+        .arr = arr,
+        .total_len = size,
+        .mass_len = j,      // j == index of the first particle without mass == number of particles with mass
+        .gpu_sync = false,  // GPU buffers are uninitialized
+    };
     world->pack = AllocPackArray(j, &world->pack_len);
-
     return world;
 }
 
@@ -119,7 +117,6 @@ void SetupWorldGPU(World *w) {
         WorldData data = (WorldData){
                 .total_len = w->total_len,
                 .mass_len = w->mass_len,
-                .dt = 0,
         };
         w->sim = CreateSimPipeline(data);
     }

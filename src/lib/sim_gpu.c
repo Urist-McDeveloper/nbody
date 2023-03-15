@@ -41,9 +41,11 @@ SimPipeline *CreateSimPipeline(WorldData data) {
 
     VkSpecializationMapEntry shader_spec_map[4];
     for (int i = 0; i < 4; i++) {
-        shader_spec_map[i].constantID = i;
-        shader_spec_map[i].offset = 4 * i;
-        shader_spec_map[i].size = 4;
+        shader_spec_map[i] = (VkSpecializationMapEntry){
+                .constantID = i,
+                .offset = 4 * i,
+                .size = 4,
+        };
     }
 
     char shader_spec_data[16];
@@ -52,18 +54,19 @@ SimPipeline *CreateSimPipeline(WorldData data) {
     *(float *)(shader_spec_data + 8) = NB_N;
     *(float *)(shader_spec_data + 12) = NB_F;
 
-    VkSpecializationInfo shader_spec_info = {0};
-    shader_spec_info.mapEntryCount = 4;
-    shader_spec_info.pMapEntries = shader_spec_map;
-    shader_spec_info.dataSize = 16;
-    shader_spec_info.pData = shader_spec_data;
-
-    VkPipelineShaderStageCreateInfo shader_stage_info = {0};
-    shader_stage_info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    shader_stage_info.stage = VK_SHADER_STAGE_COMPUTE_BIT;
-    shader_stage_info.module = sim->shader;
-    shader_stage_info.pName = "main";
-    shader_stage_info.pSpecializationInfo = &shader_spec_info;
+    VkSpecializationInfo shader_spec_info = {
+            .mapEntryCount = 4,
+            .pMapEntries = shader_spec_map,
+            .dataSize = 16,
+            .pData = shader_spec_data,
+    };
+    VkPipelineShaderStageCreateInfo shader_stage_info = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+            .stage = VK_SHADER_STAGE_COMPUTE_BIT,
+            .module = sim->shader,
+            .pName = "main",
+            .pSpecializationInfo = &shader_spec_info,
+    };
 
     /*
      * Memory buffers.
@@ -89,52 +92,59 @@ SimPipeline *CreateSimPipeline(WorldData data) {
      * Descriptors.
      */
 
-    VkDescriptorSetLayoutBinding bindings[3] = {0};
-
-    // uniform
-    bindings[0].binding = 0;
-    bindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    bindings[0].descriptorCount = 1;
-    bindings[0].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-    // old
-    bindings[1].binding = 1;
-    bindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    bindings[1].descriptorCount = 1;
-    bindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-    // new
-    bindings[2].binding = 2;
-    bindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    bindings[2].descriptorCount = 1;
-    bindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
-
-    VkDescriptorSetLayoutCreateInfo ds_layout_info = {0};
-    ds_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    ds_layout_info.bindingCount = 3;
-    ds_layout_info.pBindings = bindings;
+    VkDescriptorSetLayoutBinding bindings[3] = {
+            {       // uniform
+                    .binding = 0,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+            },
+            {       // old
+                    .binding = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                    .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+            },
+            {       // new
+                    .binding = 2,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                    .descriptorCount = 1,
+                    .stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+            },
+    };
+    VkDescriptorSetLayoutCreateInfo ds_layout_info = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+            .bindingCount = 3,
+            .pBindings = bindings,
+    };
     ASSERT_VK(vkCreateDescriptorSetLayout(vulkan_ctx.dev, &ds_layout_info, NULL, &sim->ds_layout),
               "Failed to create descriptor set layout");
 
-    VkDescriptorPoolSize ds_pool_size[2] = {0};
-    ds_pool_size[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    ds_pool_size[0].descriptorCount = 1;
-    ds_pool_size[1].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    ds_pool_size[1].descriptorCount = 2;
-
-    VkDescriptorPoolCreateInfo ds_pool_info = {0};
-    ds_pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    ds_pool_info.maxSets = 1;
-    ds_pool_info.poolSizeCount = 2;
-    ds_pool_info.pPoolSizes = ds_pool_size;
+    VkDescriptorPoolSize ds_pool_size[2] = {
+            {
+                    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    .descriptorCount = 1,
+            },
+            {
+                    .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                    .descriptorCount = 2,
+            },
+    };
+    VkDescriptorPoolCreateInfo ds_pool_info = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+            .maxSets = 1,
+            .poolSizeCount = 2,
+            .pPoolSizes = ds_pool_size,
+    };
     ASSERT_VK(vkCreateDescriptorPool(vulkan_ctx.dev, &ds_pool_info, NULL, &sim->ds_pool),
               "Failed to create descriptor pool");
 
-    VkDescriptorSetAllocateInfo ds_alloc_info = {0};
-    ds_alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    ds_alloc_info.descriptorPool = sim->ds_pool;
-    ds_alloc_info.descriptorSetCount = 1;
-    ds_alloc_info.pSetLayouts = &sim->ds_layout;
+    VkDescriptorSetAllocateInfo ds_alloc_info = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+            .descriptorPool = sim->ds_pool,
+            .descriptorSetCount = 1,
+            .pSetLayouts = &sim->ds_layout,
+    };
     ASSERT_VK(vkAllocateDescriptorSets(vulkan_ctx.dev, &ds_alloc_info, &sim->set),
               "Failed to allocate descriptor set");
 
@@ -147,38 +157,43 @@ SimPipeline *CreateSimPipeline(WorldData data) {
     FillDescriptorBufferInfo(&sim->storage[0], &storage_info[0]);
     FillDescriptorBufferInfo(&sim->storage[1], &storage_info[1]);
 
-    VkWriteDescriptorSet write_sets[2] = {0};
-    write_sets[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write_sets[0].dstSet = sim->set;
-    write_sets[0].dstBinding = 0;
-    write_sets[0].descriptorCount = 1;
-    write_sets[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    write_sets[0].pBufferInfo = &uniform_info;
-
-    write_sets[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    write_sets[1].dstSet = sim->set;
-    write_sets[1].dstBinding = 1;
-    write_sets[1].descriptorCount = 2;
-    write_sets[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    write_sets[1].pBufferInfo = storage_info;
-
+    VkWriteDescriptorSet write_sets[2] = {
+            {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .dstSet = sim->set,
+                    .dstBinding = 0,
+                    .descriptorCount = 1,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+                    .pBufferInfo = &uniform_info,
+            },
+            {
+                    .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                    .dstSet = sim->set,
+                    .dstBinding = 1,
+                    .descriptorCount = 2,
+                    .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+                    .pBufferInfo = storage_info,
+            },
+    };
     vkUpdateDescriptorSets(vulkan_ctx.dev, 2, write_sets, 0, NULL);
 
     /*
      * Pipeline.
      */
 
-    VkPipelineLayoutCreateInfo layout_info = {0};
-    layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-    layout_info.setLayoutCount = 1;
-    layout_info.pSetLayouts = &sim->ds_layout;
+    VkPipelineLayoutCreateInfo layout_info = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .setLayoutCount = 1,
+            .pSetLayouts = &sim->ds_layout,
+    };
     ASSERT_VK(vkCreatePipelineLayout(vulkan_ctx.dev, &layout_info, NULL, &sim->pipeline_layout),
               "Failed to create pipeline layout");
 
-    VkComputePipelineCreateInfo pipeline_info = {0};
-    pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
-    pipeline_info.stage = shader_stage_info;
-    pipeline_info.layout = sim->pipeline_layout;
+    VkComputePipelineCreateInfo pipeline_info = {
+            .sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+            .stage = shader_stage_info,
+            .layout = sim->pipeline_layout,
+    };
     ASSERT_VK(vkCreateComputePipelines(vulkan_ctx.dev, NULL, 1, &pipeline_info, NULL, &sim->pipeline),
               "Failed to create compute pipeline");
 
@@ -188,8 +203,9 @@ SimPipeline *CreateSimPipeline(WorldData data) {
 
     AllocCommandBuffers(1, &sim->cmd);
 
-    VkFenceCreateInfo fence_info = {0};
-    fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+    VkFenceCreateInfo fence_info = {
+            .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+    };
     ASSERT_VK(vkCreateFence(vulkan_ctx.dev, &fence_info, NULL, &sim->fence), "Failed to create fence");
 
     return sim;
@@ -225,9 +241,10 @@ void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt, Particle *arr, boo
     ASSERT(n > 0, "Performing 0 GPU simulation updates is not allowed");
 
     // start recording command buffer
-    VkCommandBufferBeginInfo begin_info = {0};
-    begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+    VkCommandBufferBeginInfo begin_info = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    };
     ASSERT_VK(vkBeginCommandBuffer(sim->cmd, &begin_info), "Failed to begin pipeline command buffer");
 
     // update uniform buffer if DT has changed
@@ -308,11 +325,11 @@ void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt, Particle *arr, boo
     ASSERT_VK(vkEndCommandBuffer(sim->cmd), "Failed to end pipeline command buffer");
 
     // submit command buffer
-    VkSubmitInfo submit_info = {0};
-    submit_info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &sim->cmd;
-
+    VkSubmitInfo submit_info = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .commandBufferCount = 1,
+            .pCommandBuffers = &sim->cmd,
+    };
     ASSERT_VK(vkQueueSubmit(vulkan_ctx.queue, 1, &submit_info, sim->fence), "Failed to submit command buffer");
     ASSERT_VK(vkWaitForFences(vulkan_ctx.dev, 1, &sim->fence, VK_TRUE, UINT64_MAX), "Failed to wait for fences");
 
