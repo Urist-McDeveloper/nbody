@@ -21,9 +21,8 @@ static const float STEPS[] = {0.1f, 0.25f, 0.5f, 1.f, 2.f, 4.f};
 #define MAX_OVERWORK    3
 
 static void DrawParticles(World *world) {
-    Particle *arr;
     uint32_t size;
-    GetWorldParticles(world, &arr, &size);
+    const Particle *arr = GetWorldParticles(world, &size);
 
     for (uint32_t i = 0; i < size; i++) {
         Particle p = arr[i];
@@ -41,11 +40,10 @@ static void DrawParticles(World *world) {
 
 int main(void) {
     srand(time(NULL));
-
-    VulkanCtx *vk_ctx = CreateVulkanCtx();
+    InitGlobalVulkanContext();
 
     World *world = CreateWorld(PARTICLE_COUNT, V2_ZERO, V2_FROM(WINDOW_WIDTH, WINDOW_HEIGHT));
-    SetupWorldGPU(world, vk_ctx);
+    SetupWorldGPU(world);
 
     SetTargetFPS((int)(1.f / PHYS_STEP));
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "N-Body Simulation");
@@ -134,5 +132,4 @@ int main(void) {
 
     CloseWindow();
     DestroyWorld(world);
-    DestroyVulkanCtx(vk_ctx);
 }

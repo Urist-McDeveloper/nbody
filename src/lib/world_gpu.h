@@ -17,9 +17,9 @@ typedef struct SimPipeline SimPipeline;
 
 /*
  * Initialize necessary Vulkan stuff.
- * CTX must remain a valid pointer to initialized VulkanCtx until WC is de-initialized.
+ * Global Vulkan context MUST be initialized prior to calling this function.
  */
-SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data);
+SimPipeline *CreateSimPipeline(WorldData data);
 
 /* Destroy SIM. */
 void DestroySimPipeline(SimPipeline *sim);

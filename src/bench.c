@@ -47,7 +47,7 @@ int main(int argc, char **argv) {
         if (memcmp(argv[1], "--gpu", 5) == 0) use_cpu = false;
     }
 
-    VulkanCtx *ctx = use_gpu ? CreateVulkanCtx() : NULL;
+    if (use_gpu) InitGlobalVulkanContext();
     World *cpu_w;
     World *gpu_w;
 
@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
         if (use_cpu) cpu_w = WORLD_NEW(world_size);
         if (use_gpu) {
             gpu_w = WORLD_NEW(world_size);
-            SetupWorldGPU(gpu_w, ctx);
+            SetupWorldGPU(gpu_w);
         }
 
         printf("\t%7d", world_size);
@@ -73,5 +73,4 @@ int main(int argc, char **argv) {
         if (use_cpu) DestroyWorld(cpu_w);
         if (use_gpu) DestroyWorld(gpu_w);
     }
-    DestroyVulkanCtx(ctx);
 }

@@ -8,7 +8,6 @@
 
 struct SimPipeline {
     WorldData world_data;
-    const VulkanCtx *ctx;
     VkShaderModule shader;
     // Memory
     VulkanDeviceMemory dev_mem;     // device-local memory
@@ -28,18 +27,17 @@ struct SimPipeline {
     VkFence fence;
 };
 
-SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data) {
+SimPipeline *CreateSimPipeline(WorldData data) {
     SimPipeline *sim = ALLOC(1, SimPipeline);
     ASSERT(sim != NULL, "Failed to alloc SimPipeline");
 
     sim->world_data = data;
-    sim->ctx = ctx;
 
     /*
      * Shaders.
      */
 
-    sim->shader = LoadVkShaderModule(ctx, "shader/particle_cs.spv");
+    sim->shader = LoadShaderModule("shader/particle_cs.spv");
 
     VkSpecializationMapEntry shader_spec_map[4];
     for (int i = 0; i < 4; i++) {
@@ -74,11 +72,8 @@ SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data) {
     const VkDeviceSize uniform_size = SIZE_OF_ALIGN_16(WorldData);
     const VkDeviceSize storage_size = data.size * sizeof(Particle);
 
-    const VkDeviceSize host_mem_size = uniform_size + storage_size;
-    const VkDeviceSize dev_mem_size = uniform_size + 2 * storage_size;
-
-    sim->host_mem = CreateHostCoherentMemory(ctx, host_mem_size);
-    sim->dev_mem = CreateDeviceLocalMemory(ctx, dev_mem_size);
+    sim->host_mem = CreateHostCoherentMemory(uniform_size + storage_size);
+    sim->dev_mem = CreateDeviceLocalMemory(uniform_size + 2 * storage_size);
 
     VkBufferUsageFlags transfer_buf_flags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     VkBufferUsageFlags uniform_buf_flags = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
@@ -118,7 +113,7 @@ SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data) {
     ds_layout_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
     ds_layout_info.bindingCount = 3;
     ds_layout_info.pBindings = bindings;
-    ASSERT_VK(vkCreateDescriptorSetLayout(ctx->dev, &ds_layout_info, NULL, &sim->ds_layout),
+    ASSERT_VK(vkCreateDescriptorSetLayout(vulkan_ctx.dev, &ds_layout_info, NULL, &sim->ds_layout),
               "Failed to create descriptor set layout");
 
     VkDescriptorPoolSize ds_pool_size[2] = {0};
@@ -132,7 +127,7 @@ SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data) {
     ds_pool_info.maxSets = 1;
     ds_pool_info.poolSizeCount = 2;
     ds_pool_info.pPoolSizes = ds_pool_size;
-    ASSERT_VK(vkCreateDescriptorPool(ctx->dev, &ds_pool_info, NULL, &sim->ds_pool),
+    ASSERT_VK(vkCreateDescriptorPool(vulkan_ctx.dev, &ds_pool_info, NULL, &sim->ds_pool),
               "Failed to create descriptor pool");
 
     VkDescriptorSetAllocateInfo ds_alloc_info = {0};
@@ -140,7 +135,7 @@ SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data) {
     ds_alloc_info.descriptorPool = sim->ds_pool;
     ds_alloc_info.descriptorSetCount = 1;
     ds_alloc_info.pSetLayouts = &sim->ds_layout;
-    ASSERT_VK(vkAllocateDescriptorSets(sim->ctx->dev, &ds_alloc_info, &sim->set),
+    ASSERT_VK(vkAllocateDescriptorSets(vulkan_ctx.dev, &ds_alloc_info, &sim->set),
               "Failed to allocate descriptor set");
 
     /*
@@ -167,7 +162,7 @@ SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data) {
     write_sets[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     write_sets[1].pBufferInfo = storage_info;
 
-    vkUpdateDescriptorSets(sim->ctx->dev, 2, write_sets, 0, NULL);
+    vkUpdateDescriptorSets(vulkan_ctx.dev, 2, write_sets, 0, NULL);
 
     /*
      * Pipeline.
@@ -177,35 +172,35 @@ SimPipeline *CreateSimPipeline(const VulkanCtx *ctx, WorldData data) {
     layout_info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     layout_info.setLayoutCount = 1;
     layout_info.pSetLayouts = &sim->ds_layout;
-    ASSERT_VK(vkCreatePipelineLayout(ctx->dev, &layout_info, NULL, &sim->pipeline_layout),
+    ASSERT_VK(vkCreatePipelineLayout(vulkan_ctx.dev, &layout_info, NULL, &sim->pipeline_layout),
               "Failed to create pipeline layout");
 
     VkComputePipelineCreateInfo pipeline_info = {0};
     pipeline_info.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
     pipeline_info.stage = shader_stage_info;
     pipeline_info.layout = sim->pipeline_layout;
-    ASSERT_VK(vkCreateComputePipelines(ctx->dev, NULL, 1, &pipeline_info, NULL, &sim->pipeline),
+    ASSERT_VK(vkCreateComputePipelines(vulkan_ctx.dev, NULL, 1, &pipeline_info, NULL, &sim->pipeline),
               "Failed to create compute pipeline");
 
     /*
      * Command buffers and synchronization.
      */
 
-    AllocVkCommandBuffers(ctx, 1, &sim->cmd);
+    AllocCommandBuffers(1, &sim->cmd);
 
     VkFenceCreateInfo fence_info = {0};
     fence_info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-    ASSERT_VK(vkCreateFence(ctx->dev, &fence_info, NULL, &sim->fence), "Failed to create fence");
+    ASSERT_VK(vkCreateFence(vulkan_ctx.dev, &fence_info, NULL, &sim->fence), "Failed to create fence");
 
     return sim;
 }
 
 void DestroySimPipeline(SimPipeline *sim) {
     if (sim != NULL) {
-        VkDevice dev = sim->ctx->dev;
+        VkDevice dev = vulkan_ctx.dev;
 
         vkDestroyFence(dev, sim->fence, NULL);
-        vkFreeCommandBuffers(dev, sim->ctx->cmd_pool, 1, &sim->cmd);
+        vkFreeCommandBuffers(dev, vulkan_ctx.cmd_pool, 1, &sim->cmd);
 
         vkDestroyPipeline(dev, sim->pipeline, NULL);
         vkDestroyPipelineLayout(dev, sim->pipeline_layout, NULL);
@@ -318,11 +313,11 @@ void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt, Particle *arr, boo
     submit_info.commandBufferCount = 1;
     submit_info.pCommandBuffers = &sim->cmd;
 
-    ASSERT_VK(vkQueueSubmit(sim->ctx->queue, 1, &submit_info, sim->fence), "Failed to submit command buffer");
-    ASSERT_VK(vkWaitForFences(sim->ctx->dev, 1, &sim->fence, VK_TRUE, UINT64_MAX), "Failed to wait for fences");
+    ASSERT_VK(vkQueueSubmit(vulkan_ctx.queue, 1, &submit_info, sim->fence), "Failed to submit command buffer");
+    ASSERT_VK(vkWaitForFences(vulkan_ctx.dev, 1, &sim->fence, VK_TRUE, UINT64_MAX), "Failed to wait for fences");
 
     // reset fence and command buffer
-    ASSERT_VK(vkResetFences(sim->ctx->dev, 1, &sim->fence), "Failed to reset fence");
+    ASSERT_VK(vkResetFences(vulkan_ctx.dev, 1, &sim->fence), "Failed to reset fence");
     ASSERT_VK(vkResetCommandBuffer(sim->cmd, 0), "Failed to reset command buffer");
 
     // copy new data from transfer_buf[1] to ARR

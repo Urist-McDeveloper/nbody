@@ -84,18 +84,18 @@ void UpdateWorld_CPU(World *w, float dt, uint32_t n) {
     w->arr_gpu_sync = false;
 }
 
-void GetWorldParticles(World *w, Particle **ps, uint32_t *size) {
-    *ps = w->arr;
+const Particle *GetWorldParticles(World *w, uint32_t *size) {
     *size = w->arr_len;
+    return w->arr;
 }
 
-void SetupWorldGPU(World *w, const VulkanCtx *ctx) {
+void SetupWorldGPU(World *w) {
     if (w->sim == NULL) {
         WorldData data = (WorldData){
                 .size = w->arr_len,
                 .dt = 0,
         };
-        w->sim = CreateSimPipeline(ctx, data);
+        w->sim = CreateSimPipeline(data);
     }
 }
 

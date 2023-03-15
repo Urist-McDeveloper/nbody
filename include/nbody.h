@@ -21,17 +21,6 @@
  */
 #define NB_F    (-0.01f)
 
-
-/* Vulkan context. */
-typedef struct VulkanCtx VulkanCtx;
-
-/* Initialize CTX. */
-VulkanCtx *CreateVulkanCtx();
-
-/* De-initialize CTX. */
-void DestroyVulkanCtx(VulkanCtx *ctx);
-
-
 /* 2D vector of floats. */
 typedef struct V2 {
     float x, y;
@@ -71,17 +60,26 @@ World *CreateWorld(uint32_t size, V2 min, V2 max);
 /* Destroy World. */
 void DestroyWorld(World *w);
 
+/* Get Particle array and its size. */
+const Particle *GetWorldParticles(World *w, uint32_t *size);
+
 /* Perform N updates using CPU simulation. */
 void UpdateWorld_CPU(World *w, float dt, uint32_t n);
 
-/* Get Particle array and its size. */
-void GetWorldParticles(World *w, Particle **ps, uint32_t *size);
+
+/*
+ * GPU simulation.
+ */
+
+
+/* Initialize global Vulkan context; required by GPU simulation. */
+void InitGlobalVulkanContext();
 
 /*
  * Setup Vulkan pipeline for W. Does nothing if Vulkan was already set up.
- * CTX must not be destroyed until W is destroyed.
+ * Global Vulkan context MUST be initialized before calling this function.
  */
-void SetupWorldGPU(World *w, const VulkanCtx *ctx);
+void SetupWorldGPU(World *w);
 
 /*
  * Perform N updates using GPU simulation.

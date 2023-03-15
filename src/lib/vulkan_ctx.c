@@ -7,6 +7,9 @@
 #include "fio.h"
 #include "util.h"
 
+/* The one and only Vulkan context. */
+struct VulkanContext vulkan_ctx = {0};
+
 #ifndef NDEBUG
 static const char *const DBG_LAYERS[] = {"VK_LAYER_KHRONOS_validation"};
 static const int DBG_LAYERS_COUNT = sizeof(DBG_LAYERS) / sizeof(DBG_LAYERS[0]);
@@ -79,8 +82,7 @@ static void InitPDev(VkPhysicalDevice *pdev, VkInstance instance) {
     printf("Using VkPhysicalDevice #%u of type %u -- %s\n", props.deviceID, props.deviceType, props.deviceName);
 }
 
-/* Returns selected queue family index. */
-static uint32_t InitDev(VkDevice *dev, VkPhysicalDevice pdev) {
+static void InitDev(VkDevice *dev, uint32_t *queue_family_idx, VkPhysicalDevice pdev) {
     uint32_t family_count;
     vkGetPhysicalDeviceQueueFamilyProperties(pdev, &family_count, NULL);
     ASSERT(family_count > 0, "Queue family count is 0");
@@ -90,7 +92,7 @@ static uint32_t InitDev(VkDevice *dev, VkPhysicalDevice pdev) {
     vkGetPhysicalDeviceQueueFamilyProperties(pdev, &family_count, family_props);
 
     uint32_t qf_idx = UINT32_MAX;
-    printf("Selecting queue family:");
+    printf("Selecting queue family:\n");
 
     for (uint32_t i = 0; i < family_count; i++) {
         bool g = family_props[i].queueFlags & VK_QUEUE_GRAPHICS_BIT;
@@ -109,9 +111,10 @@ static uint32_t InitDev(VkDevice *dev, VkPhysicalDevice pdev) {
         }
     }
     ASSERT(qf_idx != UINT32_MAX, "Could not find suitable queue family");
+    free(family_props);
 
     printf("Using queue family #%u\n", qf_idx);
-    free(family_props);
+    *queue_family_idx = qf_idx;
 
     VkDeviceQueueCreateInfo queue_create_info = {0};
     queue_create_info.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
@@ -131,38 +134,23 @@ static uint32_t InitDev(VkDevice *dev, VkPhysicalDevice pdev) {
     device_create_info.ppEnabledLayerNames = DBG_LAYERS;
 #endif
     ASSERT_VK(vkCreateDevice(pdev, &device_create_info, NULL, dev), "Failed to create device");
-    return qf_idx;
 }
 
-VulkanCtx *CreateVulkanCtx() {
-    VulkanCtx *ctx = ALLOC(1, VulkanCtx);
-    ASSERT(ctx != NULL, "Failed to alloc VulkanCtx");
-
-    InitInstance(&ctx->instance);
-    InitPDev(&ctx->pdev, ctx->instance);
-
-    ctx->queue_family_idx = InitDev(&ctx->dev, ctx->pdev);
-    vkGetDeviceQueue(ctx->dev, ctx->queue_family_idx, 0, &ctx->queue);
+void InitGlobalVulkanContext() {
+    InitInstance(&vulkan_ctx.instance);
+    InitPDev(&vulkan_ctx.pdev, vulkan_ctx.instance);
+    InitDev(&vulkan_ctx.dev, &vulkan_ctx.queue_family_idx, vulkan_ctx.pdev);
+    vkGetDeviceQueue(vulkan_ctx.dev, vulkan_ctx.queue_family_idx, 0, &vulkan_ctx.queue);
 
     VkCommandPoolCreateInfo pool_create_info = {0};
     pool_create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     pool_create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-    pool_create_info.queueFamilyIndex = ctx->queue_family_idx;
-    ASSERT_VK(vkCreateCommandPool(ctx->dev, &pool_create_info, NULL, &ctx->cmd_pool), "Failed to create command pool");
-
-    return ctx;
+    pool_create_info.queueFamilyIndex = vulkan_ctx.queue_family_idx;
+    ASSERT_VK(vkCreateCommandPool(vulkan_ctx.dev, &pool_create_info, NULL, &vulkan_ctx.cmd_pool),
+              "Failed to create global command pool");
 }
 
-void DestroyVulkanCtx(VulkanCtx *ctx) {
-    if (ctx != NULL) {
-        vkDestroyCommandPool(ctx->dev, ctx->cmd_pool, NULL);
-        vkDestroyDevice(ctx->dev, NULL);
-        vkDestroyInstance(ctx->instance, NULL);
-        free(ctx);
-    }
-}
-
-VkShaderModule LoadVkShaderModule(const VulkanCtx *ctx, const char *path) {
+VkShaderModule LoadShaderModule(const char *path) {
     size_t buf_size;
     uint32_t *buf = FIO_ReadFile(path, &buf_size);
 
@@ -172,22 +160,22 @@ VkShaderModule LoadVkShaderModule(const VulkanCtx *ctx, const char *path) {
     create_info.pCode = buf;
 
     VkShaderModule module;
-    ASSERT_VK(vkCreateShaderModule(ctx->dev, &create_info, NULL, &module),
+    ASSERT_VK(vkCreateShaderModule(vulkan_ctx.dev, &create_info, NULL, &module),
               "Failed to create shader module from %s", path);
 
     free(buf);
     return module;
 }
 
-void AllocVkCommandBuffers(const VulkanCtx *ctx, uint32_t count, VkCommandBuffer *buffers) {
+void AllocCommandBuffers(uint32_t count, VkCommandBuffer *buffers) {
     VkCommandBufferAllocateInfo allocate_info = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
             .pNext = NULL,
-            .commandPool = ctx->cmd_pool,
+            .commandPool = vulkan_ctx.cmd_pool,
             .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
             .commandBufferCount = count,
     };
-    ASSERT_VK(vkAllocateCommandBuffers(ctx->dev, &allocate_info, buffers),
+    ASSERT_VK(vkAllocateCommandBuffers(vulkan_ctx.dev, &allocate_info, buffers),
               "Failed to allocate %u command buffers", count);
 }
 
@@ -197,9 +185,9 @@ void AllocVkCommandBuffers(const VulkanCtx *ctx, uint32_t count, VkCommandBuffer
  */
 
 
-static VulkanDeviceMemory CreateDeviceMemory(const VulkanCtx *ctx, VkDeviceSize size, VkMemoryPropertyFlags flags) {
+static VulkanDeviceMemory CreateDeviceMemory(VkDeviceSize size, VkMemoryPropertyFlags flags) {
     VkPhysicalDeviceMemoryProperties props;
-    vkGetPhysicalDeviceMemoryProperties(ctx->pdev, &props);
+    vkGetPhysicalDeviceMemoryProperties(vulkan_ctx.pdev, &props);
 
     uint32_t mem_type_idx = UINT32_MAX;
     for (uint32_t i = 0; i < props.memoryTypeCount; i++) {
@@ -217,32 +205,30 @@ static VulkanDeviceMemory CreateDeviceMemory(const VulkanCtx *ctx, VkDeviceSize 
             .memoryTypeIndex = mem_type_idx,
     };
     VkDeviceMemory memory;
-    ASSERT_VK(vkAllocateMemory(ctx->dev, &allocate_info, NULL, &memory),
+    ASSERT_VK(vkAllocateMemory(vulkan_ctx.dev, &allocate_info, NULL, &memory),
               "Failed to allocate %zu bytes of device memory #%u", size, mem_type_idx);
 
     void *mapped;
     if (flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) {
-        ASSERT_VK(vkMapMemory(ctx->dev, memory, 0, VK_WHOLE_SIZE, 0, &mapped), "Failed to map device memory");
+        ASSERT_VK(vkMapMemory(vulkan_ctx.dev, memory, 0, VK_WHOLE_SIZE, 0, &mapped), "Failed to map device memory");
     } else {
         mapped = NULL;
     }
 
     return (VulkanDeviceMemory){
-            .ctx = ctx,
             .handle = memory,
-            .flags = props.memoryTypes[mem_type_idx].propertyFlags,
             .size = size,
             .used = 0,
             .mapped = mapped,
     };
 }
 
-VulkanDeviceMemory CreateDeviceLocalMemory(const VulkanCtx *ctx, VkDeviceSize size) {
-    return CreateDeviceMemory(ctx, size, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+VulkanDeviceMemory CreateDeviceLocalMemory(VkDeviceSize size) {
+    return CreateDeviceMemory(size, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 }
 
-VulkanDeviceMemory CreateHostCoherentMemory(const VulkanCtx *ctx, VkDeviceSize size) {
-    return CreateDeviceMemory(ctx, size, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+VulkanDeviceMemory CreateHostCoherentMemory(VkDeviceSize size) {
+    return CreateDeviceMemory(size, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 }
 
 VulkanBuffer CreateVulkanBuffer(VulkanDeviceMemory *memory, VkDeviceSize size, VkBufferUsageFlags usage) {
@@ -257,10 +243,10 @@ VulkanBuffer CreateVulkanBuffer(VulkanDeviceMemory *memory, VkDeviceSize size, V
             .usage = usage,
             .sharingMode = VK_SHARING_MODE_EXCLUSIVE,
             .queueFamilyIndexCount = 1,
-            .pQueueFamilyIndices = &memory->ctx->queue_family_idx,
+            .pQueueFamilyIndices = &vulkan_ctx.queue_family_idx,
     };
     VkBuffer buffer;
-    ASSERT_VK(vkCreateBuffer(memory->ctx->dev, &create_info, NULL, &buffer), "Failed to create buffer");
+    ASSERT_VK(vkCreateBuffer(vulkan_ctx.dev, &create_info, NULL, &buffer), "Failed to create buffer");
 
     VkDeviceSize offset = memory->used;
     memory->used += size;
@@ -272,9 +258,8 @@ VulkanBuffer CreateVulkanBuffer(VulkanDeviceMemory *memory, VkDeviceSize size, V
         mapped = NULL;
     }
 
-    ASSERT_VK(vkBindBufferMemory(memory->ctx->dev, buffer, memory->handle, offset), "Failed to bind VkBuffer");
+    ASSERT_VK(vkBindBufferMemory(vulkan_ctx.dev, buffer, memory->handle, offset), "Failed to bind VkBuffer");
     return (VulkanBuffer){
-            .ctx = memory->ctx,
             .handle = buffer,
             .size = size,
             .mapped = mapped,
@@ -305,8 +290,8 @@ void FillWriteReadBufferBarrier(const VulkanBuffer *buffer, VkBufferMemoryBarrie
             .pNext = NULL,
             .srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
             .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT,
-            .srcQueueFamilyIndex = buffer->ctx->queue_family_idx,
-            .dstQueueFamilyIndex = buffer->ctx->queue_family_idx,
+            .srcQueueFamilyIndex = vulkan_ctx.queue_family_idx,
+            .dstQueueFamilyIndex = vulkan_ctx.queue_family_idx,
             .buffer = buffer->handle,
             .offset = 0,
             .size = buffer->size,

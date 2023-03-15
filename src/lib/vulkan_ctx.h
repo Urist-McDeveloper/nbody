@@ -1,26 +1,30 @@
+/* EVERY function listed in this file MUST NOT be called before global Vulkan context have been initialized. */
+
 #ifndef NB_VULKAN_CTX_H
 #define NB_VULKAN_CTX_H
 
 #include <nbody.h>
 #include <string.h>
+#include <stdbool.h>
 #include <vulkan/vulkan.h>
 
 #include "util.h"
 
-struct VulkanCtx {
+/* Global Vulkan context. */
+extern struct VulkanContext {
     VkInstance instance;
     VkPhysicalDevice pdev;
     VkDevice dev;
     VkQueue queue;
     VkCommandPool cmd_pool;
     uint32_t queue_family_idx;
-};
+} vulkan_ctx;
 
 /* Load shader module from PATH. */
-VkShaderModule LoadVkShaderModule(const VulkanCtx *ctx, const char *path);
+VkShaderModule LoadShaderModule(const char *path);
 
 /* Allocate primary command buffers. */
-void AllocVkCommandBuffers(const VulkanCtx *ctx, uint32_t count, VkCommandBuffer *buffers);
+void AllocCommandBuffers(uint32_t count, VkCommandBuffer *buffers);
 
 
 /*
@@ -30,7 +34,6 @@ void AllocVkCommandBuffers(const VulkanCtx *ctx, uint32_t count, VkCommandBuffer
 
 /* Wrapper of VkBuffer. */
 typedef struct VulkanBuffer {
-    const VulkanCtx *ctx;
     VkBuffer handle;
     VkDeviceSize size;  // total size (in bytes)
     void *mapped;       // NULL if buffer is not from host-coherent memory
@@ -38,23 +41,21 @@ typedef struct VulkanBuffer {
 
 /* Wrapper of VkDeviceMemory capable of linear buffer allocation. */
 typedef struct VulkanDeviceMemory {
-    const VulkanCtx *ctx;
     VkDeviceMemory handle;
-    VkMemoryPropertyFlags flags;
     VkDeviceSize size;              // total size (in bytes)
     VkDeviceSize used;              // how many size bytes are in use
     void *mapped;                   // NULL if memory is not host-coherent
 } VulkanDeviceMemory;
 
 /* Allocate device-local memory. */
-VulkanDeviceMemory CreateDeviceLocalMemory(const VulkanCtx *ctx, VkDeviceSize size);
+VulkanDeviceMemory CreateDeviceLocalMemory(VkDeviceSize size);
 
 /* Allocate host-coherent memory. */
-VulkanDeviceMemory CreateHostCoherentMemory(const VulkanCtx *ctx, VkDeviceSize size);
+VulkanDeviceMemory CreateHostCoherentMemory(VkDeviceSize size);
 
 /* Destroy MEMORY. */
 static inline void DestroyVulkanMemory(const VulkanDeviceMemory *memory) {
-    if (memory != NULL) vkFreeMemory(memory->ctx->dev, memory->handle, NULL);
+    if (memory != NULL) vkFreeMemory(vulkan_ctx.dev, memory->handle, NULL);
 }
 
 /* Create VulkanBuffer of SIZE bytes. */
@@ -62,7 +63,7 @@ VulkanBuffer CreateVulkanBuffer(VulkanDeviceMemory *memory, VkDeviceSize size, V
 
 /* Destroy BUFFER. */
 static inline void DestroyVulkanBuffer(const VulkanBuffer *buffer) {
-    if (buffer != NULL) vkDestroyBuffer(buffer->ctx->dev, buffer->handle, NULL);
+    if (buffer != NULL) vkDestroyBuffer(vulkan_ctx.dev, buffer->handle, NULL);
 }
 
 /*
@@ -70,7 +71,7 @@ static inline void DestroyVulkanBuffer(const VulkanBuffer *buffer) {
  * Aborts if BUFFER is not from host-coherent memory.
  */
 static inline void CopyIntoVulkanBuffer(const VulkanBuffer *buffer, const void *data) {
-    ASSERT(buffer->mapped != NULL, "Buffer %p is not host-coherent", buffer->handle);
+    ASSERT_DBG(buffer->mapped != NULL, "Buffer %p is not host-coherent", buffer->handle);
     memcpy(buffer->mapped, data, buffer->size);
 }
 
@@ -79,7 +80,7 @@ static inline void CopyIntoVulkanBuffer(const VulkanBuffer *buffer, const void *
  * Aborts if BUFFER is not from host-coherent memory.
  */
 static inline void CopyFromVulkanBuffer(const VulkanBuffer *buffer, void *data) {
-    ASSERT(buffer->mapped != NULL, "Buffer %p is not host-coherent", buffer->handle);
+    ASSERT_DBG(buffer->mapped != NULL, "Buffer %p is not host-coherent", buffer->handle);
     memcpy(data, buffer->mapped, buffer->size);
 }
 
