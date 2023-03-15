@@ -72,15 +72,15 @@ void PackParticles(uint32_t count, const Particle *ps, ParticlePack *packs) {
     uint32_t n = count / PACK_SIZE;
 
     #pragma omp parallel for schedule(static, 10) firstprivate(ps, packs, n) default(none)
-    for (int i = 0; i < n; i++) {
+    for (uint32_t i = 0; i < n; i++) {
         packs[i] = CreatePack(&ps[i * PACK_SIZE]);
     }
     if (rem != 0) {
         Particle rest[PACK_SIZE];
-        for (int i = 0; i < rem; i++) {
+        for (uint32_t i = 0; i < rem; i++) {
             rest[i] = ps[n * PACK_SIZE + i];
         }
-        for (int i = PACK_SIZE; i > rem; i--) {
+        for (uint32_t i = PACK_SIZE; i > rem; i--) {
             rest[i - 1] = (Particle){0};
         }
         packs[n] = CreatePack(rest);
@@ -110,7 +110,7 @@ void PackedUpdate(Particle *p, float dt, uint32_t packs_len, ParticlePack *packs
     mx m_ax = mmx_set1_ps(0.f);             // acceleration x
     mx m_ay = mmx_set1_ps(0.f);             // acceleration y
 
-    for (int i = 0; i < packs_len; i++) {
+    for (uint32_t i = 0; i < packs_len; i++) {
         // delta x, delta y and distance squared
         mx dx = mmx_sub_ps(packs[i].x, m_x);
         mx dy = mmx_sub_ps(packs[i].y, m_y);

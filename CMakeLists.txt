@@ -5,14 +5,20 @@ project(nbody C)
 ##  General configuration
 ##
 
-set(CMAKE_C_STANDARD 17)
+set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 option(USE_AVX "Use AVX for CPU simulation" ON)
 
 ##
-##  "Global" function; may need to be called from src and test subdirectories
+##  "Global" variables and functions
 ##
+
+if (MSVC)
+    set(nbody_compiler_flags /W4 /WX)
+else()
+    set(nbody_compiler_flags -Wall -Wextra -Werror)
+endif()
 
 find_package(Vulkan COMPONENTS glslc)
 find_program(GLSLC NAMES glslc HINTS Vulkan::glslc)

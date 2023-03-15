@@ -13,7 +13,7 @@
 #define ALLOC_ALIGNED(A, N, T)  (T*)aligned_alloc(A, (N) * sizeof(T))
 
 /* Print error message and abort if COND is false. */
-#define ASSERT_MSG(COND, MSG)   ASSERT_FMT(COND, MSG, NULL)
+#define ASSERT_MSG(COND, MSG)   ASSERT_FMT(COND, MSG "%s", "")
 
 /* Print error message and abort if COND is false. */
 #define ASSERT_FMT(COND, MSG, ...)                                          \

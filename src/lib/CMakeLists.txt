@@ -15,11 +15,16 @@ set_target_properties(nbody-lib PROPERTIES
         OUTPUT_NAME nbody)
 
 target_include_directories(nbody-lib PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_compile_options(nbody-lib PRIVATE ${nbody_compiler_flags})
 target_link_libraries(nbody-lib PUBLIC Vulkan::Vulkan)
 
 if (USE_AVX)
-    target_compile_options(nbody-lib PUBLIC -mavx)
     target_compile_definitions(nbody-lib PUBLIC USE_AVX)
+    if (MSVC)
+        target_compile_options(nbody-lib PUBLIC /arch:avx)
+    else()
+        target_compile_options(nbody-lib PUBLIC -mavx)
+    endif()
 endif()
 
 if (OpenMP_C_FOUND)

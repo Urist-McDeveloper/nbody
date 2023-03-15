@@ -50,7 +50,7 @@ World *CreateWorld(uint32_t size, V2 min, V2 max) {
     AllocPackArray(size, &world->pack, &world->pack_len);
 
     #pragma omp parallel for schedule(static, 20) firstprivate(world, size, min, max) default(none)
-    for (int i = 0; i < size; i++) {
+    for (uint32_t i = 0; i < size; i++) {
         float r = RangeRand(MIN_R, MAX_R);
         float x = RangeRand(min.x + r, max.x - r);
         float y = RangeRand(min.y + r, max.y - r);
@@ -73,11 +73,11 @@ void DestroyWorld(World *w) {
 }
 
 void UpdateWorld_CPU(World *w, float dt, uint32_t n) {
-    for (int update_iter = 0; update_iter < n; update_iter++) {
+    for (uint32_t update_iter = 0; update_iter < n; update_iter++) {
         PackParticles(w->arr_len, w->arr, w->pack);
 
         #pragma omp parallel for schedule(static, 20) firstprivate(dt, w) default(none)
-        for (int i = 0; i < w->arr_len; i++) {
+        for (uint32_t i = 0; i < w->arr_len; i++) {
             PackedUpdate(&w->arr[i], dt, w->pack_len, w->pack);
         }
     }

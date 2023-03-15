@@ -25,7 +25,7 @@ static void DrawParticles(World *world) {
     uint32_t size;
     GetWorldParticles(world, &arr, &size);
 
-    for (int i = 0; i < size; i++) {
+    for (uint32_t i = 0; i < size; i++) {
         Particle p = arr[i];
         DrawCircle(
                 (int)p.pos.x,
