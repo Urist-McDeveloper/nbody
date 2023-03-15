@@ -54,8 +54,8 @@ _Static_assert(sizeof(Particle) == 32, "sizeof(Particle) must be 32");
 /* The simulated world with fixed particle count. */
 typedef struct World World;
 
-/* Create World of given SIZE and randomize particle positions within MIN and MAX. */
-World *CreateWorld(uint32_t size, V2 min, V2 max);
+/* Create World with SIZE particles copied from PS. */
+World *CreateWorld(const Particle *ps, uint32_t size);
 
 /* Destroy World. */
 void DestroyWorld(World *w);

@@ -59,12 +59,12 @@ Simulation controls:
 
 By changing some macros:
 
-* `WINDOW_WIDTH` and `WINDOW_HEIGHT` ([src/main.c](src/main.c#L38)) -- self explanatory;
-* `PARTICLE_COUNT` ([src/main.c](src/main.c#L17)) -- you guessed it, particle count;
+* `WINDOW_WIDTH` and `WINDOW_HEIGHT` ([src/main.c](src/main.c#L13)) -- self explanatory;
+* `PARTICLE_COUNT` ([src/main.c](src/main.c#L9)) -- you guessed it, particle count;
 * `NB_G` ([include/nbody.h](include/nbody.h#L10)) -- gravitational constant;
 * `NB_N` ([include/nbody.h](include/nbody.h#L16)) -- repulsion constant;
 * `NB_F` ([include/nbody.h](include/nbody.h#L22)) -- velocity decay constant;
-* `MIN_R` and `MAX_R` ([src/lib/world.c](src/lib/world.c#L11)) -- minimum and maximum radius of a Particle;
+* `MIN_R` and `MAX_R` ([src/main.c](src/lib/world.c#L178)) -- minimum and maximum radius of a Particle;
 
 ## TODO list
 

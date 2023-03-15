@@ -28,7 +28,7 @@ if (USE_AVX)
 endif()
 
 if (OpenMP_C_FOUND)
-    target_link_libraries(nbody-lib PRIVATE OpenMP::OpenMP_C)
+    target_link_libraries(nbody-lib PUBLIC OpenMP::OpenMP_C)
 endif()
 
 compile_shaders(nbody-lib STAGE comp SOURCE ../shader/particle_cs.glsl)

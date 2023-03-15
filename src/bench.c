@@ -33,13 +33,36 @@ static int64_t bench(World *w, void (*update)(World *, float, uint32_t)) {
     return diff_us(start, end) / BENCH_ITER;
 }
 
+/* Benched world sizes; must be sorted in ascending order. */
 static const int WS[] = {10, 100, 250, 500, 800, 1200, 2000, 4000, 10000, 20000, 50000, 100000};
+
+/* Length of WS array. */
 static const int WS_LEN = sizeof(WS) / sizeof(WS[0]);
 
-#define WORLD_NEW(size) CreateWorld(size, V2_ZERO, V2_FROM(size, size))
+/* Array length MUST be equal to the last element of WS. */
+static Particle PARTICLES[100000];
+
+/* Create new world with given size. */
+#define WORLD_NEW(size) CreateWorld(PARTICLES, size)
+
+/* Get random float in range [0, max). */
+static float RandomFloat(double max) {
+    return (float)(max * rand() / RAND_MAX);
+}
 
 int main(int argc, char **argv) {
     srand(11037);
+
+    #pragma omp parallel for firstprivate(WS, WS_LEN, PARTICLES) default(none)
+    for (int i = 0; i < WS[WS_LEN - 1]; i++) {
+        // half of particles are massless
+        bool massless = rand() < (RAND_MAX / 2);
+        PARTICLES[i] = (Particle){
+                .pos = V2_FROM(RandomFloat(1000000), RandomFloat(1000000)),
+                .mass = massless ? 0.f : RandomFloat(1000),
+                .radius = RandomFloat(10),
+        };
+    }
 
     bool use_cpu = true, use_gpu = true;
     if (argc > 1) {
@@ -47,19 +70,19 @@ int main(int argc, char **argv) {
         if (memcmp(argv[1], "--gpu", 5) == 0) use_cpu = false;
     }
 
-    World *cpu_w;
-    World *gpu_w;
-
-    printf("\t      N");
-    if (use_cpu) printf("\t    CPU");
-    if (use_gpu) printf("\t    GPU");
-    printf("\n");
-
+    World *cpu_w = NULL, *gpu_w = NULL;
     for (int i = 0; i < WS_LEN; i++) {
         int world_size = WS[i];
 
         if (use_cpu) cpu_w = WORLD_NEW(world_size);
         if (use_gpu) gpu_w = WORLD_NEW(world_size);
+
+        if (i == 0) {
+            printf("\t      N");
+            if (use_cpu) printf("\t    CPU");
+            if (use_gpu) printf("\t    GPU");
+            printf("\n");
+        }
 
         printf("\t%7d", world_size);
         if (use_cpu) printf("\t%7ld", bench(cpu_w, UpdateWorld_CPU));
