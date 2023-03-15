@@ -12,3 +12,5 @@ function(test_from FILE)
     add_test(NAME ${target} COMMAND ${target})
     target_link_libraries(${target} acutest ${ARGN})
 endfunction()
+
+test_from(test_particle_sort.c)

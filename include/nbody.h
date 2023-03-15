@@ -13,7 +13,7 @@
  * Repulsion constant; repulsion is proportional to the inverse cube of distance.
  *      n = NB_N * mass / dist^3
  */
-#define NB_N    (-800.f)
+#define NB_N    (-600.f)
 
 /*
  * A fraction of velocity that becomes deceleration.

@@ -30,7 +30,7 @@ static void DrawParticles(World *world) {
                 (int)p.pos.x,
                 (int)p.pos.y,
                 p.radius,
-                RAYWHITE
+                p.mass == 0 ? BLUE : RAYWHITE
         );
     }
 }

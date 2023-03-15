@@ -23,14 +23,16 @@
     } while (0)
 
 #ifndef NDEBUG
-/* Print error message and abort if COND is false. Disabled in release builds. */
-#define ASSERT_DBG(COND, ...)   ASSERT(COND, __VA_ARGS__)
+#   define ASSERT_DBG(COND, ...)   ASSERT(COND, __VA_ARGS__)
 #else
-/* Evaluate COND. */
-#define ASSERT_DBG(COND, ...)   (void)(COND)
+#   define ASSERT_DBG(COND, ...)   (void)(COND)
 #endif
 
+#endif //NB_UTIL_H
+
 #ifdef VULKAN_H_
+#ifndef NB_UTIL_VK_H
+#define NB_UTIL_VK_H
 
 /* 16-byte aligned sizeof. */
 #define SIZE_OF_ALIGN_16(T)     (sizeof(T) + (sizeof(T) % 16 == 0 ? 0 : 16 - (sizeof(T) % 16)))
@@ -96,5 +98,5 @@ static inline const char *util_vkr_to_str(VkResult x) {
     }
 }
 
+#endif //NB_UTIL_VK_H
 #endif //VULKAN_H_
-#endif //NB_UTIL_H

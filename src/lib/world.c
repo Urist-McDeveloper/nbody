@@ -3,9 +3,9 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "world_cpu.h"
+#include "sim_cpu.h"
+#include "sim_gpu.h"
 #include "util.h"
-#include "world_gpu.h"
 
 /* Minimum radius of randomized particles. */
 #define MIN_R   2.0f
@@ -30,36 +30,61 @@ static float RangeRand(float min, float max) {
 struct World {
     Particle *arr;      // array of particles
     ParticlePack *pack; // array of packed particle data
-    uint32_t arr_len;   // length of arr
+    uint32_t total_len; // total number of particles
+    uint32_t mass_len;  // number of particles with mass
     uint32_t pack_len;  // length of pack
-    SimPipeline *sim;  // Vulkan-related stuff
-    bool arr_gpu_sync;  // whether ARR and GPU buffer hold the same data
+    SimPipeline *sim;   // Vulkan-related stuff
+    bool gpu_sync;      // whether ARR and GPU buffer hold the same data
 };
 
 World *CreateWorld(uint32_t size, V2 min, V2 max) {
     World *world = ALLOC(1, World);
     ASSERT(world != NULL, "Failed to alloc World");
 
-    world->sim = NULL;             // must be explicitly initialized by calling SetupWorldGPU
-    world->arr_gpu_sync = false;    // GPU buffers are uninitialized
+    Particle *arr = ALLOC(size, Particle);;
+    ASSERT(arr != NULL, "Failed to alloc %u Particles", size);
 
-    world->arr_len = size;
-    world->arr = ALLOC(size, Particle);
-    ASSERT(world->arr != NULL, "Failed to alloc %u Particles", size);
+    world->sim = NULL;          // must be explicitly initialized by calling SetupWorldGPU
+    world->gpu_sync = false;    // GPU buffers are uninitialized
+    world->total_len = size;
+    world->arr = arr;
 
-    AllocPackArray(size, &world->pack, &world->pack_len);
-
-    #pragma omp parallel for schedule(static, 20) firstprivate(world, size, min, max) default(none)
+    #pragma omp parallel for schedule(static, 20) firstprivate(arr, size, min, max) default(none)
     for (uint32_t i = 0; i < size; i++) {
-        float r = RangeRand(MIN_R, MAX_R);
-        float x = RangeRand(min.x + r, max.x - r);
-        float y = RangeRand(min.y + r, max.y - r);
+        arr[i] = (Particle){0};
 
-        world->arr[i] = (Particle){0};
-        world->arr[i].pos = V2_FROM(x, y);
-        world->arr[i].mass = R_TO_M(r);
-        world->arr[i].radius = r;
+        // make 90% of all particles massless
+        if (rand() < (RAND_MAX / 10)) {
+            arr[i].radius = RangeRand(MIN_R, MAX_R);
+            arr[i].mass = R_TO_M(arr[i].radius);
+        } else {
+            arr[i].radius = 1.f;
+            arr[i].mass = 0.f;
+        }
+
+        float x = RangeRand(min.x + arr[i].radius, max.x - arr[i].radius);
+        float y = RangeRand(min.y + arr[i].radius, max.y - arr[i].radius);
+        arr[i].pos = V2_FROM(x, y);
     }
+
+    uint32_t i = 0, j = size;
+    while (true) {
+        while (i < j && arr[i].mass != 0) i++;  // arr[i] is the first particle without mass
+        while (i < j && arr[--j].mass == 0);    // arr[j] is the last particle with mass
+
+        // if i == j then array is sorted
+        if (i == j) break;
+
+        // swap arr[i] and arr[j]
+        Particle tmp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = tmp;
+    }
+
+    // j == index of the first particle without mass == number of particles with mass
+    world->mass_len = j;
+    world->pack = AllocPackArray(j, &world->pack_len);
+
     return world;
 }
 
@@ -74,25 +99,26 @@ void DestroyWorld(World *w) {
 
 void UpdateWorld_CPU(World *w, float dt, uint32_t n) {
     for (uint32_t update_iter = 0; update_iter < n; update_iter++) {
-        PackParticles(w->arr_len, w->arr, w->pack);
+        PackParticles(w->mass_len, w->arr, w->pack);
 
         #pragma omp parallel for schedule(static, 20) firstprivate(dt, w) default(none)
-        for (uint32_t i = 0; i < w->arr_len; i++) {
+        for (uint32_t i = 0; i < w->total_len; i++) {
             PackedUpdate(&w->arr[i], dt, w->pack_len, w->pack);
         }
     }
-    w->arr_gpu_sync = false;
+    w->gpu_sync = false;
 }
 
 const Particle *GetWorldParticles(World *w, uint32_t *size) {
-    *size = w->arr_len;
+    *size = w->total_len;
     return w->arr;
 }
 
 void SetupWorldGPU(World *w) {
     if (w->sim == NULL) {
         WorldData data = (WorldData){
-                .size = w->arr_len,
+                .total_len = w->total_len,
+                .mass_len = w->mass_len,
                 .dt = 0,
         };
         w->sim = CreateSimPipeline(data);
@@ -102,7 +128,7 @@ void SetupWorldGPU(World *w) {
 void UpdateWorld_GPU(World *w, float dt, uint32_t n) {
     ASSERT(w->sim != NULL, "Vulkan has not been initialized for World %p", w);
     if (n > 0) {
-        PerformSimUpdate(w->sim, n, dt, w->arr, !w->arr_gpu_sync);
-        w->arr_gpu_sync = true;
+        PerformSimUpdate(w->sim, n, dt, w->arr, !w->gpu_sync);
+        w->gpu_sync = true;
     }
 }

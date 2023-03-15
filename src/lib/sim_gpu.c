@@ -1,4 +1,4 @@
-#include "world_gpu.h"
+#include "sim_gpu.h"
 
 #include "util.h"
 #include "vulkan_ctx.h"
@@ -70,7 +70,7 @@ SimPipeline *CreateSimPipeline(WorldData data) {
      */
 
     const VkDeviceSize uniform_size = SIZE_OF_ALIGN_16(WorldData);
-    const VkDeviceSize storage_size = data.size * sizeof(Particle);
+    const VkDeviceSize storage_size = data.total_len * sizeof(Particle);
 
     sim->host_mem = CreateHostCoherentMemory(uniform_size + storage_size);
     sim->dev_mem = CreateDeviceLocalMemory(uniform_size + 2 * storage_size);
@@ -265,8 +265,8 @@ void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt, Particle *arr, boo
     FillWriteReadBufferBarrier(&sim->storage[0], &transfer_barrier);
 
     // bind pipeline and descriptor set
-    uint32_t group_count = sim->world_data.size / LOCAL_SIZE_X;
-    if (sim->world_data.size % LOCAL_SIZE_X != 0) group_count++;
+    uint32_t group_count = sim->world_data.total_len / LOCAL_SIZE_X;
+    if (sim->world_data.total_len % LOCAL_SIZE_X != 0) group_count++;
 
     vkCmdBindPipeline(sim->cmd, VK_PIPELINE_BIND_POINT_COMPUTE, sim->pipeline);
     vkCmdBindDescriptorSets(sim->cmd, VK_PIPELINE_BIND_POINT_COMPUTE,

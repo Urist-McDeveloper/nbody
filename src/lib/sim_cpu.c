@@ -1,4 +1,4 @@
-#include "world_cpu.h"
+#include "sim_cpu.h"
 #include "util.h"
 
 #ifdef USE_AVX
@@ -61,10 +61,12 @@ static ParticlePack CreatePack(const Particle *p) {
     };
 }
 
-void AllocPackArray(uint32_t count, ParticlePack **arr, uint32_t *len) {
+ParticlePack *AllocPackArray(uint32_t count, uint32_t *len) {
     *len = count / PACK_SIZE + (count % PACK_SIZE == 0 ? 0 : 1);
-    *arr = aligned_alloc(4 * PACK_SIZE, *len * sizeof(ParticlePack));
-    ASSERT(*arr != NULL, "Failed to alloc %u ParticlePacks", *len);
+    ParticlePack *arr = aligned_alloc(4 * PACK_SIZE, *len * sizeof(ParticlePack));
+
+    ASSERT(arr != NULL, "Failed to alloc %u ParticlePacks", *len);
+    return arr;
 }
 
 void PackParticles(uint32_t count, const Particle *ps, ParticlePack *packs) {

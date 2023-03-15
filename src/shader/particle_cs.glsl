@@ -6,8 +6,9 @@ struct Particle {
 };
 
 layout (std140, binding = 0) uniform WorldData {
-    uint size;
-    float dt;
+    uint total_len; // total number of particles
+    uint mass_len;  // number of particles with mass
+    float dt;       // time delta
 } world;
 
 layout (std140, binding = 1) readonly buffer FrameOld {
@@ -41,12 +42,12 @@ layout (constant_id = 3) const float F = -0.01;
 
 void main() {
     uint i = gl_GlobalInvocationID.x;
-    if (i >= world.size) return;
+    if (i >= world.total_len) return;
 
     Particle a = old.arr[i];
     vec2 acc = F * old.arr[i].vel;
 
-    for (uint j = 0; j < world.size; j++) {
+    for (uint j = 0; j < world.mass_len; j++) {
         Particle b = old.arr[j];
 
         vec2 radv = b.pos - a.pos;

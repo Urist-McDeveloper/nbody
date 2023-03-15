@@ -8,8 +8,9 @@
 
 /* Constant data given to shaders in a uniform buffer. */
 typedef struct WorldData {
-    uint32_t size;
-    float dt;
+    uint32_t total_len; // total number of particles
+    uint32_t mass_len;  // number of particles with mass
+    float dt;           // time delta
 } WorldData;
 
 /* GPU simulation pipeline. */
