@@ -66,25 +66,7 @@ const Particle *GetWorldParticles(World *w, uint32_t *size);
 /* Perform N updates using CPU simulation. */
 void UpdateWorld_CPU(World *w, float dt, uint32_t n);
 
-
-/*
- * GPU simulation.
- */
-
-
-/* Initialize global Vulkan context; required by GPU simulation. */
-void InitGlobalVulkanContext();
-
-/*
- * Setup Vulkan pipeline for W. Does nothing if Vulkan was already set up.
- * Global Vulkan context MUST be initialized before calling this function.
- */
-void SetupWorldGPU(World *w);
-
-/*
- * Perform N updates using GPU simulation.
- * Aborts if Vulkan has not been setup for W.
- */
+/* Perform N updates using GPU simulation. */
 void UpdateWorld_GPU(World *w, float dt, uint32_t n);
 
 #endif //NB_H

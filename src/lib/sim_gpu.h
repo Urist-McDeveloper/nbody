@@ -2,9 +2,8 @@
 #define NB_WORLD_VK_H
 
 #include <nbody.h>
-
+#include <stdint.h>
 #include <stdbool.h>
-#include <vulkan/vulkan.h>
 
 /* Constant data given to shaders in a uniform buffer. */
 typedef struct WorldData {
@@ -17,18 +16,19 @@ typedef struct WorldData {
 typedef struct SimPipeline SimPipeline;
 
 /*
- * Initialize necessary Vulkan stuff.
- * Global Vulkan context MUST be initialized prior to calling this function.
+ * Setup simulation pipeline for SIZE particles.
+ * RES is set to created SimPipeline.
+ * MAPPED is set to a host-mapped buffer with latest particle data.
  */
-SimPipeline *CreateSimPipeline(WorldData data);
+void CreateSimPipeline(SimPipeline **res, void **mapped, uint32_t size);
 
 /* Destroy SIM. */
 void DestroySimPipeline(SimPipeline *sim);
 
 /*
- * Perform N > 0 updates with specified time delta and write results into ARR.
- * If NEW_DATA is true, then update GPU buffers with data from ARR before running simulation.
+ * Perform N > 0 updates with specified time delta.
+ * BUFFER_MODIFIED indicates whether particle data in host-mapped buffer was modified since last call.
  */
-void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt, Particle *arr, bool new_data);
+void PerformSimUpdate(SimPipeline *sim, uint32_t n, WorldData data, bool buffer_modified);
 
 #endif //NB_WORLD_VK_H

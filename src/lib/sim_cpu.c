@@ -61,12 +61,10 @@ static ParticlePack CreatePack(const Particle *p) {
     };
 }
 
-ParticlePack *AllocPackArray(uint32_t count, uint32_t *len) {
+void AllocPackArray(ParticlePack **res, uint32_t *len, uint32_t count) {
     *len = count / PACK_SIZE + (count % PACK_SIZE == 0 ? 0 : 1);
-    ParticlePack *arr = aligned_alloc(4 * PACK_SIZE, *len * sizeof(ParticlePack));
-
-    ASSERT(arr != NULL, "Failed to alloc %u ParticlePacks", *len);
-    return arr;
+    *res = aligned_alloc(4 * PACK_SIZE, *len * sizeof(ParticlePack));
+    ASSERT(*res != NULL, "Failed to alloc %u ParticlePacks", *len);
 }
 
 void PackParticles(uint32_t count, const Particle *ps, ParticlePack *packs) {

@@ -15,8 +15,10 @@ static const char *const DBG_LAYERS[] = {"VK_LAYER_KHRONOS_validation"};
 static const int DBG_LAYERS_COUNT = sizeof(DBG_LAYERS) / sizeof(DBG_LAYERS[0]);
 
 static void AssertDebugLayersSupported() {
+    // run this function only once
     static bool done = false;
     if (done) return;
+    done = true;
 
     uint32_t layer_count;
     ASSERT_VK(vkEnumerateInstanceLayerProperties(&layer_count, NULL), "Failed to enumerate instance layers");
@@ -39,9 +41,7 @@ static void AssertDebugLayersSupported() {
         }
     }
     if (error) abort();
-
     free(layers);
-    done = true;
 }
 
 #endif //NDEBUG
@@ -138,6 +138,11 @@ static void InitDev(VkDevice *dev, uint32_t *queue_family_idx, VkPhysicalDevice 
 }
 
 void InitGlobalVulkanContext() {
+    // run this function only once
+    static bool done = false;
+    if (done) return;
+    done = true;
+
     InitInstance(&vulkan_ctx.instance);
     InitPDev(&vulkan_ctx.pdev, vulkan_ctx.instance);
     InitDev(&vulkan_ctx.dev, &vulkan_ctx.queue_family_idx, vulkan_ctx.pdev);

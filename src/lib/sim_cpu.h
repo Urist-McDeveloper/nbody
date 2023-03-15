@@ -2,12 +2,17 @@
 #define NB_PARTICLE_PACK_H
 
 #include <nbody.h>
+#include <stdint.h>
 
 /* Some number of particles packed together for vectorization. */
 typedef struct ParticlePack ParticlePack;
 
-/* Allocate ParticlePack that can fit COUNT particles. */
-ParticlePack *AllocPackArray(uint32_t count, uint32_t *len);
+/*
+ * Allocate ParticlePack array that can fit COUNT particles.
+ * RES is set to allocated array.
+ * LEN is set to allocated array size.
+ */
+void AllocPackArray(ParticlePack **res, uint32_t *len, uint32_t count);
 
 /* Pack COUNT particles into PACKS. */
 void PackParticles(uint32_t count, const Particle *ps, ParticlePack *packs);

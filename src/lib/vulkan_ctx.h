@@ -1,9 +1,6 @@
-/* EVERY function listed in this file MUST NOT be called before global Vulkan context have been initialized. */
-
 #ifndef NB_VULKAN_CTX_H
 #define NB_VULKAN_CTX_H
 
-#include <nbody.h>
 #include <string.h>
 #include <stdbool.h>
 #include <vulkan/vulkan.h>
@@ -19,6 +16,12 @@ extern struct VulkanContext {
     VkCommandPool cmd_pool;
     uint32_t queue_family_idx;
 } vulkan_ctx;
+
+/*
+ * Initialize global Vulkan context the first time this function is called; subsequent calls are ignored.
+ * Every other function in this file MUST NOT be called until Vulkan context is initialized.
+ */
+void InitGlobalVulkanContext();
 
 /* Load shader module from PATH. */
 VkShaderModule LoadShaderModule(const char *path);

@@ -43,10 +43,7 @@ static void DrawParticles(World *world, float min_radius) {
 
 int main(void) {
     srand(time(NULL));
-    InitGlobalVulkanContext();
-
     World *world = CreateWorld(PARTICLE_COUNT, V2_ZERO, V2_FROM(WINDOW_WIDTH, WINDOW_HEIGHT));
-    SetupWorldGPU(world);
 
     SetTargetFPS((int)(1.f / PHYS_STEP));
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "N-Body Simulation");
