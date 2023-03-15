@@ -38,14 +38,14 @@ struct World {
 
 World *CreateWorld(uint32_t size, V2 min, V2 max) {
     World *world = ALLOC(1, World);
-    ASSERT_MSG(world != NULL, "Failed to alloc World");
+    ASSERT(world != NULL, "Failed to alloc World");
 
     world->sim = NULL;             // must be explicitly initialized by calling SetupWorldGPU
     world->arr_gpu_sync = false;    // GPU buffers are uninitialized
 
     world->arr_len = size;
     world->arr = ALLOC(size, Particle);
-    ASSERT_FMT(world->arr != NULL, "Failed to alloc %u Particles", size);
+    ASSERT(world->arr != NULL, "Failed to alloc %u Particles", size);
 
     AllocPackArray(size, &world->pack, &world->pack_len);
 
@@ -100,7 +100,7 @@ void SetupWorldGPU(World *w, const VulkanCtx *ctx) {
 }
 
 void UpdateWorld_GPU(World *w, float dt, uint32_t n) {
-    ASSERT_FMT(w->sim != NULL, "Vulkan has not been initialized for World %p", w);
+    ASSERT(w->sim != NULL, "Vulkan has not been initialized for World %p", w);
     if (n > 0) {
         PerformSimUpdate(w->sim, n, dt, w->arr, !w->arr_gpu_sync);
         w->arr_gpu_sync = true;

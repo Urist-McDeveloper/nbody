@@ -70,7 +70,7 @@ static inline void DestroyVulkanBuffer(const VulkanBuffer *buffer) {
  * Aborts if BUFFER is not from host-coherent memory.
  */
 static inline void CopyIntoVulkanBuffer(const VulkanBuffer *buffer, const void *data) {
-    ASSERT_FMT(buffer->mapped != NULL, "Buffer %p is not host-coherent", buffer->handle);
+    ASSERT(buffer->mapped != NULL, "Buffer %p is not host-coherent", buffer->handle);
     memcpy(buffer->mapped, data, buffer->size);
 }
 
@@ -79,7 +79,7 @@ static inline void CopyIntoVulkanBuffer(const VulkanBuffer *buffer, const void *
  * Aborts if BUFFER is not from host-coherent memory.
  */
 static inline void CopyFromVulkanBuffer(const VulkanBuffer *buffer, void *data) {
-    ASSERT_FMT(buffer->mapped != NULL, "Buffer %p is not host-coherent", buffer->handle);
+    ASSERT(buffer->mapped != NULL, "Buffer %p is not host-coherent", buffer->handle);
     memcpy(data, buffer->mapped, buffer->size);
 }
 

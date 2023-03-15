@@ -63,8 +63,8 @@ static ParticlePack CreatePack(const Particle *p) {
 
 void AllocPackArray(uint32_t count, ParticlePack **arr, uint32_t *len) {
     *len = count / PACK_SIZE + (count % PACK_SIZE == 0 ? 0 : 1);
-    *arr = ALLOC_ALIGNED(4 * PACK_SIZE, *len, ParticlePack);
-    ASSERT_FMT(*arr != NULL, "Failed to alloc %u ParticlePacks", *len);
+    *arr = aligned_alloc(4 * PACK_SIZE, *len * sizeof(ParticlePack));
+    ASSERT(*arr != NULL, "Failed to alloc %u ParticlePacks", *len);
 }
 
 void PackParticles(uint32_t count, const Particle *ps, ParticlePack *packs) {

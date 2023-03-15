@@ -9,31 +9,47 @@
 /* Allocate `N * sizeof(T)` bytes. */
 #define ALLOC(N, T)             (T*)malloc((N) * sizeof(T))
 
-/* Allocate `N * sizeof(T)` bytes; returned pointer is guaranteed to be a multiple of A. */
-#define ALLOC_ALIGNED(A, N, T)  (T*)aligned_alloc(A, (N) * sizeof(T))
-
 /* Print error message and abort if COND is false. */
-#define ASSERT_MSG(COND, MSG)   ASSERT_FMT(COND, MSG "%s", "")
-
-/* Print error message and abort if COND is false. */
-#define ASSERT_FMT(COND, MSG, ...)                                          \
+#define ASSERT(COND, ...)                                                   \
     do {                                                                    \
         if (!(COND)) {                                                      \
             fprintf(stderr, "%s:%d [%s] errno = %d, str = %s\n",            \
                     __FILE__, __LINE__, __func__, errno, strerror(errno));  \
-            fprintf(stderr, "%s:%d [%s] " MSG "\n",                         \
-                    __FILE__, __LINE__, __func__, __VA_ARGS__);             \
+            fprintf(stderr, "%s:%d [%s] ", __FILE__, __LINE__, __func__);   \
+            fprintf(stderr, __VA_ARGS__);                                   \
+            fprintf(stderr, "\n");                                          \
             abort();                                                        \
         }                                                                   \
     } while (0)
 
+#ifndef NDEBUG
+/* Print error message and abort if COND is false. Disabled in release builds. */
+#define ASSERT_DBG(COND, ...)   ASSERT(COND, __VA_ARGS__)
+#else
+/* Evaluate COND. */
+#define ASSERT_DBG(COND, ...)   (void)(COND)
+#endif
+
 #ifdef VULKAN_H_
 
 /* 16-byte aligned sizeof. */
-#define SIZE_OF_ALIGN_16(T) (sizeof(T) + (sizeof(T) % 16 == 0 ? 0 : 16 - (sizeof(T) % 16)))
+#define SIZE_OF_ALIGN_16(T)     (sizeof(T) + (sizeof(T) % 16 == 0 ? 0 : 16 - (sizeof(T) % 16)))
 
-/* Assert that Vulkan library function returned VK_SUCCESS. */
-#define ASSERT_VKR(X, MSG) util_assert_vkr(X, MSG, __FILE__, __LINE__, __func__)
+/* Print error message and abort if X is not VK_SUCCESS. */
+#define ASSERT_VK(X, ...)                                                                   \
+    do {                                                                                    \
+        VkResult util_assert_vk_x = (X);                                                    \
+        if (util_assert_vk_x != VK_SUCCESS) {                                               \
+            fprintf(stderr, "%s:%d [%s] VkResult = %d, str = %s\n",                         \
+                    __FILE__, __LINE__, __func__,                                           \
+                    util_assert_vk_x,                                                       \
+                    util_vkr_to_str(util_assert_vk_x));                                     \
+            fprintf(stderr, "%s:%d [%s] ", __FILE__, __LINE__, __func__);                   \
+            fprintf(stderr, __VA_ARGS__);                                                   \
+            fprintf(stderr, "\n");                                                          \
+            abort();                                                                        \
+        }                                                                                   \
+    } while (0)
 
 static inline const char *util_vkr_to_str(VkResult x) {
     switch (x) {
@@ -77,16 +93,6 @@ static inline const char *util_vkr_to_str(VkResult x) {
             return "VK_ERROR_UNKNOWN";
         default:
             return "Unknown VkResult";
-    }
-}
-
-static inline void util_assert_vkr(VkResult x, const char *msg, const char *file, int line, const char *func) {
-    if (x != VK_SUCCESS) {
-        fprintf(stderr, "%s:%d [%s] VkResult = %d, str = %s\n",
-                file, line, func, x, util_vkr_to_str(x));
-        fprintf(stderr, "%s:%d [%s] %s\n",
-                file, line, func, msg);
-        abort();
     }
 }
 

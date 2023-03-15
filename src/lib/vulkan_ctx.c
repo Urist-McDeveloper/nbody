@@ -16,12 +16,11 @@ static void AssertDebugLayersSupported() {
     if (done) return;
 
     uint32_t layer_count;
-    ASSERT_VKR(vkEnumerateInstanceLayerProperties(&layer_count, NULL), "Failed to enumerate instance layers");
-    ASSERT_MSG(layer_count > 0, "Instance layer count is 0");
+    ASSERT_VK(vkEnumerateInstanceLayerProperties(&layer_count, NULL), "Failed to enumerate instance layers");
 
     VkLayerProperties *layers = ALLOC(layer_count, VkLayerProperties);
-    ASSERT_FMT(layers != NULL, "Failed to alloc %u VkLayerProperties", layer_count);
-    ASSERT_VKR(vkEnumerateInstanceLayerProperties(&layer_count, layers), "Failed to enumerate instance layers");
+    ASSERT(layers != NULL, "Failed to alloc %u VkLayerProperties", layer_count);
+    ASSERT_VK(vkEnumerateInstanceLayerProperties(&layer_count, layers), "Failed to enumerate instance layers");
 
     bool error = false;
     for (int i = 0; i < DBG_LAYERS_COUNT; i++) {
@@ -59,17 +58,17 @@ static void InitInstance(VkInstance *instance) {
     instance_create_info.enabledLayerCount = 1;
     instance_create_info.ppEnabledLayerNames = DBG_LAYERS;
 #endif
-    ASSERT_VKR(vkCreateInstance(&instance_create_info, NULL, instance), "Failed to create instance");
+    ASSERT_VK(vkCreateInstance(&instance_create_info, NULL, instance), "Failed to create instance");
 }
 
 static void InitPDev(VkPhysicalDevice *pdev, VkInstance instance) {
     uint32_t pdev_count;
-    ASSERT_VKR(vkEnumeratePhysicalDevices(instance, &pdev_count, NULL), "Failed to enumerate physical devices");
-    ASSERT_MSG(pdev_count > 0, "Physical device count is 0");
+    ASSERT_VK(vkEnumeratePhysicalDevices(instance, &pdev_count, NULL), "Failed to enumerate physical devices");
+    ASSERT(pdev_count > 0, "Physical device count is 0");
 
     VkPhysicalDevice *pds = ALLOC(pdev_count, VkPhysicalDevice);
-    ASSERT_FMT(pds != NULL, "Failed to alloc %u VkPhysicalDevices", pdev_count);
-    ASSERT_VKR(vkEnumeratePhysicalDevices(instance, &pdev_count, pds), "Failed to enumerate physical devices");
+    ASSERT(pds != NULL, "Failed to alloc %u VkPhysicalDevices", pdev_count);
+    ASSERT_VK(vkEnumeratePhysicalDevices(instance, &pdev_count, pds), "Failed to enumerate physical devices");
 
     // TODO: choose the most suitable device if pdev_count > 1
     *pdev = pds[0];
@@ -84,26 +83,34 @@ static void InitPDev(VkPhysicalDevice *pdev, VkInstance instance) {
 static uint32_t InitDev(VkDevice *dev, VkPhysicalDevice pdev) {
     uint32_t family_count;
     vkGetPhysicalDeviceQueueFamilyProperties(pdev, &family_count, NULL);
-    ASSERT_MSG(family_count > 0, "Queue family count is 0");
+    ASSERT(family_count > 0, "Queue family count is 0");
 
     VkQueueFamilyProperties *family_props = ALLOC(family_count, VkQueueFamilyProperties);
-    ASSERT_FMT(family_props != NULL, "Failed to alloc %u VkQueueFamilyProperties", family_count);
+    ASSERT(family_props != NULL, "Failed to alloc %u VkQueueFamilyProperties", family_count);
     vkGetPhysicalDeviceQueueFamilyProperties(pdev, &family_count, family_props);
 
     uint32_t qf_idx = UINT32_MAX;
+    printf("Selecting queue family:");
+
     for (uint32_t i = 0; i < family_count; i++) {
         bool g = family_props[i].queueFlags & VK_QUEUE_GRAPHICS_BIT;
         bool c = family_props[i].queueFlags & VK_QUEUE_COMPUTE_BIT;
         bool t = family_props[i].queueFlags & VK_QUEUE_TRANSFER_BIT;
 
-        // prefer compute only queue family
+        printf("\t#%u: count = %u, flags =", i, family_props[i].queueCount);
+        if (g) printf(" graphics");
+        if (c) printf(" compute");
+        if (t) printf(" transfer");
+        printf("\n");
+
+        // prefer compute only
         if (c && t && (!g || qf_idx == UINT32_MAX)) {
             qf_idx = i;
         }
     }
-    ASSERT_MSG(qf_idx != UINT32_MAX, "Could not find suitable queue family");
+    ASSERT(qf_idx != UINT32_MAX, "Could not find suitable queue family");
 
-    printf("Using queue family #%u (count = %u)\n", qf_idx, family_props[qf_idx].queueCount);
+    printf("Using queue family #%u\n", qf_idx);
     free(family_props);
 
     VkDeviceQueueCreateInfo queue_create_info = {0};
@@ -123,13 +130,13 @@ static uint32_t InitDev(VkDevice *dev, VkPhysicalDevice pdev) {
     device_create_info.enabledLayerCount = 1;
     device_create_info.ppEnabledLayerNames = DBG_LAYERS;
 #endif
-    ASSERT_VKR(vkCreateDevice(pdev, &device_create_info, NULL, dev), "Failed to create device");
+    ASSERT_VK(vkCreateDevice(pdev, &device_create_info, NULL, dev), "Failed to create device");
     return qf_idx;
 }
 
 VulkanCtx *CreateVulkanCtx() {
     VulkanCtx *ctx = ALLOC(1, VulkanCtx);
-    ASSERT_MSG(ctx != NULL, "Failed to alloc VulkanCtx");
+    ASSERT(ctx != NULL, "Failed to alloc VulkanCtx");
 
     InitInstance(&ctx->instance);
     InitPDev(&ctx->pdev, ctx->instance);
@@ -141,7 +148,7 @@ VulkanCtx *CreateVulkanCtx() {
     pool_create_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
     pool_create_info.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
     pool_create_info.queueFamilyIndex = ctx->queue_family_idx;
-    ASSERT_VKR(vkCreateCommandPool(ctx->dev, &pool_create_info, NULL, &ctx->cmd_pool), "Failed to create command pool");
+    ASSERT_VK(vkCreateCommandPool(ctx->dev, &pool_create_info, NULL, &ctx->cmd_pool), "Failed to create command pool");
 
     return ctx;
 }
@@ -165,7 +172,8 @@ VkShaderModule LoadVkShaderModule(const VulkanCtx *ctx, const char *path) {
     create_info.pCode = buf;
 
     VkShaderModule module;
-    ASSERT_VKR(vkCreateShaderModule(ctx->dev, &create_info, NULL, &module), "Failed to create shader module");
+    ASSERT_VK(vkCreateShaderModule(ctx->dev, &create_info, NULL, &module),
+              "Failed to create shader module from %s", path);
 
     free(buf);
     return module;
@@ -179,7 +187,8 @@ void AllocVkCommandBuffers(const VulkanCtx *ctx, uint32_t count, VkCommandBuffer
             .level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
             .commandBufferCount = count,
     };
-    ASSERT_VKR(vkAllocateCommandBuffers(ctx->dev, &allocate_info, buffers), "Failed to allocate command buffers");
+    ASSERT_VK(vkAllocateCommandBuffers(ctx->dev, &allocate_info, buffers),
+              "Failed to allocate %u command buffers", count);
 }
 
 
@@ -199,7 +208,7 @@ static VulkanDeviceMemory CreateDeviceMemory(const VulkanCtx *ctx, VkDeviceSize 
             break;
         }
     }
-    ASSERT_FMT(mem_type_idx != UINT32_MAX, "Failed to find suitable memory type for flags %#x", flags);
+    ASSERT(mem_type_idx != UINT32_MAX, "Failed to find suitable memory type for flags %#x", flags);
 
     VkMemoryAllocateInfo allocate_info = {
             .sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
@@ -208,11 +217,12 @@ static VulkanDeviceMemory CreateDeviceMemory(const VulkanCtx *ctx, VkDeviceSize 
             .memoryTypeIndex = mem_type_idx,
     };
     VkDeviceMemory memory;
-    ASSERT_VKR(vkAllocateMemory(ctx->dev, &allocate_info, NULL, &memory), "Failed to allocate device memory");
+    ASSERT_VK(vkAllocateMemory(ctx->dev, &allocate_info, NULL, &memory),
+              "Failed to allocate %zu bytes of device memory #%u", size, mem_type_idx);
 
     void *mapped;
     if (flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) {
-        ASSERT_VKR(vkMapMemory(ctx->dev, memory, 0, VK_WHOLE_SIZE, 0, &mapped), "Failed to map device memory");
+        ASSERT_VK(vkMapMemory(ctx->dev, memory, 0, VK_WHOLE_SIZE, 0, &mapped), "Failed to map device memory");
     } else {
         mapped = NULL;
     }
@@ -236,9 +246,9 @@ VulkanDeviceMemory CreateHostCoherentMemory(const VulkanCtx *ctx, VkDeviceSize s
 }
 
 VulkanBuffer CreateVulkanBuffer(VulkanDeviceMemory *memory, VkDeviceSize size, VkBufferUsageFlags usage) {
-    ASSERT_FMT(memory->used + size <= memory->size,
-               "Buffer creation requested %zu bytes but only %zu are available (size = %zu, used = %zu)",
-               size, memory->size - memory->used, memory->size, memory->used);
+    ASSERT(memory->used + size <= memory->size,
+           "Buffer creation requested %zu bytes but only %zu are available (size = %zu, used = %zu)",
+           size, memory->size - memory->used, memory->size, memory->used);
 
     VkBufferCreateInfo create_info = {
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -250,7 +260,7 @@ VulkanBuffer CreateVulkanBuffer(VulkanDeviceMemory *memory, VkDeviceSize size, V
             .pQueueFamilyIndices = &memory->ctx->queue_family_idx,
     };
     VkBuffer buffer;
-    ASSERT_VKR(vkCreateBuffer(memory->ctx->dev, &create_info, NULL, &buffer), "Failed to create buffer");
+    ASSERT_VK(vkCreateBuffer(memory->ctx->dev, &create_info, NULL, &buffer), "Failed to create buffer");
 
     VkDeviceSize offset = memory->used;
     memory->used += size;
@@ -262,7 +272,7 @@ VulkanBuffer CreateVulkanBuffer(VulkanDeviceMemory *memory, VkDeviceSize size, V
         mapped = NULL;
     }
 
-    ASSERT_VKR(vkBindBufferMemory(memory->ctx->dev, buffer, memory->handle, offset), "Failed to bind VkBuffer");
+    ASSERT_VK(vkBindBufferMemory(memory->ctx->dev, buffer, memory->handle, offset), "Failed to bind VkBuffer");
     return (VulkanBuffer){
             .ctx = memory->ctx,
             .handle = buffer,
@@ -272,7 +282,7 @@ VulkanBuffer CreateVulkanBuffer(VulkanDeviceMemory *memory, VkDeviceSize size, V
 }
 
 void CopyVulkanBuffer(VkCommandBuffer cmd, const VulkanBuffer *src, const VulkanBuffer *dst) {
-    ASSERT_FMT(src->size == dst->size, "src->size (%zu) != dst->size (%zu)", src->size, dst->size);
+    ASSERT_DBG(src->size == dst->size, "src size (%zu) != dst size (%zu)", src->size, dst->size);
     VkBufferCopy buffer_copy = {
             .srcOffset = 0,
             .dstOffset = 0,
