@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <stdbool.h>
 
-#include "particle_pack.h"
+#include "world_cpu.h"
 #include "util.h"
 #include "world_gpu.h"
 

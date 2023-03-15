@@ -1,4 +1,4 @@
-#include "particle_pack.h"
+#include "world_cpu.h"
 #include "util.h"
 
 #ifdef USE_AVX

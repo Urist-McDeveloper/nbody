@@ -4,9 +4,9 @@ find_package(Vulkan REQUIRED)
 set(nbody_lib_headers ${CMAKE_SOURCE_DIR}/include/nbody.h)
 set(nbody_lib_sources
         fio.c
-        particle_pack.c
         vulkan_ctx.c
         world.c
+        world_cpu.c
         world_gpu.c)
 
 add_library(nbody-lib STATIC ${nbody_lib_sources} ${nbody_lib_headers})
