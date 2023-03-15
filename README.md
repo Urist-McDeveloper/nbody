@@ -36,10 +36,19 @@ Build options:
 
 ### What to do
 
-Press some buttons:
+Base controls:
 
 * `Q` or `ESC` to quit
 * `SPACE` to pause/unpause
+
+Camera controls:
+
+* `WASD` to move
+* Press middle mouse button to drag the screen
+* Scroll mouse wheel to zoom
+
+Simulation controls:
+
 * `TAB` to switch between CPU and GPU simulation
 * `LEFT` to decrease simulation speed (fewer updates per second)
 * `RIGHT` to increase simulation speed (more updates per second)
@@ -50,8 +59,8 @@ Press some buttons:
 
 By changing some macros:
 
-* `WINDOW_WIDTH` and `WINDOW_HEIGHT` ([src/main.c](src/main.c#L39)) -- self explanatory;
-* `PARTICLE_COUNT` ([src/main.c](src/main.c#L18)) -- you guessed it, particle count;
+* `WINDOW_WIDTH` and `WINDOW_HEIGHT` ([src/main.c](src/main.c#L38)) -- self explanatory;
+* `PARTICLE_COUNT` ([src/main.c](src/main.c#L17)) -- you guessed it, particle count;
 * `NB_G` ([include/nbody.h](include/nbody.h#L10)) -- gravitational constant;
 * `NB_N` ([include/nbody.h](include/nbody.h#L16)) -- repulsion constant;
 * `NB_F` ([include/nbody.h](include/nbody.h#L22)) -- velocity decay constant;
@@ -61,10 +70,9 @@ By changing some macros:
 
 - [ ] Select optimal VkPhysicalDevice, not the first one in the list
 - [ ] Write Vulkan renderer so that particle data never has to leave GPU
-- [ ] A moving camera would be nice
 - [ ] Allow setting simulation parameters through command line arguments
-- [ ] Add CMake option to disable GPU simulation
 - [ ] Write tests that actually test something
+- [ ] Make several configurable initial particle generation algorithms
 
 Done:
 
@@ -75,3 +83,4 @@ Done:
 - [x] Allow performing multiple updates in a single UpdateWorld_GPU call by chaining pipeline dispatches
 - [x] Use AVX for CPU simulation
 - [x] Add CMake option to disable AVX and fall back to SSE
+- [x] A moving camera would be nice

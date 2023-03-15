@@ -5,22 +5,22 @@
 #include <raylib.h>
 
 static const float SPEEDS[] = {1, 2, 4, 8, 16, 32};
-
-#define SPEEDS_LENGTH   (int)(sizeof(SPEEDS) / sizeof(SPEEDS[0]))
-#define LAST_SPEED_IDX  (SPEEDS_LENGTH - 1)
-
 static const float STEPS[] = {0.1f, 0.25f, 0.5f, 1.f, 2.f, 4.f};
 
-#define STEPS_LENGTH    (int)(sizeof(STEPS) / sizeof(STEPS[0]))
-#define LAST_STEP_IDX   (STEPS_LENGTH - 1)
-#define DEF_STEP_IDX    3
+static const uint32_t SPEEDS_LENGTH = sizeof(SPEEDS) / sizeof(SPEEDS[0]);
+static const uint32_t LAST_SPEED_IDX = SPEEDS_LENGTH - 1;
+
+static const uint32_t STEPS_LENGTH = sizeof(STEPS) / sizeof(STEPS[0]);
+static const uint32_t LAST_STEP_IDX = STEPS_LENGTH - 1;
+static const uint32_t DEF_STEP_IDX = 3;
 
 #define PARTICLE_COUNT  2000
 #define PHYS_STEP       0.01f
 
+/* Maximum simulation updates per frame = `MAX_OVERWORK * current_speed`. */
 #define MAX_OVERWORK    3
 
-static void DrawParticles(World *world) {
+static void DrawParticles(World *world, float min_radius) {
     uint32_t size;
     const Particle *arr = GetWorldParticles(world, &size);
 
@@ -29,7 +29,7 @@ static void DrawParticles(World *world) {
         DrawCircle(
                 (int)p.pos.x,
                 (int)p.pos.y,
-                p.radius,
+                p.radius > min_radius ? p.radius : min_radius,
                 p.mass == 0 ? BLUE : RAYWHITE
         );
     }
@@ -37,6 +37,9 @@ static void DrawParticles(World *world) {
 
 #define WINDOW_WIDTH    1280
 #define WINDOW_HEIGHT   720
+
+#define CAMERA_SPEED_DELTA  800.f   // how far camera with 1x zoom can move per second
+#define CAMERA_ZOOM_DELTA   0.1f    // how much zoom delta is 1 mouse wheel scroll
 
 int main(void) {
     srand(time(NULL));
@@ -48,20 +51,56 @@ int main(void) {
     SetTargetFPS((int)(1.f / PHYS_STEP));
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "N-Body Simulation");
 
+    Camera2D camera = {
+            .offset = (Vector2){.x = WINDOW_WIDTH / 2.f, .y = WINDOW_HEIGHT / 2.f},
+            .target = (Vector2){.x = WINDOW_WIDTH / 2.f, .y = WINDOW_HEIGHT / 2.f},
+            .zoom = 1.f,
+    };
+
     bool pause = false;
     bool use_gpu = PARTICLE_COUNT > 500;
 
-    int speed_idx = 0;
-    int step_idx = DEF_STEP_IDX;
+    uint32_t speed_idx = 0;
+    uint32_t step_idx = DEF_STEP_IDX;
 
     float phys_time = 0.f;
-    int skipped_phys_frames = 0;
+    uint32_t skipped_phys_frames = 0;
 
     while (!WindowShouldClose()) {
-        // handle input
-        if (IsKeyPressed(KEY_Q)) {
-            break;
+        if (IsKeyPressed(KEY_Q)) break;
+
+        // move with WASD
+        float cam_target_delta = CAMERA_SPEED_DELTA / (camera.zoom * (float)GetFPS());
+        if (IsKeyDown(KEY_A)) {
+            camera.target.x -= cam_target_delta;
         }
+        if (IsKeyDown(KEY_D)) {
+            camera.target.x += cam_target_delta;
+        }
+        if (IsKeyDown(KEY_W)) {
+            camera.target.y -= cam_target_delta;
+        }
+        if (IsKeyDown(KEY_S)) {
+            camera.target.y += cam_target_delta;
+        }
+
+        // zoom with mouse wheel
+        float mouse_wheel_move = GetMouseWheelMoveV().y;
+        if (mouse_wheel_move > 0) {
+            camera.zoom *= 1.f + CAMERA_ZOOM_DELTA;
+        }
+        if (mouse_wheel_move < 0) {
+            camera.zoom *= 1.f - CAMERA_ZOOM_DELTA;
+        }
+
+        // drag the camera around
+        if (IsMouseButtonDown(MOUSE_BUTTON_MIDDLE)) {
+            Vector2 delta = GetMouseDelta();
+            camera.target.x -= delta.x / camera.zoom;
+            camera.target.y -= delta.y / camera.zoom;
+        }
+
+        // simulation
         if (IsKeyPressed(KEY_TAB)) {
             use_gpu = !use_gpu;
             phys_time = 0;
@@ -117,15 +156,26 @@ int main(void) {
 
         // draw stuff
         BeginDrawing();
-        ClearBackground(BLACK);
+        {
+            ClearBackground(BLACK);
+            BeginMode2D(camera);
+            {
+                float min_radius = 0.5f / camera.zoom;
+                DrawParticles(world, min_radius);
+            }
+            EndMode2D();
 
-        DrawParticles(world);
-        DrawText(use_gpu ? "GPU simulation" : "CPU simulation", 10, 10, 20, GREEN);
-        DrawText(TextFormat("step x%.2f  speed x%d", STEPS[step_idx], (int)SPEEDS[speed_idx]), 10, 30, 20, GREEN);
-        DrawFPS(10, 50);
+            if (pause) {
+                DrawText(use_gpu ? "GPU simulation (paused)" : "CPU simulation (paused)", 10, 10, 20, GREEN);
+            } else {
+                DrawText(use_gpu ? "GPU simulation" : "CPU simulation", 10, 10, 20, GREEN);
+            }
+            DrawText(TextFormat("step x%.2f  speed x%d", STEPS[step_idx], (int)SPEEDS[speed_idx]), 10, 30, 20, GREEN);
+            DrawFPS(10, 50);
 
-        if (skipped_phys_frames > MAX_OVERWORK) {
-            DrawText("SKIPPING FRAMES", 10, 70, 20, RED);
+            if (skipped_phys_frames > MAX_OVERWORK) {
+                DrawText("SKIPPING FRAMES", 10, 70, 20, RED);
+            }
         }
         EndDrawing();
     }
