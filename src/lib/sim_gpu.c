@@ -43,8 +43,8 @@ SimPipeline *CreateSimPipeline(WorldData data) {
 
     sim->shader = LoadShaderModule("shader/particle_cs.spv");
 
-    VkSpecializationMapEntry shader_spec_map[4];
-    for (int i = 0; i < 4; i++) {
+    VkSpecializationMapEntry shader_spec_map[2];
+    for (int i = 0; i < 2; i++) {
         shader_spec_map[i] = (VkSpecializationMapEntry){
                 .constantID = i,
                 .offset = 4 * i,
@@ -52,16 +52,14 @@ SimPipeline *CreateSimPipeline(WorldData data) {
         };
     }
 
-    char shader_spec_data[16];
+    char shader_spec_data[8];
     *(uint32_t *)shader_spec_data = LOCAL_SIZE_X;
     *(float *)(shader_spec_data + 4) = NB_G;
-    *(float *)(shader_spec_data + 8) = NB_N;
-    *(float *)(shader_spec_data + 12) = NB_F;
 
     VkSpecializationInfo shader_spec_info = {
-            .mapEntryCount = 4,
+            .mapEntryCount = 2,
             .pMapEntries = shader_spec_map,
-            .dataSize = 16,
+            .dataSize = 8,
             .pData = shader_spec_data,
     };
     VkPipelineShaderStageCreateInfo shader_stage_info = {

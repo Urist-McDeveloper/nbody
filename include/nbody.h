@@ -3,23 +3,8 @@
 
 #include <stdint.h>
 
-/*
- * Gravitational constant; gravity is proportional to the inverse square of distance.
- *      g = NB_G * mass / dist^2
- */
+/* Gravitational constant; `g = NB_G * mass / dist^2`. */
 #define NB_G    10.0f
-
-/*
- * Repulsion constant; repulsion is proportional to the inverse cube of distance.
- *      n = NB_N * mass / dist^3
- */
-#define NB_N    (-0.f)
-
-/*
- * A fraction of velocity that becomes deceleration.
- *      f = NB_F * velocity
- */
-#define NB_F    (-0.f)
 
 /* 2D vector of floats. */
 typedef struct V2 {

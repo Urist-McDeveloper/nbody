@@ -48,7 +48,6 @@ struct ParticlePack {
     mx x;   // position x
     mx y;   // position y
     mx m;   // mass
-    mx r;   // radius
 };
 
 /* Merge PACK_SIZE particles into a single pack. */
@@ -57,7 +56,6 @@ static ParticlePack CreatePack(const Particle *p) {
             .x = MMX_SET(p, pos.x),
             .y = MMX_SET(p, pos.y),
             .m = MMX_SET(p, mass),
-            .r = MMX_SET(p, radius),
     };
 }
 
@@ -104,41 +102,41 @@ static float mmx_sum(mx x) {
 }
 
 void PackedUpdate(Particle *p, float dt, uint32_t packs_len, ParticlePack *packs) {
-    const mx m_half = mmx_set1_ps(0.5f);    // 0.5f
-    const mx m_g = mmx_set1_ps(NB_G);       // gravitational constant
-    const mx m_n = mmx_set1_ps(NB_N);       // repulsion constant
+    const mx g = mmx_set1_ps(NB_G);         // gravitational constant
+    const mx x = mmx_set1_ps(p->pos.x);     // position x
+    const mx y = mmx_set1_ps(p->pos.y);     // position y
+    const mx r = mmx_set1_ps(p->radius);    // radius
 
-    const mx m_x = mmx_set1_ps(p->pos.x);   // position x
-    const mx m_y = mmx_set1_ps(p->pos.y);   // position y
-    const mx m_r = mmx_set1_ps(p->radius);  // radius
-
-    mx m_ax = mmx_set1_ps(0.f);             // acceleration x
-    mx m_ay = mmx_set1_ps(0.f);             // acceleration y
+    mx ax = mmx_set1_ps(0.f);               // acceleration x
+    mx ay = mmx_set1_ps(0.f);               // acceleration y
 
     for (uint32_t i = 0; i < packs_len; i++) {
-        // delta x, delta y and distance squared
-        mx dx = mmx_sub_ps(packs[i].x, m_x);
-        mx dy = mmx_sub_ps(packs[i].y, m_y);
-        mx dist2 = mmx_add_ps(mmx_mul_ps(dx, dx), mmx_mul_ps(dy, dy));
+        ParticlePack pack = packs[i];
 
-        // minimum distance == 0.5 * (radiusA + radiusB)
-        mx min_r = mmx_mul_ps(m_half, mmx_add_ps(m_r, packs[i].r));
-        dist2 = mmx_max_ps(dist2, mmx_mul_ps(min_r, min_r));
+        // delta x and delta y
+        mx dx = mmx_sub_ps(pack.x, x);
+        mx dy = mmx_sub_ps(pack.y, y);
 
-        mx dist1 = mmx_sqrt_ps(dist2);       // distance
-        mx dist4 = mmx_mul_ps(dist2, dist2); // distance^4
+        // distance squared
+        mx dist_sq = mmx_add_ps(mmx_mul_ps(dx, dx),
+                                mmx_mul_ps(dy, dy));
 
-        mx gd_n = mmx_add_ps(mmx_mul_ps(m_g, dist1), m_n);          // gd_n = G * dist + N
-        mx res = mmx_mul_ps(packs[i].m, mmx_div_ps(gd_n, dist4));   // res = m * (G * dist + N) / dist^4
+        mx r2 = mmx_add_ps(dist_sq, r); // distance^2, softened
+        mx r1 = mmx_sqrt_ps(r2);        // distance^1, softened
 
-        m_ax = mmx_add_ps(m_ax, mmx_mul_ps(dx, res));
-        m_ay = mmx_add_ps(m_ay, mmx_mul_ps(dy, res));
+        mx gm = mmx_mul_ps(pack.m, g);  // gravity times mass
+        mx r3 = mmx_mul_ps(r1, r2);     // distance^3
+
+        // acceleration == normalize(radv) * (Gm / dist^2)
+        //              == (radv / dist) * (Gm / dist^2)
+        //              == radv * (Gm / dist^3)
+        mx f = mmx_div_ps(gm, r3);
+
+        ax = mmx_add_ps(ax, mmx_mul_ps(dx, f));
+        ay = mmx_add_ps(ay, mmx_mul_ps(dy, f));
     }
 
-    V2 acc = V2_FROM(mmx_sum(m_ax), mmx_sum(m_ay));
-    V2 friction = ScaleV2(p->vel, NB_F);
-
-    p->acc = AddV2(friction, acc);
+    p->acc = V2_FROM(mmx_sum(ax), mmx_sum(ay));
     p->vel = AddV2(p->vel, ScaleV2(p->acc, dt));
     p->pos = AddV2(p->pos, ScaleV2(p->vel, dt));
 }
