@@ -2,6 +2,12 @@
 
 Written in C, powered by Vulkan and AVX (or SSE), shown on screen with [raylib](https://github.com/raysan5/raylib).
 
+*(videos below are quite heavily compressed)*
+
+https://user-images.githubusercontent.com/112800528/225752992-43dac741-f90d-4638-ab47-29df0921942b.mp4
+
+https://user-images.githubusercontent.com/112800528/225753149-73836b71-6744-4fcb-b3d9-e97e08782134.mp4
+
 ## Build and run
 
 ### Build prerequisites
