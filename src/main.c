@@ -1,24 +1,30 @@
 #include <stdlib.h>
+#include <stdbool.h>
 #include <time.h>
 #include <math.h>
 
 #include <nbody.h>
 #include <raylib.h>
 
-#include "lib/util.h"
-
-#define PARTICLE_COUNT  2000
-#define PHYS_STEP       0.01f   // fixed time step used by simulation
-#define MAX_OVERWORK    3       // maximum simulation updates per frame == `MAX_OVERWORK * current_speed`
+#include "cluster.h"
 
 #define WINDOW_WIDTH    1280
 #define WINDOW_HEIGHT   720
 
+#define PARTICLE_COUNT  6000        // number of simulated particles
+#define PHYS_STEP       0.01f       // fixed time step used by simulation
+#define MAX_OVERWORK    3           // maximum simulation updates per frame == `MAX_OVERWORK * current_speed`
+
 #define CAMERA_SPEED_DELTA  800.f   // how far camera with 1x zoom can move per second
 #define CAMERA_ZOOM_DELTA   0.1f    // how much zoom delta is 1 mouse wheel scroll
 
-static const float SPEEDS[] = {1, 2, 4, 8, 16, 32};
-static const float STEPS[] = {0.1f, 0.25f, 0.5f, 1.f, 2.f, 4.f};
+static const Color BG_COLOR = {.r = 22, .g = 22, .b = 22, .a = 255};    // background color
+static const Color CC_COLOR = {.r = 222, .g = 222, .b = 222, .a = 255}; // cluster center color
+static const Color NP_COLOR = {.r = 175, .g = 195, .b = 175, .a = 255}; // normal particle color
+static const Color EP_COLOR = {.r = 145, .g = 145, .b = 233, .a = 255}; // "empty" (massless) particle color
+
+static const float SPEEDS[] = {1, 2, 4, 8, 16, 32, 64, 128};        // number of updates per tick
+static const float STEPS[] = {0.1f, 0.25f, 0.5f, 1.f, 2.f, 4.f};    // fixed step multiplier
 
 static const uint32_t SPEEDS_LENGTH = sizeof(SPEEDS) / sizeof(SPEEDS[0]);
 static const uint32_t LAST_SPEED_IDX = SPEEDS_LENGTH - 1;
@@ -26,9 +32,6 @@ static const uint32_t LAST_SPEED_IDX = SPEEDS_LENGTH - 1;
 static const uint32_t STEPS_LENGTH = sizeof(STEPS) / sizeof(STEPS[0]);
 static const uint32_t LAST_STEP_IDX = STEPS_LENGTH - 1;
 static const uint32_t DEF_STEP_IDX = 3;
-
-/* Allocate and initialize particles. */
-static Particle *InitParticles(uint32_t count);
 
 /* Create camera that will fit all particles on screen. */
 static Camera2D CreateCamera(const Particle *ps, uint32_t count);
@@ -39,7 +42,7 @@ static void DrawParticles(World *world, float min_radius);
 int main(void) {
     srand(time(NULL));
 
-    Particle *particles = InitParticles(PARTICLE_COUNT);
+    Particle *particles = MakeTwoClusters(PARTICLE_COUNT);
     World *world = CreateWorld(particles, PARTICLE_COUNT);
 
     Camera2D camera = CreateCamera(particles, PARTICLE_COUNT);
@@ -156,7 +159,7 @@ int main(void) {
         // draw stuff
         BeginDrawing();
         {
-            ClearBackground(BLACK);
+            ClearBackground(BG_COLOR);
             BeginMode2D(camera);
             {
                 float min_radius = 0.5f / camera.zoom;
@@ -183,58 +186,6 @@ int main(void) {
     DestroyWorld(world);
 }
 
-/* Minimum radius of randomized particles. */
-#define MIN_R   2.0f
-
-/* Maximum radius of randomized particles. */
-#define MAX_R   2.0f
-
-/* Density of a Particles (used to calculate mass from radius). */
-#define DENSITY 1.0f
-
-#ifndef PI
-/* Homegrown constants are the best. */
-#define PI  3.1415927f
-#endif
-
-/* Convert radius to mass (R is evaluated 3 times). */
-#define R_TO_M(R)   ((4.f * PI * DENSITY / 3.f) * (R) * (R) * (R))
-
-/* Get random float in range [MIN, MAX). */
-static float RandFloat(double min, double max) {
-    return (float)(min + (max - min) * rand() / RAND_MAX);
-}
-
-static Particle *InitParticles(uint32_t count) {
-    Particle *arr = ALLOC(count, Particle);
-    ASSERT(arr != NULL, "Failed to alloc %u particles", count);
-
-    #pragma omp parallel for firstprivate(arr, count) default(none)
-    for (uint32_t i = 0; i < count; i++) {
-        arr[i] = (Particle){0};
-
-        // make 75% of all particles massless
-        if (rand() < (RAND_MAX / 4)) {
-            arr[i].radius = RandFloat(MIN_R, MAX_R);
-            arr[i].mass = R_TO_M(arr[i].radius);
-        } else {
-            arr[i].radius = 1.f;
-            arr[i].mass = 0.f;
-        }
-
-        // a random point within a circle of radius 1
-        float angle = RandFloat(0, 2 * PI);
-        float dist = sqrtf(RandFloat(0, 1));
-
-        // stretch circle into an ellipse
-        float x = cosf(angle) * dist * WINDOW_WIDTH;
-        float y = sinf(angle) * dist * WINDOW_HEIGHT;
-
-        arr[i].pos = V2_FROM(x, y);
-    }
-    return arr;
-}
-
 static Camera2D CreateCamera(const Particle *ps, uint32_t count) {
     Camera2D camera = {
             .offset = (Vector2){.x = WINDOW_WIDTH / 2.f, .y = WINDOW_HEIGHT / 2.f},
@@ -243,40 +194,35 @@ static Camera2D CreateCamera(const Particle *ps, uint32_t count) {
     if (count == 0) return camera;
 
     V2 min = ps[0].pos, max = ps[0].pos;
-    #pragma omp parallel shared(min, max) firstprivate(ps, count) default(none)
-    {
-        V2 local_min = ps[0].pos, local_max = ps[0].pos;
-
-        #pragma omp for nowait
-        for (uint32_t i = 1; i < count; i++) {
-            local_min.x = fminf(local_min.x, ps[i].pos.x);
-            local_min.y = fminf(local_min.y, ps[i].pos.y);
-            local_max.x = fmaxf(local_max.x, ps[i].pos.x);
-            local_max.y = fmaxf(local_max.y, ps[i].pos.y);
-        }
-
-        #pragma omp critical
-        {
-            min.x = fminf(min.x, local_min.x);
-            min.y = fminf(min.y, local_min.y);
-            max.x = fmaxf(max.x, local_max.x);
-            max.y = fmaxf(max.y, local_max.y);
-        }
+    for (uint32_t i = 1; i < count; i++) {
+        min.x = fminf(min.x, ps[i].pos.x);
+        min.y = fminf(min.y, ps[i].pos.y);
+        max.x = fmaxf(max.x, ps[i].pos.x);
+        max.y = fmaxf(max.y, ps[i].pos.y);
     }
 
-    V2 diff = SubV2(max, min);
-    float zoom_x = 0.9f * (float)WINDOW_WIDTH / diff.x;
-    float zoom_y = 0.9f * (float)WINDOW_HEIGHT / diff.y;
+    float zoom_x = 0.9f * (float)WINDOW_WIDTH / (max.x - min.x);
+    float zoom_y = 0.9f * (float)WINDOW_HEIGHT / (max.y - min.y);
 
     if (zoom_x < 1.f || zoom_y < 1.f) {
         camera.zoom = fminf(zoom_x, zoom_y);
     }
 
-    V2 target = AddV2(min, ScaleV2(diff, 0.5f));
+    V2 target = ScaleV2(AddV2(min, max), 0.5f);
     camera.target.x = target.x;
     camera.target.y = target.y;
 
     return camera;
+}
+
+static Color ColorForMass(float mass) {
+    if (mass == 0) {
+        return EP_COLOR;
+    } else if (mass < MIN_CS_MASS) {
+        return NP_COLOR;
+    } else {
+        return CC_COLOR;
+    }
 }
 
 static void DrawParticles(World *world, float min_radius) {
@@ -289,7 +235,7 @@ static void DrawParticles(World *world, float min_radius) {
                 (int)p.pos.x,
                 (int)p.pos.y,
                 fmaxf(p.radius, min_radius),
-                p.mass == 0 ? BLUE : RAYWHITE
+                ColorForMass(p.mass)
         );
     }
 }

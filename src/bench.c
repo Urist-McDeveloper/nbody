@@ -5,6 +5,7 @@
 #include <time.h>
 
 #include <nbody.h>
+#include "cluster.h"
 
 #define US_PER_S    (1000 * 1000)
 #define NS_PER_US   (1000)
@@ -33,36 +34,12 @@ static int64_t bench(World *w, void (*update)(World *, float, uint32_t)) {
     return diff_us(start, end) / BENCH_ITER;
 }
 
-/* Benched world sizes; must be sorted in ascending order. */
-static const int WS[] = {10, 100, 250, 500, 800, 1200, 2000, 4000, 10000, 20000, 50000, 100000};
-
-/* Length of WS array. */
-static const int WS_LEN = sizeof(WS) / sizeof(WS[0]);
-
-/* Array length MUST be equal to the last element of WS. */
-static Particle PARTICLES[100000];
-
-/* Create new world with given size. */
-#define WORLD_NEW(size) CreateWorld(PARTICLES, size)
-
-/* Get random float in range [0, max). */
-static float RandomFloat(double max) {
-    return (float)(max * rand() / RAND_MAX);
-}
+/* Must be sorted in ascending order. */
+static const int SIZES[] = {250, 500, 800, 1200, 2000, 4000, 10000, 20000, 50000, 100000};
+static const int SIZES_LEN = sizeof(SIZES) / sizeof(SIZES[0]);
 
 int main(int argc, char **argv) {
     srand(11037);   // fixed seed for reproducible benchmarks
-
-    #pragma omp parallel for shared(WS, WS_LEN, PARTICLES) default(none)
-    for (int i = 0; i < WS[WS_LEN - 1]; i++) {
-        // half of particles are massless
-        bool massless = rand() < (RAND_MAX / 2);
-        PARTICLES[i] = (Particle){
-                .pos = V2_FROM(RandomFloat(1000000), RandomFloat(1000000)),
-                .mass = massless ? 0.f : RandomFloat(1000),
-                .radius = RandomFloat(10),
-        };
-    }
 
     bool use_cpu = true, use_gpu = true;
     if (argc > 1) {
@@ -71,11 +48,12 @@ int main(int argc, char **argv) {
     }
 
     World *cpu_w = NULL, *gpu_w = NULL;
-    for (int i = 0; i < WS_LEN; i++) {
-        int world_size = WS[i];
+    for (int i = 0; i < SIZES_LEN; i++) {
+        int world_size = SIZES[i];
+        Particle *particles = MakeTwoClusters(world_size);
 
-        if (use_cpu) cpu_w = WORLD_NEW(world_size);
-        if (use_gpu) gpu_w = WORLD_NEW(world_size);
+        if (use_cpu) cpu_w = CreateWorld(particles, world_size);
+        if (use_gpu) gpu_w = CreateWorld(particles, world_size);
 
         if (i == 0) {
             printf("\t      N");
@@ -89,6 +67,7 @@ int main(int argc, char **argv) {
         if (use_gpu) printf("\t%7ld", bench(gpu_w, UpdateWorld_GPU));
         printf("\n");
 
+        free(particles);
         if (use_cpu) DestroyWorld(cpu_w);
         if (use_gpu) DestroyWorld(gpu_w);
     }

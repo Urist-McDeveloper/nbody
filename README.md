@@ -59,12 +59,9 @@ Simulation controls:
 
 By changing some macros:
 
-* `WINDOW_WIDTH` and `WINDOW_HEIGHT` ([src/main.c](src/main.c#L13)) -- self explanatory;
-* `PARTICLE_COUNT` ([src/main.c](src/main.c#L9)) -- you guessed it, particle count;
-* `NB_G` ([include/nbody.h](include/nbody.h#L10)) -- gravitational constant;
-* `NB_N` ([include/nbody.h](include/nbody.h#L16)) -- repulsion constant;
-* `NB_F` ([include/nbody.h](include/nbody.h#L22)) -- velocity decay constant;
-* `MIN_R` and `MAX_R` ([src/main.c](src/lib/world.c#L178)) -- minimum and maximum radius of a Particle;
+* `WINDOW_WIDTH` and `WINDOW_HEIGHT` ([src/main.c](src/main.c#L11)) -- self explanatory;
+* `PARTICLE_COUNT` ([src/main.c](src/main.c#L14)) -- you guessed it, particle count;
+* The entirety of [src/cluster.h](src/cluster.h#L6)
 
 ## TODO list
 
@@ -72,7 +69,7 @@ By changing some macros:
 - [ ] Write Vulkan renderer so that particle data never has to leave GPU
 - [ ] Allow setting simulation parameters through command line arguments
 - [ ] Write tests that actually test something
-- [ ] Make several configurable initial particle generation algorithms
+- [ ] Refactor [src/cluster.c](src/cluster.c) because it's painful to look at
 
 Done:
 
