@@ -3,7 +3,6 @@
 
 #include <nbody.h>
 #include <stdint.h>
-#include <stdbool.h>
 
 /* Constant data given to shaders in a uniform buffer. */
 typedef struct WorldData {
@@ -16,19 +15,24 @@ typedef struct WorldData {
 typedef struct SimPipeline SimPipeline;
 
 /*
- * Setup simulation pipeline for SIZE particles.
- * RES is set to created SimPipeline.
- * MAPPED is set to a host-mapped buffer with latest particle data.
+ * Setup simulation pipeline.
+ * Only `dt` field of DATA can be changed later.
  */
-void CreateSimPipeline(SimPipeline **res, void **mapped, uint32_t size);
+SimPipeline *CreateSimPipeline(WorldData data);
 
-/* Destroy SIM. */
+/* Destroy simulation pipeline. */
 void DestroySimPipeline(SimPipeline *sim);
 
+/* Copy particle data from GPU buffer into PS. */
+void GetSimulationData(const SimPipeline *sim, Particle *ps);
+
+/* Copy particle data from PS into GPU buffer. */
+void SetSimulationData(SimPipeline *sim, const Particle *ps);
+
 /*
- * Perform N > 0 updates with specified time delta.
- * BUFFER_MODIFIED indicates whether particle data in host-mapped buffer was modified since last call.
+ * Perform N > 0 updates with time step.
+ * Simulation data MUST have been set prior to calling this function.
  */
-void PerformSimUpdate(SimPipeline *sim, uint32_t n, WorldData data, bool buffer_modified);
+void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt);
 
 #endif //NB_WORLD_VK_H

@@ -1,7 +1,8 @@
 #include "sim_gpu.h"
-
 #include "vulkan_ctx.h"
 #include "util.h"
+
+#include <stdbool.h>
 
 /* Compute shader work group size. */
 #define LOCAL_SIZE_X 256
@@ -15,6 +16,7 @@ struct SimPipeline {
     VulkanBuffer uniform;           // uniform buffer in device-local memory
     VulkanBuffer storage[2];        // uniform buffer in device-local memory; [0] for old data, [1] for new
     VulkanBuffer transfer_buf[2];   // host-accessible transfer buffers; [0] for uniform, [1] for storage
+    bool transfer_buf_synced;      // whether transfer_buf[1] has the same data as storage[1]
     // Descriptor
     VkDescriptorSetLayout ds_layout;
     VkDescriptorPool ds_pool;
@@ -27,12 +29,13 @@ struct SimPipeline {
     VkFence fence;
 };
 
-void CreateSimPipeline(SimPipeline **res, void **mapped, uint32_t size) {
+SimPipeline *CreateSimPipeline(WorldData data) {
     SimPipeline *sim = ALLOC(1, SimPipeline);
     ASSERT(sim != NULL, "Failed to alloc SimPipeline");
 
     InitGlobalVulkanContext();  // does nothing if global context was already initialized
-    sim->world_data = (WorldData){0};
+    sim->world_data = data;
+    sim->world_data.dt = 0;     // update uniform buffer when PerformSimUpdate is called
 
     /*
      * Shaders.
@@ -74,7 +77,7 @@ void CreateSimPipeline(SimPipeline **res, void **mapped, uint32_t size) {
      */
 
     const VkDeviceSize uniform_size = SIZE_OF_ALIGN_16(WorldData);
-    const VkDeviceSize storage_size = size * sizeof(Particle);
+    const VkDeviceSize storage_size = data.total_len * sizeof(Particle);
 
     sim->host_mem = CreateHostCoherentMemory(uniform_size + storage_size);
     sim->dev_mem = CreateDeviceLocalMemory(uniform_size + 2 * storage_size);
@@ -203,14 +206,12 @@ void CreateSimPipeline(SimPipeline **res, void **mapped, uint32_t size) {
      */
 
     AllocCommandBuffers(1, &sim->cmd);
-
     VkFenceCreateInfo fence_info = {
             .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
     };
     ASSERT_VK(vkCreateFence(vulkan_ctx.dev, &fence_info, NULL, &sim->fence), "Failed to create fence");
 
-    *res = sim;
-    *mapped = sim->transfer_buf[1].mapped;
+    return sim;
 }
 
 void DestroySimPipeline(SimPipeline *sim) {
@@ -239,7 +240,16 @@ void DestroySimPipeline(SimPipeline *sim) {
     }
 }
 
-void PerformSimUpdate(SimPipeline *sim, uint32_t n, WorldData data, bool buffer_modified) {
+void GetSimulationData(const SimPipeline *sim, Particle *ps) {
+    CopyFromVulkanBuffer(&sim->transfer_buf[1], ps);
+}
+
+void SetSimulationData(SimPipeline *sim, const Particle *ps) {
+    CopyIntoVulkanBuffer(&sim->transfer_buf[1], ps);
+    sim->transfer_buf_synced = false;
+}
+
+void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt) {
     ASSERT(n > 0, "Performing 0 GPU simulation updates is not allowed");
 
     // start recording command buffer
@@ -250,8 +260,8 @@ void PerformSimUpdate(SimPipeline *sim, uint32_t n, WorldData data, bool buffer_
     ASSERT_VK(vkBeginCommandBuffer(sim->cmd, &begin_info), "Failed to begin pipeline command buffer");
 
     // update uniform buffer if DATA has changed
-    if (sim->world_data.mass_len != data.mass_len || sim->world_data.dt != sim->world_data.dt) {
-        sim->world_data = data;
+    if (sim->world_data.dt != dt) {
+        sim->world_data.dt = dt;
 
         CopyIntoVulkanBuffer(&sim->transfer_buf[0], &sim->world_data);
         CopyVulkanBuffer(sim->cmd, &sim->transfer_buf[0], &sim->uniform);
@@ -267,12 +277,13 @@ void PerformSimUpdate(SimPipeline *sim, uint32_t n, WorldData data, bool buffer_
                              0, NULL);
     }
 
-    if (buffer_modified) {
-        // host-mapped data was modified externally
-        CopyVulkanBuffer(sim->cmd, &sim->transfer_buf[1], &sim->storage[0]);
-    } else {
-        // storage[1] has the latest data
+    // copy latest data into storage[0]
+    if (sim->transfer_buf_synced) {
+        // transfer_buf[1] is identical to storage[1]
         CopyVulkanBuffer(sim->cmd, &sim->storage[1], &sim->storage[0]);
+    } else {
+        // transfer_buf[1] was modified externally
+        CopyVulkanBuffer(sim->cmd, &sim->transfer_buf[1], &sim->storage[0]);
     }
 
     // wait for pipeline to finish before copying storage[1] into storage[0]
@@ -338,4 +349,7 @@ void PerformSimUpdate(SimPipeline *sim, uint32_t n, WorldData data, bool buffer_
     // reset fence and command buffer
     ASSERT_VK(vkResetFences(vulkan_ctx.dev, 1, &sim->fence), "Failed to reset fence");
     ASSERT_VK(vkResetCommandBuffer(sim->cmd, 0), "Failed to reset command buffer");
+
+    // storage[1] was copied to transfer_buf[1]
+    sim->transfer_buf_synced = true;
 }

@@ -9,10 +9,10 @@ typedef struct ParticlePack ParticlePack;
 
 /*
  * Allocate ParticlePack array that can fit COUNT particles.
- * RES is set to allocated array.
- * LEN is set to allocated array size.
+ * ARR is set to allocated array.
+ * LEN is set to array size.
  */
-void AllocPackArray(ParticlePack **res, uint32_t *len, uint32_t count);
+void AllocPackArray(ParticlePack **arr, uint32_t *len, uint32_t count);
 
 /* Pack COUNT particles into PACKS. */
 void PackParticles(uint32_t count, const Particle *ps, ParticlePack *packs);

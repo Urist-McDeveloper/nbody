@@ -51,9 +51,9 @@ static float RandomFloat(double max) {
 }
 
 int main(int argc, char **argv) {
-    srand(11037);
+    srand(11037);   // fixed seed for reproducible benchmarks
 
-    #pragma omp parallel for firstprivate(WS, WS_LEN, PARTICLES) default(none)
+    #pragma omp parallel for shared(WS, WS_LEN, PARTICLES) default(none)
     for (int i = 0; i < WS[WS_LEN - 1]; i++) {
         // half of particles are massless
         bool massless = rand() < (RAND_MAX / 2);

@@ -15,16 +15,16 @@ struct World {
     uint32_t total_len; // total number of particles
     uint32_t mass_len;  // number of particles with mass
     uint32_t pack_len;  // length of pack
-    bool gpu_sync;      // whether ARR and GPU buffer hold the same data
+    bool arr_sync;      // whether latest change in ARR is synced with GPU buffer
+    bool gpu_sync;      // whether latest change in GPU buffer is synced with ARR
 };
 
 World *CreateWorld(const Particle *ps, uint32_t size) {
     World *world = ALLOC(1, World);
     ASSERT(world != NULL, "Failed to alloc World");
 
-    SimPipeline *sim;
-    Particle *arr;
-    CreateSimPipeline(&sim, (void **)&arr, size);
+    Particle *arr = ALLOC(size, Particle);
+    ASSERT(arr != NULL, "Failed to alloc %u particles", size);
 
     // copy all particles from PS into arr
     memcpy(arr, ps, size * sizeof(Particle));
@@ -43,13 +43,21 @@ World *CreateWorld(const Particle *ps, uint32_t size) {
         arr[i] = arr[j];
         arr[j] = tmp;
     }
+    // j == index of the first particle without mass == number of particles with mass
+
+    WorldData world_data = {
+            .total_len = size,
+            .mass_len = j,
+    };
+    SimPipeline *sim = CreateSimPipeline(world_data);
 
     *world = (World){
         .arr = arr,
         .sim = sim,
         .total_len = size,
-        .mass_len = j,      // j == index of the first particle without mass == number of particles with mass
-        .gpu_sync = false,  // GPU buffers are uninitialized
+        .mass_len = j,
+        .arr_sync = false,  // ARR must be synced with GPU buffer
+        .gpu_sync = true,   // GPU buffer have no data to sync
     };
     AllocPackArray(&world->pack, &world->pack_len, world->mass_len);
 
@@ -64,12 +72,32 @@ void DestroyWorld(World *w) {
     }
 }
 
+/* Sync changes in ARR to GPU buffer, if necessary. */
+static void SyncFromArrToGPU(World *w) {
+    if (!w->arr_sync) {
+        SetSimulationData(w->sim, w->arr);
+        w->arr_sync = true;
+    }
+}
+
+/* Sync changes in GPU buffer to ARR, if necessary. */
+static void SyncToArrFromGPU(World *w) {
+    if (!w->gpu_sync) {
+        GetSimulationData(w->sim, w->arr);
+        w->gpu_sync = true;
+    }
+}
+
 const Particle *GetWorldParticles(World *w, uint32_t *size) {
-    *size = w->total_len;
+    SyncToArrFromGPU(w);
+    if (size != NULL) {
+        *size = w->total_len;
+    }
     return w->arr;
 }
 
 void UpdateWorld_CPU(World *w, float dt, uint32_t n) {
+    SyncToArrFromGPU(w);
     for (uint32_t update_iter = 0; update_iter < n; update_iter++) {
         PackParticles(w->mass_len, w->arr, w->pack);
 
@@ -78,18 +106,13 @@ void UpdateWorld_CPU(World *w, float dt, uint32_t n) {
             PackedUpdate(&w->arr[i], dt, w->pack_len, w->pack);
         }
     }
-    w->gpu_sync = false;
+    w->arr_sync = false;
 }
 
 void UpdateWorld_GPU(World *w, float dt, uint32_t n) {
-    ASSERT(w->sim != NULL, "Vulkan has not been initialized for World %p", w);
+    SyncFromArrToGPU(w);
     if (n > 0) {
-        WorldData data = (WorldData){
-            .total_len = w->total_len,
-            .mass_len = w->mass_len,
-            .dt = dt,
-        };
-        PerformSimUpdate(w->sim, n, data, !w->gpu_sync);
-        w->gpu_sync = true;
+        PerformSimUpdate(w->sim, n, dt);
+        w->gpu_sync = false;
     }
 }
