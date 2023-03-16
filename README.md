@@ -33,7 +33,7 @@ make
 
 Build options:
 
-* `USE_AVX` (default `ON`) -- indicates whether CPU simulation should use AVX or SSE.
+* `USE_AVX` (default `ON`) -- whether CPU simulation should use AVX or SSE.
 
 ### How to run
 
