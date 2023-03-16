@@ -1,8 +1,10 @@
 add_subdirectory(lib)
 
 # executable
+find_library(REQUIRED m)
+
 add_executable(nbody main.c)
-target_link_libraries(nbody PRIVATE nbody-lib raylib)
+target_link_libraries(nbody PRIVATE m nbody-lib raylib)
 target_compile_options(nbody PRIVATE ${nbody_compiler_flags})
 set_target_properties(nbody PROPERTIES C_EXTENSIONS off)
 

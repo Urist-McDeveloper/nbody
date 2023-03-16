@@ -37,6 +37,11 @@ static inline V2 AddV2(V2 a, V2 b) {
     return V2_FROM(a.x + b.x, a.y + b.y);
 }
 
+/* Vector subtraction. */
+static inline V2 SubV2(V2 a, V2 b) {
+    return V2_FROM(a.x - b.x, a.y - b.y);
+}
+
 /* Scalar multiplication. */
 static inline V2 ScaleV2(V2 v, float f) {
     return V2_FROM(v.x * f, v.y * f);
