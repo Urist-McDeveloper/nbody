@@ -1,8 +1,12 @@
 find_package(OpenMP)
 find_package(Vulkan REQUIRED)
+find_library(REQUIRED m)
 
-set(nbody_lib_headers ${CMAKE_SOURCE_DIR}/include/nbody.h)
+set(nbody_lib_headers
+        ${CMAKE_SOURCE_DIR}/include/nbody.h
+        ${CMAKE_SOURCE_DIR}/include/cluster.h)
 set(nbody_lib_sources
+        cluster.c
         fio.c
         sim_cpu.c
         sim_gpu.c
@@ -16,7 +20,7 @@ set_target_properties(nbody-lib PROPERTIES
 
 target_include_directories(nbody-lib PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_compile_options(nbody-lib PRIVATE ${nbody_compiler_flags})
-target_link_libraries(nbody-lib PUBLIC Vulkan::Vulkan)
+target_link_libraries(nbody-lib PUBLIC Vulkan::Vulkan m)
 
 if (USE_AVX)
     target_compile_definitions(nbody-lib PUBLIC USE_AVX)

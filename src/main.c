@@ -4,9 +4,8 @@
 #include <math.h>
 
 #include <nbody.h>
+#include <cluster.h>
 #include <raylib.h>
-
-#include "cluster.h"
 
 #define WINDOW_WIDTH    1280
 #define WINDOW_HEIGHT   720

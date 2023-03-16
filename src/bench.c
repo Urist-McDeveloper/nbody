@@ -5,7 +5,7 @@
 #include <time.h>
 
 #include <nbody.h>
-#include "cluster.h"
+#include <cluster.h>
 
 #define US_PER_S    (1000 * 1000)
 #define NS_PER_US   (1000)
