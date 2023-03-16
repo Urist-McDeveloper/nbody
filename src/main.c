@@ -4,7 +4,7 @@
 #include <math.h>
 
 #include <nbody.h>
-#include <cluster.h>
+#include <galaxy.h>
 #include <raylib.h>
 
 #define WINDOW_WIDTH    1280
@@ -18,8 +18,8 @@
 #define CAMERA_ZOOM_DELTA   0.1f    // how much zoom delta is 1 mouse wheel scroll
 
 static const Color BG_COLOR = {.r = 22, .g = 22, .b = 22, .a = 255};    // background color
-static const Color CC_COLOR = {.r = 222, .g = 222, .b = 222, .a = 255}; // cluster center color
-static const Color NP_COLOR = {.r = 175, .g = 195, .b = 175, .a = 255}; // normal particle color
+static const Color CC_COLOR = {.r = 222, .g = 222, .b = 222, .a = 255}; // galaxy core color
+static const Color NP_COLOR = {.r = 175, .g = 195, .b = 175, .a = 255}; // particle color
 static const Color EP_COLOR = {.r = 145, .g = 145, .b = 233, .a = 255}; // "empty" (massless) particle color
 
 static const float SPEEDS[] = {1, 2, 4, 8, 16, 32, 64, 128};        // number of updates per tick
@@ -41,7 +41,7 @@ static void DrawParticles(World *world, float min_radius);
 int main(void) {
     srand(time(NULL));
 
-    Particle *particles = MakeTwoClusters(PARTICLE_COUNT);
+    Particle *particles = MakeTwoGalaxies(PARTICLE_COUNT);
     World *world = CreateWorld(particles, PARTICLE_COUNT);
 
     Camera2D camera = CreateCamera(particles, PARTICLE_COUNT);
@@ -217,7 +217,7 @@ static Camera2D CreateCamera(const Particle *ps, uint32_t count) {
 static Color ColorForMass(float mass) {
     if (mass == 0) {
         return EP_COLOR;
-    } else if (mass < MIN_CS_MASS) {
+    } else if (mass < MIN_GS_MASS) {
         return NP_COLOR;
     } else {
         return CC_COLOR;

@@ -5,7 +5,7 @@
 #include <time.h>
 
 #include <nbody.h>
-#include <cluster.h>
+#include <galaxy.h>
 
 #define US_PER_S    (1000 * 1000)
 #define NS_PER_US   (1000)
@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
     World *cpu_w = NULL, *gpu_w = NULL;
     for (int i = 0; i < SIZES_LEN; i++) {
         int world_size = SIZES[i];
-        Particle *particles = MakeTwoClusters(world_size);
+        Particle *particles = MakeTwoGalaxies(world_size);
 
         if (use_cpu) cpu_w = CreateWorld(particles, world_size);
         if (use_gpu) gpu_w = CreateWorld(particles, world_size);

@@ -4,10 +4,10 @@ find_library(REQUIRED m)
 
 set(nbody_lib_headers
         ${CMAKE_SOURCE_DIR}/include/nbody.h
-        ${CMAKE_SOURCE_DIR}/include/cluster.h)
+        ${CMAKE_SOURCE_DIR}/include/galaxy.h)
 set(nbody_lib_sources
-        cluster.c
         fio.c
+        galaxy.c
         sim_cpu.c
         sim_gpu.c
         vulkan_ctx.c

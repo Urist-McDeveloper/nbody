@@ -61,7 +61,7 @@ By changing some macros:
 
 * `WINDOW_WIDTH` and `WINDOW_HEIGHT` ([src/main.c](src/main.c#L11)) -- self explanatory;
 * `PARTICLE_COUNT` ([src/main.c](src/main.c#L14)) -- you guessed it, particle count;
-* The entirety of [include/cluster.h](include/cluster.h#L6)
+* The entirety of [include/galaxy.h](include/galaxy.h#L6)
 
 ## TODO list
 
@@ -69,7 +69,7 @@ By changing some macros:
 - [ ] Write Vulkan renderer so that particle data never has to leave GPU
 - [ ] Allow setting simulation parameters through command line arguments
 - [ ] Write tests that actually test something
-- [ ] Maybe refactor [src/lib/cluster.c](src/lib/cluster.c) because it's a bit painful to look at
+- [ ] Maybe refactor [src/lib/galaxy.c](src/lib/galaxy.c) because it's a bit painful to look at
 
 Done:
 
