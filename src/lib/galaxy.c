@@ -30,8 +30,8 @@ static bool RandBool() {
 
 Particle *MakeGalaxies(uint32_t particles_count, uint32_t galaxies_count) {
     ASSERT(particles_count >= galaxies_count * MIN_PARTICLES_PER_GALAXY,
-           "Need at least %u particles to make two galaxies, called with %u",
-           galaxies_count * MIN_PARTICLES_PER_GALAXY, particles_count);
+           "Need at least %u particles to make %u galaxies, called with %u",
+           galaxies_count * MIN_PARTICLES_PER_GALAXY, galaxies_count, particles_count);
 
     Particle *particles = ALLOC(particles_count, Particle);
     ASSERT(particles != NULL, "Failed to alloc %u particles", particles_count);
