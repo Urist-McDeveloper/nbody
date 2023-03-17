@@ -18,7 +18,9 @@ void *FIO_ReadFile(const char *file, size_t *size) {
     char *buf = ALLOC(fs.st_size, char);
     ASSERT(buf != NULL, "Failed to alloc %lu bytes for reading %s", fs.st_size, file);
 
-    fread(buf, 1, fs.st_size, f);
+    size_t read = fread(buf, 1, fs.st_size, f);
+    (void)read; // no need to check if read == fs_st_size because ferror is checked anyway
+
     ASSERT(ferror(f) == 0, "Error while reading %s", file);
     ASSERT(fclose(f) == 0, "Failed to close %s", file);
 
