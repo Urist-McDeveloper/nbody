@@ -215,11 +215,9 @@ static VulkanDeviceMemory CreateDeviceMemory(VkDeviceSize size, VkMemoryProperty
     ASSERT_VK(vkAllocateMemory(vulkan_ctx.dev, &allocate_info, NULL, &memory),
               "Failed to allocate %zu bytes of device memory #%u", size, mem_type_idx);
 
-    void *mapped;
+    void *mapped = NULL;
     if (flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) {
         ASSERT_VK(vkMapMemory(vulkan_ctx.dev, memory, 0, VK_WHOLE_SIZE, 0, &mapped), "Failed to map device memory");
-    } else {
-        mapped = NULL;
     }
 
     return (VulkanDeviceMemory){
@@ -240,7 +238,7 @@ VulkanDeviceMemory CreateHostCoherentMemory(VkDeviceSize size) {
 
 VulkanBuffer CreateVulkanBuffer(VulkanDeviceMemory *memory, VkDeviceSize size, VkBufferUsageFlags usage) {
     ASSERT(memory->used + size <= memory->size,
-           "Buffer creation requested %zu bytes but only %zu are available (size = %zu, used = %zu)",
+           "Requested %zu bytes but only %zu are available (size = %zu, used = %zu)",
            size, memory->size - memory->used, memory->size, memory->used);
 
     VkBufferCreateInfo create_info = {
@@ -258,11 +256,9 @@ VulkanBuffer CreateVulkanBuffer(VulkanDeviceMemory *memory, VkDeviceSize size, V
     VkDeviceSize offset = memory->used;
     memory->used += size;
 
-    void *mapped;
+    void *mapped = NULL;
     if (memory->mapped != NULL) {
         mapped = ((char *)memory->mapped) + offset;
-    } else {
-        mapped = NULL;
     }
 
     ASSERT_VK(vkBindBufferMemory(vulkan_ctx.dev, buffer, memory->handle, offset), "Failed to bind VkBuffer");

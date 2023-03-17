@@ -16,7 +16,7 @@ struct SimPipeline {
     VulkanBuffer uniform;           // uniform buffer in device-local memory
     VulkanBuffer storage[2];        // uniform buffer in device-local memory; [0] for old data, [1] for new
     VulkanBuffer transfer_buf[2];   // host-accessible transfer buffers; [0] for uniform, [1] for storage
-    bool transfer_buf_synced;      // whether transfer_buf[1] has the same data as storage[1]
+    bool transfer_buf_synced;       // whether transfer_buf[1] holds the same data as storage[1]
     // Descriptor
     VkDescriptorSetLayout ds_layout;
     VkDescriptorPool ds_pool;
@@ -248,7 +248,7 @@ void SetSimulationData(SimPipeline *sim, const Particle *ps) {
 }
 
 void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt) {
-    ASSERT(n > 0, "Performing 0 GPU simulation updates is not allowed");
+    ASSERT_DBG(n > 0, "Performing 0 GPU simulation updates is not allowed");
 
     // start recording command buffer
     VkCommandBufferBeginInfo begin_info = {
@@ -257,7 +257,7 @@ void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt) {
     };
     ASSERT_VK(vkBeginCommandBuffer(sim->cmd, &begin_info), "Failed to begin pipeline command buffer");
 
-    // update uniform buffer if DATA has changed
+    // update uniform buffer if dt has changed
     if (sim->world_data.dt != dt) {
         sim->world_data.dt = dt;
 

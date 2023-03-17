@@ -5,7 +5,7 @@
 
 #include <immintrin.h>
 
-/* How much floats are packed together. */
+/* How many floats are packed together. */
 #define SIMD_SIZE       8
 
 /* Create simd_t from FIELD of 8 P members. */
@@ -14,6 +14,7 @@
 
 #define simd_t          __m256
 #define simd_set1       _mm256_set1_ps
+#define simd_setzero    _mm256_setzero_ps
 #define simd_add        _mm256_add_ps
 #define simd_sub        _mm256_sub_ps
 #define simd_nul        _mm256_mul_ps
@@ -26,7 +27,7 @@
 
 #include <xmmintrin.h>
 
-/* How much floats are packed together. */
+/* How many floats are packed together. */
 #define SIMD_SIZE   4
 
 /* Create simd_t from FIELD of 4 P members. */
@@ -34,6 +35,7 @@
 
 #define simd_t          __m128
 #define simd_set1       _mm_set1_ps
+#define simd_setzero    _mm_setzero_ps
 #define simd_add        _mm_add_ps
 #define simd_sub        _mm_sub_ps
 #define simd_nul        _mm_mul_ps
@@ -91,7 +93,7 @@ void PackParticles(uint32_t count, const Particle *ps, ParticlePack *packs) {
 }
 
 /* Horizontal sun of X. Should probably be done with SIMD instructions. */
-static float mmx_sum(simd_t x) {
+static float simd_sum(simd_t x) {
     float f[SIMD_SIZE], sum = 0;
     simd_storeu(f, x);
 
@@ -107,8 +109,8 @@ void PackedUpdate(Particle *p, float dt, uint32_t packs_len, ParticlePack *packs
     const simd_t y = simd_set1(p->pos.y);     // position y
     const simd_t r = simd_set1(p->radius);    // radius
 
-    simd_t ax = simd_set1(0.f);               // acceleration x
-    simd_t ay = simd_set1(0.f);               // acceleration y
+    simd_t ax = simd_setzero();               // acceleration x
+    simd_t ay = simd_setzero();               // acceleration y
 
     for (uint32_t i = 0; i < packs_len; i++) {
         ParticlePack pack = packs[i];
@@ -136,7 +138,7 @@ void PackedUpdate(Particle *p, float dt, uint32_t packs_len, ParticlePack *packs
         ay = simd_add(ay, simd_nul(dy, f));
     }
 
-    p->acc = V2_FROM(mmx_sum(ax), mmx_sum(ay));
+    p->acc = V2_FROM(simd_sum(ax), simd_sum(ay));
     p->vel = AddV2(p->vel, ScaleV2(p->acc, dt));
     p->pos = AddV2(p->pos, ScaleV2(p->vel, dt));
 }

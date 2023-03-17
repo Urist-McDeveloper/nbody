@@ -13,7 +13,7 @@ https://user-images.githubusercontent.com/112800528/225753149-73836b71-6744-4fcb
 ### Build prerequisites
 
 1. C compiler that supports:
-    * C11 standard (specifically `aligned_alloc` in stdlib and `_Static_assert` keyword);
+    * C11 standard;
     * AVX or SSE intrinsics;
     * (*optional*) OpenMP.
 2. Vulkan SDK, including `glslc` and validation layers. Only Vulkan 1.0 features are used.

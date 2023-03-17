@@ -11,7 +11,7 @@
 struct World {
     Particle *arr;      // array of particles
     SimPipeline *sim;   // simulation pipeline
-    ParticlePack *pack; // array of packed particle data (CPU)
+    ParticlePack *pack; // array of packed particle data
     uint32_t total_len; // total number of particles
     uint32_t mass_len;  // number of particles with mass
     uint32_t pack_len;  // length of pack
@@ -72,7 +72,7 @@ void DestroyWorld(World *w) {
     }
 }
 
-/* Sync changes in ARR to GPU buffer, if necessary. */
+/* Sync changes from ARR to GPU buffer, if necessary. */
 static void SyncFromArrToGPU(World *w) {
     if (!w->arr_sync) {
         SetSimulationData(w->sim, w->arr);
@@ -80,7 +80,7 @@ static void SyncFromArrToGPU(World *w) {
     }
 }
 
-/* Sync changes in GPU buffer to ARR, if necessary. */
+/* Sync changes from GPU buffer to ARR, if necessary. */
 static void SyncToArrFromGPU(World *w) {
     if (!w->gpu_sync) {
         GetSimulationData(w->sim, w->arr);
@@ -110,8 +110,8 @@ void UpdateWorld_CPU(World *w, float dt, uint32_t n) {
 }
 
 void UpdateWorld_GPU(World *w, float dt, uint32_t n) {
-    SyncFromArrToGPU(w);
     if (n > 0) {
+        SyncFromArrToGPU(w);
         PerformSimUpdate(w->sim, n, dt);
         w->gpu_sync = false;
     }

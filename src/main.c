@@ -215,9 +215,9 @@ static Camera2D CreateCamera(const Particle *ps, uint32_t count) {
 }
 
 static Color ColorForMass(float mass) {
-    if (mass == 0) {
+    if (mass <= 0) {
         return EP_COLOR;
-    } else if (mass < MIN_GS_MASS) {
+    } else if (mass < MIN_GC_MASS) {
         return NP_COLOR;
     } else {
         return CC_COLOR;
