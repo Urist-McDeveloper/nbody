@@ -21,7 +21,7 @@ else()
 endif()
 
 find_package(Vulkan COMPONENTS glslc)
-find_program(GLSLC NAMES glslc HINTS Vulkan::glslc)
+find_program(GLSLC NAMES glslc)
 
 set(GLSLC_ENV "vulkan1.0" CACHE STRING "glslc --target-env=")
 

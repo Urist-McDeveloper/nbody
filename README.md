@@ -19,6 +19,9 @@ https://user-images.githubusercontent.com/112800528/225753149-73836b71-6744-4fcb
 2. Vulkan SDK, including `glslc` and validation layers. Only Vulkan 1.0 features are used.
 3. CMake version 3.20 or later.
 
+If you don't have raylib installed on your system, it will be built with this project. For more information
+on building raylib please refer to https://github.com/raysan5/raylib/tree/4.2.0#build-and-installation.
+
 Target `nbody-bench` uses Linux-only monotonic clock and therefore is not available on other platforms.
 
 ### How to build
@@ -42,7 +45,8 @@ Build options:
 
 ### What if I only have C99 compiler?
 
-Then set `SIMD_SET` to `none` so CPU simulation will no longer require `aligned_alloc`.
+Set `SIMD_SET` to `none` so CPU simulation will no longer require `aligned_alloc`.
+If it still doesn't compile, feel free to send me the error log.
 
 ### How to run
 
