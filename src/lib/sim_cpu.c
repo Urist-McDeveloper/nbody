@@ -56,7 +56,7 @@
 
 #include <math.h>
 
-/* Allocate N bytes aligned at A. */
+/* Allocate N bytes. */
 #define ALIGNED_ALLOC(a, n) malloc(n)
 
 /* How many floats are packed together. */

@@ -28,24 +28,24 @@ static bool RandBool() {
     return rand() & 1;
 }
 
-Particle *MakeGalaxies(uint32_t particles_count, uint32_t galaxies_count) {
-    ASSERT(particles_count >= galaxies_count * MIN_PARTICLES_PER_GALAXY,
+Particle *MakeGalaxies(uint32_t particle_count, uint32_t galaxy_count) {
+    ASSERT(particle_count >= galaxy_count * MIN_PARTICLES_PER_GALAXY,
            "Need at least %u particles to make %u galaxies, called with %u",
-           galaxies_count * MIN_PARTICLES_PER_GALAXY, galaxies_count, particles_count);
+           galaxy_count * MIN_PARTICLES_PER_GALAXY, galaxy_count, particle_count);
 
-    Particle *particles = ALLOC(particles_count, Particle);
-    ASSERT(particles != NULL, "Failed to alloc %u particles", particles_count);
+    Particle *particles = ALLOC(particle_count, Particle);
+    ASSERT(particles != NULL, "Failed to alloc %u particles", particle_count);
 
-    GalaxyData *galaxies = ALLOC(galaxies_count, GalaxyData);
-    ASSERT(galaxies != NULL, "Failed to alloc %u galaxies", galaxies_count);
+    GalaxyData *galaxies = ALLOC(galaxy_count, GalaxyData);
+    ASSERT(galaxies != NULL, "Failed to alloc %u galaxies", galaxy_count);
 
     // how many particles can be randomly distributed between galaxies
-    uint32_t rand_range = particles_count - galaxies_count * MIN_PARTICLES_PER_GALAXY;
+    uint32_t rand_range = particle_count - galaxy_count * MIN_PARTICLES_PER_GALAXY;
 
     // setup galaxy size and particles
-    for (uint32_t i = 0; i < galaxies_count; i++) {
+    for (uint32_t i = 0; i < galaxy_count; i++) {
         uint32_t size;
-        if (i == galaxies_count - 1) {
+        if (i == galaxy_count - 1) {
             // the last galaxy gets all that's left
             size = rand_range;
         } else {
@@ -65,7 +65,7 @@ Particle *MakeGalaxies(uint32_t particles_count, uint32_t galaxies_count) {
     }
 
     // randomize core and calculate galaxy radius
-    for (uint32_t i = 0; i < galaxies_count; i++) {
+    for (uint32_t i = 0; i < galaxy_count; i++) {
         float core_radius = RandFloat(GC_MIN_R, GC_MAX_R);
         float size_root = sqrtf((float)galaxies[i].size);
 
@@ -79,7 +79,7 @@ Particle *MakeGalaxies(uint32_t particles_count, uint32_t galaxies_count) {
     }
 
     // randomize galaxy position; first galaxy is always stationary at (0, 0)
-    for (uint32_t i = 1; i < galaxies_count; i++) {
+    for (uint32_t i = 1; i < galaxy_count; i++) {
         GalaxyData galaxy = galaxies[i];
         bool collision = true;
 
@@ -118,7 +118,7 @@ Particle *MakeGalaxies(uint32_t particles_count, uint32_t galaxies_count) {
     }
 
     // give galaxies some velocity to avoid head-on collision
-    for (uint32_t i = 1; i < galaxies_count; i++) {
+    for (uint32_t i = 1; i < galaxy_count; i++) {
         Particle *a = galaxies[i].core;
 
         for (uint32_t j = 0; j < i; j++) {
@@ -142,7 +142,7 @@ Particle *MakeGalaxies(uint32_t particles_count, uint32_t galaxies_count) {
     }
 
     // create particles
-    for (uint32_t i = 0; i < galaxies_count; i++) {
+    for (uint32_t i = 0; i < galaxy_count; i++) {
         GalaxyData galaxy = galaxies[i];
         Particle core = *galaxy.core;
 

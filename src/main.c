@@ -25,12 +25,12 @@ static const Color EP_COLOR = {.r = 145, .g = 145, .b = 233, .a = 255}; // "empt
 static const float SPEEDS[] = {1, 2, 4, 8, 16, 32, 64, 128};        // number of updates per tick
 static const float STEPS[] = {0.1f, 0.25f, 0.5f, 1.f, 2.f, 4.f};    // fixed step multiplier
 
-static const uint32_t SPEEDS_LENGTH = sizeof(SPEEDS) / sizeof(SPEEDS[0]);
-static const uint32_t LAST_SPEED_IDX = SPEEDS_LENGTH - 1;
+#define SPEEDS_LENGTH   (sizeof(SPEEDS) / sizeof(SPEEDS[0]))
+#define LAST_SPEED_IDX  (SPEEDS_LENGTH - 1)
 
-static const uint32_t STEPS_LENGTH = sizeof(STEPS) / sizeof(STEPS[0]);
-static const uint32_t LAST_STEP_IDX = STEPS_LENGTH - 1;
-static const uint32_t DEF_STEP_IDX = 3;
+#define STEPS_LENGTH    (sizeof(STEPS) / sizeof(STEPS[0]))
+#define LAST_STEP_IDX   (STEPS_LENGTH - 1)
+#define DEF_STEP_IDX    3
 
 /* Create camera that will fit all particles on screen. */
 static Camera2D CreateCamera(const Particle *ps, uint32_t count);
@@ -66,19 +66,22 @@ int main(void) {
             overlay = !overlay;
         }
 
-        // move with WASD
-        float cam_target_delta = CAMERA_SPEED_DELTA / (camera.zoom * (float)GetFPS());
-        if (IsKeyDown(KEY_A)) {
-            camera.target.x -= cam_target_delta;
-        }
-        if (IsKeyDown(KEY_D)) {
-            camera.target.x += cam_target_delta;
-        }
-        if (IsKeyDown(KEY_W)) {
-            camera.target.y -= cam_target_delta;
-        }
-        if (IsKeyDown(KEY_S)) {
-            camera.target.y += cam_target_delta;
+        int fps = GetFPS();
+        if (fps > 0) {
+            // move with WASD
+            float cam_target_delta = CAMERA_SPEED_DELTA / (camera.zoom * (float)GetFPS());
+            if (IsKeyDown(KEY_A)) {
+                camera.target.x -= cam_target_delta;
+            }
+            if (IsKeyDown(KEY_D)) {
+                camera.target.x += cam_target_delta;
+            }
+            if (IsKeyDown(KEY_W)) {
+                camera.target.y -= cam_target_delta;
+            }
+            if (IsKeyDown(KEY_S)) {
+                camera.target.y += cam_target_delta;
+            }
         }
 
         // zoom with mouse wheel
