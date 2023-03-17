@@ -8,7 +8,7 @@ project(nbody C)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
-option(USE_AVX "Use AVX for CPU simulation" ON)
+set(SIMD_SET "AVX" CACHE STRING "Which SIMD instruction set to use: AVX, SSE or none")
 
 ##
 ##  "Global" variables and functions

@@ -1,9 +1,14 @@
 #include "sim_cpu.h"
 #include "util.h"
 
+#include <stdlib.h>
+
 #ifdef USE_AVX
 
 #include <immintrin.h>
+
+/* Allocate N bytes aligned at A. */
+#define ALIGNED_ALLOC(a, n) aligned_alloc(a, n)
 
 /* How many floats are packed together. */
 #define SIMD_SIZE       8
@@ -17,15 +22,18 @@
 #define simd_setzero    _mm256_setzero_ps
 #define simd_add        _mm256_add_ps
 #define simd_sub        _mm256_sub_ps
-#define simd_nul        _mm256_mul_ps
+#define simd_mul        _mm256_mul_ps
 #define simd_div        _mm256_div_ps
 #define simd_max        _mm256_max_ps
 #define simd_sqrt       _mm256_sqrt_ps
 #define simd_storeu     _mm256_storeu_ps
 
-#else
+#elif USE_SSE
 
 #include <xmmintrin.h>
+
+/* Allocate N bytes aligned at A. */
+#define ALIGNED_ALLOC(a, n) aligned_alloc(a, n)
 
 /* How many floats are packed together. */
 #define SIMD_SIZE   4
@@ -38,11 +46,35 @@
 #define simd_setzero    _mm_setzero_ps
 #define simd_add        _mm_add_ps
 #define simd_sub        _mm_sub_ps
-#define simd_nul        _mm_mul_ps
+#define simd_mul        _mm_mul_ps
 #define simd_div        _mm_div_ps
 #define simd_max        _mm_max_ps
 #define simd_sqrt       _mm_sqrt_ps
 #define simd_storeu     _mm_storeu_ps
+
+#else
+
+#include <math.h>
+
+/* Allocate N bytes aligned at A. */
+#define ALIGNED_ALLOC(a, n) malloc(n)
+
+/* How many floats are packed together. */
+#define SIMD_SIZE   1
+
+/* Create simd_t from FIELD of P. */
+#define SIMD_SET_ARR(P, FIELD)  (P)->FIELD
+
+#define simd_t              float
+#define simd_set1(x)        (x)
+#define simd_setzero()      0.f
+#define simd_add(a, b)      ((a) + (b))
+#define simd_sub(a, b)      ((a) - (b))
+#define simd_mul(a, b)      ((a) * (b))
+#define simd_div(a, b)      ((a) / (b))
+#define simd_max(a, b)      fmaxf(a, b)
+#define simd_sqrt(a)        sqrtf(a)
+#define simd_storeu(a, x)   ((a)[0] = (x))
 
 #endif
 
@@ -67,7 +99,7 @@ void AllocPackArray(ParticlePack **arr, uint32_t *len, uint32_t count) {
         *arr = NULL;
     } else {
         *len = count / SIMD_SIZE + (count % SIMD_SIZE == 0 ? 0 : 1);
-        *arr = aligned_alloc(4 * SIMD_SIZE, *len * sizeof(ParticlePack));
+        *arr = ALIGNED_ALLOC(4 * SIMD_SIZE, *len * sizeof(ParticlePack));
         ASSERT(*arr != NULL, "Failed to alloc %u ParticlePacks", *len);
     }
 }
@@ -120,22 +152,22 @@ void PackedUpdate(Particle *p, float dt, uint32_t packs_len, ParticlePack *packs
         simd_t dy = simd_sub(pack.y, y);
 
         // distance squared
-        simd_t dist_sq = simd_add(simd_nul(dx, dx),
-                                  simd_nul(dy, dy));
+        simd_t dist_sq = simd_add(simd_mul(dx, dx),
+                                  simd_mul(dy, dy));
 
         simd_t r2 = simd_add(dist_sq, r); // distance^2, softened
         simd_t r1 = simd_sqrt(r2);        // distance^1, softened
 
-        simd_t gm = simd_nul(pack.m, g);  // gravity times mass
-        simd_t r3 = simd_nul(r1, r2);     // distance^3
+        simd_t gm = simd_mul(pack.m, g);  // gravity times mass
+        simd_t r3 = simd_mul(r1, r2);     // distance^3
 
         // acceleration == normalize(radv) * (Gm / dist^2)
         //              == (radv / dist) * (Gm / dist^2)
         //              == radv * (Gm / dist^3)
         simd_t f = simd_div(gm, r3);
 
-        ax = simd_add(ax, simd_nul(dx, f));
-        ay = simd_add(ay, simd_nul(dy, f));
+        ax = simd_add(ax, simd_mul(dx, f));
+        ay = simd_add(ay, simd_mul(dy, f));
     }
 
     p->acc = V2_FROM(simd_sum(ax), simd_sum(ay));

@@ -13,7 +13,7 @@ https://user-images.githubusercontent.com/112800528/225753149-73836b71-6744-4fcb
 ### Build prerequisites
 
 1. C compiler that supports:
-    * C11 standard;
+    * C11 standard, specifically `aligned_alloc` in stdlib;
     * AVX or SSE intrinsics;
     * (*optional*) OpenMP.
 2. Vulkan SDK, including `glslc` and validation layers. Only Vulkan 1.0 features are used.
@@ -23,7 +23,12 @@ Target `nbody-bench` uses Linux-only monotonic clock and therefore is not availa
 
 ### How to build
 
-Like any other CMake project. Example on Linux:
+```shell
+git clone --recurse-submodules https://github.com/Urist-McDeveloper/nbody.git
+cd nbody
+```
+
+Then build like any other CMake project. Example on Linux:
 
 ```shell
 mkdir build && cd build
@@ -33,7 +38,11 @@ make
 
 Build options:
 
-* `USE_AVX` (default `ON`) -- whether CPU simulation should use AVX or SSE.
+* `SIMD_SET` (default `AVX`) -- which SIMD instruction set to use; possible values: `AVX`, `SSE` or `none`.
+
+### What if I only have C99 compiler?
+
+Then set `SIMD_SET` to `none` so CPU simulation will no longer require `aligned_alloc`.
 
 ### How to run
 
@@ -65,9 +74,9 @@ Simulation controls:
 
 By changing some macros:
 
-* `WINDOW_WIDTH` and `WINDOW_HEIGHT` ([src/main.c](src/main.c#L11)) -- self explanatory;
-* `PARTICLE_COUNT` ([src/main.c](src/main.c#L14)) -- you guessed it, particle count;
-* The entirety of [include/galaxy.h](include/galaxy.h#L6)
+* `WINDOW_WIDTH` and `WINDOW_HEIGHT` ([src/main.c](src/main.c#L10)) -- self explanatory;
+* `PARTICLE_COUNT` ([src/main.c](src/main.c#L13)) -- you guessed it, particle count;
+* The entirety of [include/galaxy.h](include/galaxy.h)
 
 ## TODO list
 

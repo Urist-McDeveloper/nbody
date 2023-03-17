@@ -49,8 +49,10 @@ typedef struct Particle {
     float mass, radius;
 } Particle;
 
+#if __STDC_VERSION__ >= 201112L
 // Vulkan requires structs to be aligned to 16 bytes
 _Static_assert(sizeof(Particle) % 16 == 0, "sizeof(Particle) must be a multiple of 16");
+#endif
 
 /* The simulated world with fixed particle count. */
 typedef struct World World;
