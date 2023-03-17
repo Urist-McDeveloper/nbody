@@ -75,13 +75,11 @@ By changing some macros:
 - [ ] Write Vulkan renderer so that particle data never has to leave GPU
 - [ ] Allow setting simulation parameters through command line arguments
 - [ ] Write tests that actually test something
-- [ ] Maybe refactor [src/lib/galaxy.c](src/lib/galaxy.c) because it's a bit painful to look at
 
 Done:
 
 - [x] Make GPU simulation respect simulation step change
 - [x] Use specialization constants to make sure CPU and GPU simulations always have the same parameters
-- [x] Add pushing force which is stronger than gravity at short distances
 - [x] Make GPU buffers device-local for performance improvements
 - [x] Allow performing multiple updates in a single UpdateWorld_GPU call by chaining pipeline dispatches
 - [x] Use AVX for CPU simulation

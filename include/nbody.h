@@ -2,6 +2,7 @@
 #define NB_H
 
 #include <stdint.h>
+#include <math.h>
 
 /* Gravitational constant; `g = NB_G * mass / dist^2`. */
 #define NB_G    10.0f
@@ -30,6 +31,16 @@ static inline V2 SubV2(V2 a, V2 b) {
 /* Scalar multiplication. */
 static inline V2 ScaleV2(V2 v, float f) {
     return V2_FROM(v.x * f, v.y * f);
+}
+
+/* Vector magnitude. */
+static inline float MagV2(V2 v) {
+    return hypotf(v.x, v.y);
+}
+
+/* Vector magnitude squared. */
+static inline float SqMagV2(V2 v) {
+    return v.x * v.x + v.y * v.y;
 }
 
 /* Simulation particle. */

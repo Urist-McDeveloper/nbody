@@ -41,7 +41,7 @@ static void DrawParticles(World *world, float min_radius);
 int main(void) {
     srand(time(NULL));
 
-    Particle *particles = MakeTwoGalaxies(PARTICLE_COUNT);
+    Particle *particles = MakeGalaxies(PARTICLE_COUNT, 3);
     World *world = CreateWorld(particles, PARTICLE_COUNT);
 
     Camera2D camera = CreateCamera(particles, PARTICLE_COUNT);
@@ -51,6 +51,7 @@ int main(void) {
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "N-Body Simulation");
 
     bool pause = false;
+    bool overlay = true;
     bool use_gpu = PARTICLE_COUNT > 500;
 
     uint32_t speed_idx = 0;
@@ -61,6 +62,9 @@ int main(void) {
 
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_Q)) break;
+        if (IsKeyPressed(KEY_LEFT_ALT)) {
+            overlay = !overlay;
+        }
 
         // move with WASD
         float cam_target_delta = CAMERA_SPEED_DELTA / (camera.zoom * (float)GetFPS());
@@ -166,16 +170,19 @@ int main(void) {
             }
             EndMode2D();
 
-            if (pause) {
-                DrawText(use_gpu ? "GPU simulation (paused)" : "CPU simulation (paused)", 10, 10, 20, GREEN);
-            } else {
-                DrawText(use_gpu ? "GPU simulation" : "CPU simulation", 10, 10, 20, GREEN);
-            }
-            DrawText(TextFormat("step x%.2f  speed x%d", STEPS[step_idx], (int)SPEEDS[speed_idx]), 10, 30, 20, GREEN);
-            DrawFPS(10, 50);
+            if (overlay) {
+                if (pause) {
+                    DrawText(use_gpu ? "GPU simulation (paused)" : "CPU simulation (paused)", 10, 10, 20, GREEN);
+                } else {
+                    DrawText(use_gpu ? "GPU simulation" : "CPU simulation", 10, 10, 20, GREEN);
+                }
+                DrawText(TextFormat("step x%.2f  speed x%d", STEPS[step_idx], (int)SPEEDS[speed_idx]), 10, 30, 20,
+                         GREEN);
+                DrawFPS(10, 50);
 
-            if (skipped_phys_frames > MAX_OVERWORK) {
-                DrawText("SKIPPING FRAMES", 10, 70, 20, RED);
+                if (skipped_phys_frames > MAX_OVERWORK) {
+                    DrawText("SKIPPING FRAMES", 10, 70, 20, RED);
+                }
             }
         }
         EndDrawing();

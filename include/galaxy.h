@@ -3,6 +3,10 @@
 
 #include "nbody.h"
 
+#ifndef PI
+#define PI      3.1415927f  // homegrown constants are the best
+#endif
+
 #define MIN_SPIRALS 2       // minimum number of spirals in a galaxy
 #define MAX_SPIRALS 4       // maximum number of spirals in a galaxy
 
@@ -12,10 +16,6 @@
 #define NP_MIN_R    1.5f    // minimum radius of particles
 #define NP_MAX_R    9.5f    // maximum radius of particles
 #define NP_DENSITY  10.f    // density of particles
-
-#ifndef PI
-#define PI      3.1415927f  // homegrown constants are the best
-#endif
 
 /* Convert radius to mass (R is evaluated 3 times). */
 #define R_TO_M(R, DENSITY)  ((4.f * PI * DENSITY / 3.f) * (R) * (R) * (R))
@@ -27,9 +27,40 @@
 #define MIN_PARTICLES_PER_GALAXY    100         // minimum number of particles per galaxy
 
 /*
- * Create COUNT particles in two galaxies.
- * COUNT must be greater than `2 * MIN_PARTICLES_PER_GALAXY`.
+ *  A galaxy has a minimum and maximum distance from its core at which the particles can be generated:
+ *      min_dist is absolute, no particle can violate it;
+ *      max_dist dictates how far away a particle can be generated before its position is further randomized.
+ *
+ *  Let N be the number of particles and R be the core's radius. Then:
+ *      min_dist = R * MIN_PARTICLE_DIST_CR_F;
+ *      max_dist = R * MAX_PARTICLE_DIST_CR_F + sqrt(N) * MAX_PARTICLE_DIST_PC_F;
+ *
+ *  In other words:
+ *      MIN_PARTICLE_DIST_CR_F affects the minimum distance between a particle and the core;
+ *      MAX_PARTICLE_DIST_CR_F affects the baseline "radius" of a galaxy;
+ *      MAX_PARTICLE_DIST_PC_F affects how much particles "push" a galaxy's radius outwards;
  */
-Particle *MakeTwoGalaxies(uint32_t count);
+#define MIN_PARTICLE_DIST_CR_F  5.f
+#define MAX_PARTICLE_DIST_CR_F  10.f
+#define MAX_PARTICLE_DIST_PC_F  300.f
+
+/*
+ *  The algorithm that assigns position to galaxies:
+ *      for galaxy N=1: position is (0, 0);
+ *      for galaxy N>1:
+ *          1.  pick a random "parent" galaxy from range [0, N);
+ *          2.  pick a random R within MIN_SEP and MAX_SEP;
+ *          3.  pick a random point P which is R units away from parent's core;
+ *          4.  if no other galaxies intersect that point, then N's position is P;
+ *          5.  else start from step 1;
+ *      where
+ *          MIN_SEP = MIN_GALAXY_SEPARATION * (N.max_dist + parent.max_dist);
+ *          MAX_SEP = MAX_GALAXY_SEPARATION * (N.max_dist + parent.max_dist);
+ */
+#define MIN_GALAXY_SEPARATION   1.4f
+#define MAX_GALAXY_SEPARATION   2.0f
+
+/* `particle_count` must not be less than `MIN_PARTICLES_PER_GALAXY * galaxy_count`. */
+Particle *MakeGalaxies(uint32_t particle_count, uint32_t galaxy_count);
 
 #endif //NB_GALAXY_H

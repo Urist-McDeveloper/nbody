@@ -50,7 +50,7 @@ int main(int argc, char **argv) {
     World *cpu_w = NULL, *gpu_w = NULL;
     for (int i = 0; i < SIZES_LEN; i++) {
         int world_size = SIZES[i];
-        Particle *particles = MakeTwoGalaxies(world_size);
+        Particle *particles = MakeGalaxies(world_size, 2);
 
         if (use_cpu) cpu_w = CreateWorld(particles, world_size);
         if (use_gpu) gpu_w = CreateWorld(particles, world_size);
