@@ -39,7 +39,7 @@ static Camera2D CreateCamera(const Particle *ps, uint32_t count);
 static void DrawParticles(World *world, float min_radius);
 
 int main(void) {
-    srand(time(NULL));
+    srand((unsigned int)time(NULL));
 
     Particle *particles = MakeGalaxies(PARTICLE_COUNT, 3);
     World *world = CreateWorld(particles, PARTICLE_COUNT);

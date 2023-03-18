@@ -12,9 +12,9 @@ set(SIMD_SET "AVX" CACHE STRING "Which SIMD instruction set to use: AVX, SSE or 
 ##
 
 if (MSVC)
-    set(nbody_compiler_flags /W4 /WX)
+    set(nbody_compiler_flags /W4)
 else()
-    set(nbody_compiler_flags -Wall -Wextra -Werror)
+    set(nbody_compiler_flags -Wall -Wextra)
 endif()
 
 find_package(Vulkan COMPONENTS glslc)

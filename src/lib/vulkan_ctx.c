@@ -11,7 +11,7 @@
 struct VulkanContext vulkan_ctx = {0};
 
 #ifndef NDEBUG
-static const char *const DBG_LAYERS[] = {"VK_LAYER_KHRONOS_validation"};
+static const char *DBG_LAYERS[] = {"VK_LAYER_KHRONOS_validation"};
 static const int DBG_LAYERS_COUNT = sizeof(DBG_LAYERS) / sizeof(DBG_LAYERS[0]);
 
 static void AssertDebugLayersSupported() {
@@ -57,6 +57,12 @@ static void InitInstance(VkInstance *instance) {
             .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             .pApplicationInfo = &app_info,
     };
+#ifdef __APPLE__
+    const char *port_ext = "VK_KHR_portability_enumeration";
+    instance_create_info.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
+    instance_create_info.enabledExtensionCount = 1,
+    instance_create_info.ppEnabledExtensionNames = &port_ext,
+#endif
 #ifndef NDEBUG
     AssertDebugLayersSupported();
     instance_create_info.enabledLayerCount = 1;
@@ -81,6 +87,40 @@ static void InitPDev(VkPhysicalDevice *pdev, VkInstance instance) {
     VkPhysicalDeviceProperties props;
     vkGetPhysicalDeviceProperties(*pdev, &props);
     printf("Using VkPhysicalDevice #%u of type %u -- %s\n", props.deviceID, props.deviceType, props.deviceName);
+}
+
+/*
+ * Check COUNT elements of EXTENSIONS and sort them so supported extensions come first.
+ * Returns number of supported extensions.
+ */
+static uint32_t SortDeviceExtensionsBySupported(const char **extensions, uint32_t count, VkPhysicalDevice pdev) {
+    uint32_t total_count;
+    ASSERT_VK(vkEnumerateDeviceExtensionProperties(pdev, NULL, &total_count, NULL),
+              "Failed to enumerate device extension properties");
+
+    // early return to avoid allocating 0 bytes
+    if (total_count == 0) return 0;
+
+    VkExtensionProperties *properties = ALLOC(total_count, VkExtensionProperties);
+    ASSERT(properties != NULL, "Failed to alloc %u VkExtensionProperties", total_count);
+    ASSERT_VK(vkEnumerateDeviceExtensionProperties(pdev, NULL, &total_count, properties),
+              "Failed to enumerate device extension properties");
+
+    uint32_t supported_count = 0;
+    for (uint32_t i = 0; i < total_count; i++) {
+        for (uint32_t j = 0; j < count; j++) {
+            if (strncmp(properties[i].extensionName, extensions[j], VK_MAX_EXTENSION_NAME_SIZE) == 0) {
+                if (supported_count != i) {
+                    VkExtensionProperties tmp = properties[i];
+                    properties[i] = properties[supported_count];
+                    properties[supported_count] = tmp;
+                }
+                supported_count++;
+                break;
+            }
+        }
+    }
+    return supported_count;
 }
 
 static void InitDev(VkDevice *dev, uint32_t *queue_family_idx, VkPhysicalDevice pdev) {
@@ -129,6 +169,13 @@ static void InitDev(VkDevice *dev, uint32_t *queue_family_idx, VkPhysicalDevice 
             .queueCreateInfoCount = 1,
             .pQueueCreateInfos = &queue_create_info,
     };
+
+    // per Vulkan spec, VK_KHR_portability_subset must be enabled if supported
+    const char *portability_extension = "VK_KHR_portability_subset";
+    if (1 == SortDeviceExtensionsBySupported(&portability_extension, 1, pdev)) {
+        device_create_info.enabledExtensionCount = 1;
+        device_create_info.ppEnabledExtensionNames = &portability_extension;
+    }
 #ifndef NDEBUG
     AssertDebugLayersSupported();
     device_create_info.enabledLayerCount = 1;
@@ -213,7 +260,7 @@ static VulkanDeviceMemory CreateDeviceMemory(VkDeviceSize size, VkMemoryProperty
     };
     VkDeviceMemory memory;
     ASSERT_VK(vkAllocateMemory(vulkan_ctx.dev, &allocate_info, NULL, &memory),
-              "Failed to allocate %zu bytes of device memory #%u", size, mem_type_idx);
+              "Failed to allocate %llu bytes of device memory #%u", (unsigned long long)size, mem_type_idx);
 
     void *mapped = NULL;
     if (flags & VK_MEMORY_PROPERTY_HOST_COHERENT_BIT) {
@@ -238,8 +285,11 @@ VulkanDeviceMemory CreateHostCoherentMemory(VkDeviceSize size) {
 
 VulkanBuffer CreateVulkanBuffer(VulkanDeviceMemory *memory, VkDeviceSize size, VkBufferUsageFlags usage) {
     ASSERT(memory->used + size <= memory->size,
-           "Requested %zu bytes but only %zu are available (size = %zu, used = %zu)",
-           size, memory->size - memory->used, memory->size, memory->used);
+           "Requested %llu bytes but only %llu are available (size = %llu, used = %llu)",
+           (unsigned long long)size,
+           (unsigned long long)(memory->size - memory->used),
+           (unsigned long long)memory->size,
+           (unsigned long long)memory->used);
 
     VkBufferCreateInfo create_info = {
             .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -270,7 +320,8 @@ VulkanBuffer CreateVulkanBuffer(VulkanDeviceMemory *memory, VkDeviceSize size, V
 }
 
 void CopyVulkanBuffer(VkCommandBuffer cmd, const VulkanBuffer *src, const VulkanBuffer *dst) {
-    ASSERT_DBG(src->size == dst->size, "src size (%zu) != dst size (%zu)", src->size, dst->size);
+    ASSERT_DBG(src->size == dst->size, "src size (%llu) != dst size (%llu)",
+               (unsigned long long)src->size, (unsigned long long)dst->size);
     VkBufferCopy buffer_copy = {
             .srcOffset = 0,
             .dstOffset = 0,
