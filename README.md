@@ -35,6 +35,8 @@ on building raylib please refer to https://github.com/raysan5/raylib/tree/4.2.0#
    * TCC 0.9:
       * raylib is provided externally;
       * `SIMD_SET` is `none`.
+* Windows:
+   * MinGW-w64 10.
 
 #### Misc.
 
