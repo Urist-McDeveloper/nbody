@@ -12,22 +12,29 @@ https://user-images.githubusercontent.com/112800528/225753149-73836b71-6744-4fcb
 
 ### Build prerequisites
 
-1. C compiler that supports:
-    * C11 standard, specifically `aligned_alloc` in stdlib;
-    * AVX or SSE intrinsics;
-    * (*optional*) OpenMP.
+1. C compiler:
+   * C99 standard;
+   * unless SIMD is disabled through build options:
+      * AVX or SSE intrinsics (`immintrin.h` and `xmmintrin.h` respectively);
+      * `stdlib.h` must define one of:
+         * `aligned_alloc` (C11 standard);
+         * `_aligned_malloc` (Windows);
+         * `posix_memalign` (POSIX)
+   * (*optional*) OpenMP.
 2. Vulkan SDK, including `glslc` and validation layers. Only Vulkan 1.0 features are used.
 3. CMake version 3.20 or later.
 
 If you don't have raylib installed on your system, it will be built with this project. For more information
 on building raylib please refer to https://github.com/raysan5/raylib/tree/4.2.0#build-and-installation.
 
-#### I only have C99 compiler
+#### Build is tested on
 
-1. Disable SIMD through build option (see below).
-2. Provide raylib externally.
-
-Tested on Tiny C Compiler.
+* Linux:
+   * GCC 12.1;
+   * Clang 15;
+   * TCC 0.9:
+      * raylib is provided externally;
+      * `SIMD_SET` is `none`.
 
 #### Misc.
 

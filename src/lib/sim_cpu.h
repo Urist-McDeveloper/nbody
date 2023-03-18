@@ -14,6 +14,9 @@ typedef struct ParticlePack ParticlePack;
  */
 void AllocPackArray(ParticlePack **arr, uint32_t *len, uint32_t count);
 
+/* Free previously allocated ParticlePack array. */
+void FreePackArray(ParticlePack *pack);
+
 /* Pack COUNT particles into PACKS. */
 void PackParticles(uint32_t count, const Particle *ps, ParticlePack *packs);
 

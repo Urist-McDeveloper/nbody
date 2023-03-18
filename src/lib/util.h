@@ -1,32 +1,39 @@
 #ifndef NB_UTIL_H
 #define NB_UTIL_H
 
-#include <stdlib.h>     // malloc, realloc, abort
-#include <stdio.h>      // fprintf, stderr
-#include <errno.h>      // errno
-#include <string.h>     // strerror
+#include <stdlib.h>                     // malloc, abort
+#include <stdio.h>                      // fprintf, stderr
+#include <errno.h>                      // errno
+#include <string.h>                     // strerror_r, strerror_s
+
+#ifdef _WIN32
+#   define strerror_r(num, buf, len)    strerror_s(buf, len, num)
+#endif
 
 /* Allocate `N * sizeof(T)` bytes. */
 #define ALLOC(N, T)             (T*)malloc((N) * sizeof(T))
 
 /* Print error message and abort if COND is false. */
-#define ASSERT(COND, ...)                                                   \
-    do {                                                                    \
-        if (!(COND)) {                                                      \
-            fprintf(stderr, "%s:%d [%s] errno = %d, str = %s\n",            \
-                    __FILE__, __LINE__, __func__, errno, strerror(errno));  \
-            fprintf(stderr, "%s:%d [%s] ", __FILE__, __LINE__, __func__);   \
-            fprintf(stderr, __VA_ARGS__);                                   \
-            fprintf(stderr, "\n");                                          \
-            abort();                                                        \
-        }                                                                   \
+#define ASSERT(COND, ...)                                                       \
+    do {                                                                        \
+        if (!(COND)) {                                                          \
+            char util_strerror_buf[255] = {0};                                  \
+            (void)strerror_r(errno, util_strerror_buf, 255);                    \
+            fprintf(stderr, "%s:%d [%s] errno = %d, str = %s\n",                \
+                    __FILE__, __LINE__, __func__, errno, util_strerror_buf);    \
+            fprintf(stderr, "%s:%d [%s] ", __FILE__, __LINE__, __func__);       \
+            fprintf(stderr, __VA_ARGS__);                                       \
+            fprintf(stderr, "\n");                                              \
+            abort();                                                            \
+        }                                                                       \
     } while (0)
 
 #ifndef NDEBUG
 #   define ASSERT_DBG(COND, ...)   ASSERT(COND, __VA_ARGS__)
 #else
 #   define ASSERT_DBG(COND, ...)   (void)(COND)
-#endif //NDEBUG
+#endif
+
 #endif //NB_UTIL_H
 
 #ifdef VULKAN_H_

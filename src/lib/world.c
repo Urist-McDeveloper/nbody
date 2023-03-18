@@ -67,6 +67,7 @@ World *CreateWorld(const Particle *ps, uint32_t size) {
 void DestroyWorld(World *w) {
     if (w != NULL) {
         DestroySimPipeline(w->sim);
+        FreePackArray(w->pack);
         free(w->pack);
         free(w);
     }

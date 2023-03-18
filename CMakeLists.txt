@@ -5,9 +5,6 @@ project(nbody C)
 ##  General configuration
 ##
 
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_C_STANDARD_REQUIRED ON)
-
 set(SIMD_SET "AVX" CACHE STRING "Which SIMD instruction set to use: AVX, SSE or none")
 
 ##

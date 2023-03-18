@@ -15,7 +15,6 @@ set(nbody_lib_sources
 
 add_library(nbody-lib STATIC ${nbody_lib_sources} ${nbody_lib_headers})
 set_target_properties(nbody-lib PROPERTIES
-        C_EXTENSIONS off
         OUTPUT_NAME nbody)
 
 target_include_directories(nbody-lib PUBLIC ${CMAKE_SOURCE_DIR}/include)

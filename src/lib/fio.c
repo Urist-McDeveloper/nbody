@@ -5,7 +5,8 @@
 #include <sys/stat.h>
 
 #ifdef _WIN32
-#define stat _stat
+#   define stat _stat
+#   define _CRT_SECURE_NO_DEPRECATE
 #endif
 
 void *FIO_ReadFile(const char *file, size_t *size) {
