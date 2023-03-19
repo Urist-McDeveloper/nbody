@@ -13,6 +13,9 @@
 /* Allocate `N * sizeof(T)` bytes. */
 #define ALLOC(N, T)             (T*)malloc((N) * sizeof(T))
 
+/* Reallocate P with `N * sizeof(T)` bytes. */
+#define REALLOC(P, N, T)        (T*)realloc(P, (N) * sizeof(T))
+
 /* Print error message and abort if COND is false. */
 #define ASSERT(COND, ...)                                                       \
     do {                                                                        \
@@ -98,7 +101,7 @@ static inline const char *util_vkr_to_str(VkResult x) {
         case VK_ERROR_UNKNOWN:
             return "VK_ERROR_UNKNOWN";
         default:
-            return "Unknown VkResult";
+            return "<unknown>";
     }
 }
 

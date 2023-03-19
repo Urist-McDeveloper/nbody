@@ -86,7 +86,7 @@ extern struct VulkanContext {
     VkQueue queue;
     VkCommandPool cmd_pool;
     uint32_t queue_family_idx;
-} vulkan_ctx;
+} vk_ctx;
 
 /* Initialize global Vulkan context the first time this function is called; subsequent calls are ignored. */
 void InitGlobalVulkanContext(bool need_gfx_queue, const char **instance_ext, uint32_t ext_count);

@@ -7,6 +7,7 @@
 #include <nbody.h>
 #include <galaxy.h>
 
+#include "renderer.h"
 #include "lib/util.h"
 
 #define WINDOW_WIDTH    1280
@@ -28,9 +29,9 @@ int main() {
 
     World *world;
     GLFWwindow *window;
-    VkSurfaceKHR surface;
+    Renderer *renderer;
 
-    #pragma omp parallel num_threads(2) default(none) shared(world, window, surface, vulkan_ctx, stderr)
+    #pragma omp parallel num_threads(2) default(none) shared(world, window, renderer, stderr)
     #pragma omp master
     {
         #pragma omp task default(none) shared(world)
@@ -47,8 +48,7 @@ int main() {
         window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "N-Body Simulation", NULL, NULL);
         ASSERT(window != NULL, "Failed to create GLFW window");
 
-        ASSERT_VK(glfwCreateWindowSurface(vulkan_ctx.instance, window, NULL, &surface),
-                  "Failed to create Vulkan surface");
+        renderer = CreateRenderer(window);
     }
 
     glfwShowWindow(window);
@@ -56,6 +56,7 @@ int main() {
         glfwPollEvents();
     }
 
+    DestroyRenderer(renderer);
     glfwDestroyWindow(window);
     DestroyWorld(world);
     glfwTerminate();
@@ -68,8 +69,8 @@ static void InitVulkan() {
     ASSERT(ext != NULL, "GLFW failed to provide required Vulkan instance extensions");
 
     InitGlobalVulkanContext(true, ext, ext_count);
-    ASSERT(GLFW_TRUE == glfwGetPhysicalDevicePresentationSupport(vulkan_ctx.instance,
-                                                                 vulkan_ctx.pdev,
-                                                                 vulkan_ctx.queue_family_idx),
+    ASSERT(GLFW_TRUE == glfwGetPhysicalDevicePresentationSupport(vk_ctx.instance,
+                                                                 vk_ctx.pdev,
+                                                                 vk_ctx.queue_family_idx),
            "glfwGetPhysicalDevicePresentationSupport() returned false");
 }

@@ -29,7 +29,7 @@ endfunction()
 add_subdirectory(lib)
 
 # executable
-add_executable(nbody main.c)
+add_executable(nbody main.c renderer.c)
 target_link_libraries(nbody PRIVATE nbody-lib glfw)
 target_compile_options(nbody PRIVATE ${nbody_compiler_flags})
 

@@ -30,7 +30,7 @@ VulkanDeviceMemory CreateHostCoherentMemory(VkDeviceSize size);
 
 /* Destroy MEMORY. */
 static inline void DestroyVulkanMemory(const VulkanDeviceMemory *memory) {
-    if (memory != NULL) vkFreeMemory(vulkan_ctx.dev, memory->handle, NULL);
+    if (memory != NULL) vkFreeMemory(vk_ctx.dev, memory->handle, NULL);
 }
 
 /* Create VulkanBuffer of SIZE bytes. */
@@ -38,7 +38,7 @@ VulkanBuffer CreateVulkanBuffer(VulkanDeviceMemory *memory, VkDeviceSize size, V
 
 /* Destroy BUFFER. */
 static inline void DestroyVulkanBuffer(const VulkanBuffer *buffer) {
-    if (buffer != NULL) vkDestroyBuffer(vulkan_ctx.dev, buffer->handle, NULL);
+    if (buffer != NULL) vkDestroyBuffer(vk_ctx.dev, buffer->handle, NULL);
 }
 
 /*
