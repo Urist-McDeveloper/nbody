@@ -16,7 +16,7 @@ https://user-images.githubusercontent.com/112800528/225753149-73836b71-6744-4fcb
    * C99 standard;
    * unless SIMD is disabled through build options:
       * AVX or SSE intrinsics (`immintrin.h` and `xmmintrin.h` respectively);
-      * `stdlib.h` must define one of:
+      * one of:
          * `aligned_alloc` (C11 standard);
          * `_aligned_malloc` (Windows);
          * `posix_memalign` (POSIX)

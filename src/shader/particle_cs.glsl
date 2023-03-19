@@ -5,7 +5,6 @@ struct Particle {
     float mass, radius;
 };
 
-
 layout (std140, binding = 0) uniform WorldData {
     uint total_len; // total number of particles
     uint mass_len;  // number of particles with mass
@@ -20,13 +19,11 @@ layout (std140, binding = 2) buffer FrameNew {
     Particle arr[];
 } new;
 
-
 /* Local group size as specialization constant. */
 layout (local_size_x_id = 0) in;
 
 /* Gravitational constant; `g = NB_G * mass / dist^2`. */
 layout (constant_id = 1) const float G = 10;
-
 
 void main() {
     uint i = gl_GlobalInvocationID.x;

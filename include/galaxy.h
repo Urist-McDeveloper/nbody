@@ -38,7 +38,7 @@
  *  In other words:
  *      MIN_PARTICLE_DIST_CR_F affects the minimum distance between a particle and the core;
  *      MAX_PARTICLE_DIST_CR_F affects the baseline "radius" of a galaxy;
- *      MAX_PARTICLE_DIST_PC_F affects how much particles "push" a galaxy's radius outwards;
+ *      MAX_PARTICLE_DIST_PC_F affects how much particles "push" galaxy's radius outwards;
  */
 #define MIN_PARTICLE_DIST_CR_F  5.f
 #define MAX_PARTICLE_DIST_CR_F  10.f
@@ -46,8 +46,8 @@
 
 /*
  *  The algorithm that assigns position to galaxies:
- *      for galaxy N=1: position is (0, 0);
- *      for galaxy N>1:
+ *      for galaxy N=0: position is (0, 0);
+ *      for galaxy N>0:
  *          1.  pick a random "parent" galaxy from range [0, N);
  *          2.  pick a random R within MIN_SEP and MAX_SEP;
  *          3.  pick a random point P which is R units away from parent's core;
