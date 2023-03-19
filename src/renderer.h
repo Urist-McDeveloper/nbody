@@ -15,4 +15,7 @@ void DestroyRenderer(Renderer *renderer);
 /* Must be called every time window is resized. */
 void RecreateSwapchain(Renderer *r);
 
+/* Submit a draw call. */
+void Draw(Renderer *r);
+
 #endif //NB_RENDERER_H

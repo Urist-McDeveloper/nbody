@@ -54,6 +54,7 @@ int main() {
     glfwShowWindow(window);
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
+        Draw(renderer);
     }
 
     DestroyRenderer(renderer);

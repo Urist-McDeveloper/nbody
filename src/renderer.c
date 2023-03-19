@@ -114,13 +114,18 @@ struct Renderer {
     VkExtent2D extent;
     VkSwapchainKHR swapchain;
     uint32_t image_count;
+    uint32_t image_index;
     VkImage *images;
     VkImageView *views;
     VkFramebuffer *framebuffers;
     // pipeline
     VkPipelineLayout layout;
     VkPipeline pipeline;
+    // commands and synchronization
     VkCommandBuffer cmd;
+    VkFence fence;
+    VkSemaphore cmd_sem;
+    VkSemaphore swapchain_sem;
 };
 
 static void SetupFramebuffers(Renderer *r) {
@@ -292,12 +297,36 @@ Renderer *CreateRenderer(GLFWwindow *window) {
     ASSERT_VK(vkCreateGraphicsPipelines(vk_ctx.dev, NULL, 1, &pipeline_info, NULL, &r->pipeline),
               "Failed to create graphics pipeline");
 
+    /*
+     * Commands and synchronization.
+     */
+
+    AllocCommandBuffers(1, &r->cmd);
+    VkFenceCreateInfo fence_info = {
+            .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+            .flags = VK_FENCE_CREATE_SIGNALED_BIT,
+    };
+    ASSERT_VK(vkCreateFence(vk_ctx.dev, &fence_info, NULL, &r->fence), "Failed to create fence");
+
+    VkSemaphoreCreateInfo sem_info = {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+    };
+    ASSERT_VK(vkCreateSemaphore(vk_ctx.dev, &sem_info, NULL, &r->cmd_sem), "Failed to create semaphore");
+    ASSERT_VK(vkCreateSemaphore(vk_ctx.dev, &sem_info, NULL, &r->swapchain_sem), "Failed to create semaphore");
+
     return r;
 }
 
 void DestroyRenderer(Renderer *r) {
+    // wait for previous frame to finish
+    ASSERT_VK(vkWaitForFences(vk_ctx.dev, 1, &r->fence, VK_TRUE, UINT64_MAX), "Failed to wait for fences");
+
     if (r != NULL) {
         vkFreeCommandBuffers(vk_ctx.dev, vk_ctx.cmd_pool, 1, &r->cmd);
+        vkDestroySemaphore(vk_ctx.dev, r->swapchain_sem, NULL);
+        vkDestroySemaphore(vk_ctx.dev, r->cmd_sem, NULL);
+        vkDestroyFence(vk_ctx.dev, r->fence, NULL);
+
         vkDestroyPipeline(vk_ctx.dev, r->pipeline, NULL);
         vkDestroyPipelineLayout(vk_ctx.dev, r->layout, NULL);
 
@@ -329,7 +358,10 @@ void RecreateSwapchain(Renderer *r) {
     VkPresentModeKHR mode;
     PickFormatAndMode(r->surface, &r->format, &mode);
 
-    uint32_t image_count = cap.minImageCount + 1;
+    uint32_t image_count = 3;
+    if (cap.minImageCount > 0 && image_count < cap.minImageCount) {
+        image_count = cap.minImageCount + 1;
+    }
     if (cap.maxImageCount > 0 && image_count > cap.maxImageCount) {
         image_count = cap.maxImageCount;
     }
@@ -394,6 +426,83 @@ void RecreateSwapchain(Renderer *r) {
     if (r->framebuffers != NULL) {
         SetupFramebuffers(r);
     }
+}
+
+void Draw(Renderer *r) {
+    // wait for previous frame to finish
+    ASSERT_VK(vkWaitForFences(vk_ctx.dev, 1, &r->fence, VK_TRUE, UINT64_MAX), "Failed to wait for fences");
+    ASSERT_VK(vkResetFences(vk_ctx.dev, 1, &r->fence), "Failed to reset fence");
+    ASSERT_VK(vkResetCommandBuffer(r->cmd, 0), "Failed to reset command buffer");
+
+    vkAcquireNextImageKHR(vk_ctx.dev, r->swapchain, UINT64_MAX, r->swapchain_sem, NULL, &r->image_index);
+
+    // start recording command buffer
+    VkCommandBufferBeginInfo begin_info = {
+            .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+            .flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+    };
+    ASSERT_VK(vkBeginCommandBuffer(r->cmd, &begin_info), "Failed to begin pipeline command buffer");
+
+    // begin render pass
+    VkClearValue clear_color = {{{0.f, 0.f, 0.f, 0.f}}};
+    VkRenderPassBeginInfo pass_info = {
+            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+            .renderPass = r->render_pass,
+            .framebuffer = r->framebuffers[r->image_index],
+            .renderArea = {
+                    .offset = {0, 0},
+                    .extent = r->extent,
+            },
+            .clearValueCount = 1,
+            .pClearValues = &clear_color,
+    };
+    vkCmdBeginRenderPass(r->cmd, &pass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+    // bind pipeline and set viewport
+    VkViewport viewport = {
+            .width = (float)r->extent.width,
+            .height = (float)r->extent.height,
+            .minDepth = 0.f,
+            .maxDepth = 1.f,
+    };
+    VkRect2D scissors = {
+            .offset = {0, 0},
+            .extent = r->extent,
+    };
+    vkCmdBindPipeline(r->cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r->pipeline);
+    vkCmdSetViewport(r->cmd, 0, 1, &viewport);
+    vkCmdSetScissor(r->cmd, 0, 1, &scissors);
+
+    // draw stuff
+    vkCmdDraw(r->cmd, 3, 1, 0, 0);
+
+    // finish recording command buffer
+    vkCmdEndRenderPass(r->cmd);
+    ASSERT_VK(vkEndCommandBuffer(r->cmd), "Failed to end pipeline command buffer");
+
+    // submit command buffer
+    VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
+    VkSubmitInfo submit_info = {
+            .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = &r->swapchain_sem,
+            .pWaitDstStageMask = wait_stages,
+            .commandBufferCount = 1,
+            .pCommandBuffers = &r->cmd,
+            .signalSemaphoreCount = 1,
+            .pSignalSemaphores = &r->cmd_sem,
+    };
+    ASSERT_VK(vkQueueSubmit(vk_ctx.queue, 1, &submit_info, r->fence), "Failed to submit command buffer");
+
+    VkPresentInfoKHR present_info = {
+            .sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+            .waitSemaphoreCount = 1,
+            .pWaitSemaphores = &r->cmd_sem,
+            .swapchainCount = 1,
+            .pSwapchains = &r->swapchain,
+            .pImageIndices = &r->image_index,
+    };
+    ASSERT_VK(vkQueuePresentKHR(vk_ctx.queue, &present_info), "Failed to preset");
 }
 
 /*

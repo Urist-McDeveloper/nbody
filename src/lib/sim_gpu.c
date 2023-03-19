@@ -12,21 +12,21 @@
 struct SimPipeline {
     WorldData world_data;
     VkShaderModule shader;
-    // Memory
+    // memory
     VulkanDeviceMemory dev_mem;     // device-local memory
     VulkanDeviceMemory host_mem;    // host-accessible memory
     VulkanBuffer uniform;           // uniform buffer in device-local memory
     VulkanBuffer storage[2];        // uniform buffer in device-local memory; [0] for old data, [1] for new
     VulkanBuffer transfer_buf[2];   // host-accessible transfer buffers; [0] for uniform, [1] for storage
     bool transfer_buf_synced;       // whether transfer_buf[1] holds the same data as storage[1]
-    // Descriptor
+    // descriptor
     VkDescriptorSetLayout ds_layout;
     VkDescriptorPool ds_pool;
     VkDescriptorSet set;
-    // Pipeline
+    // pipeline
     VkPipelineLayout pipeline_layout;
     VkPipeline pipeline;
-    // Commands and synchronization
+    // commands and synchronization
     VkCommandBuffer cmd;
     VkFence fence;
 };

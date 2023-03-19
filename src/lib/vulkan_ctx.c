@@ -75,13 +75,13 @@ static void InitInstance(const char **ext, uint32_t ext_count) {
             .applicationVersion = VK_MAKE_VERSION(0, 2, 0),
             .apiVersion = VK_API_VERSION_1_0,
     };
-    VkInstanceCreateInfo instance_create_info = {
+    VkInstanceCreateInfo info = {
             .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             .pApplicationInfo = &app_info,
     };
 #ifndef NDEBUG
-    instance_create_info.enabledLayerCount = 1;
-    instance_create_info.ppEnabledLayerNames = &DBG_LAYER;
+    info.enabledLayerCount = 1;
+    info.ppEnabledLayerNames = &DBG_LAYER;
 #endif
 #ifdef __APPLE__
     const char **new_ext = ALLOC(ext_count + 1, const char *);
@@ -90,21 +90,28 @@ static void InitInstance(const char **ext, uint32_t ext_count) {
     for (uint32_t i = 0; i < ext_count; i++) {
         new_ext[i] = ext[i];
     }
-    ext = new_ext;
-    ext[ext_count++] = "VK_KHR_portability_enumeration";
-    instance_create_info.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
-#endif
-    instance_create_info.enabledExtensionCount = ext_count;
-    instance_create_info.ppEnabledExtensionNames = ext;
+    new_ext[ext_count] = "VK_KHR_portability_enumeration";
 
-    printf("Creating Vulkan instance with %u extensions\n", ext_count);
-    for (uint32_t i = 0; i < ext_count; i++) {
-        printf("\t- %s\n", ext[i]);
+    info.enabledExtensionCount = 1 + ext_count;
+    info.ppEnabledExtensionNames = new_ext;
+    info.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#else
+    info.enabledExtensionCount = ext_count;
+    info.ppEnabledExtensionNames = ext;
+#endif
+
+    printf("Creating Vulkan instance\n\t- %u extensions\n", info.enabledExtensionCount);
+    for (uint32_t i = 0; i < info.enabledExtensionCount; i++) {
+        printf("\t\t- %s\n", info.ppEnabledExtensionNames[i]);
+    }
+    printf("\t- %u layers\n", info.enabledLayerCount);
+    for (uint32_t i = 0; i < info.enabledLayerCount; i++) {
+        printf("\t\t- %s\n", info.ppEnabledLayerNames[i]);
     }
 
-    ASSERT_VK(vkCreateInstance(&instance_create_info, NULL, &vk_ctx.instance), "Failed to create instance");
+    ASSERT_VK(vkCreateInstance(&info, NULL, &vk_ctx.instance), "Failed to create instance");
 #ifdef __APPLE__
-    free(ext);
+    free(new_ext);
 #endif
 }
 
