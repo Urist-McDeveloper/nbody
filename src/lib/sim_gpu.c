@@ -35,9 +35,9 @@ SimPipeline *CreateSimPipeline(WorldData data) {
     SimPipeline *sim = ALLOC(1, SimPipeline);
     ASSERT(sim != NULL, "Failed to alloc SimPipeline");
 
-    InitGlobalVulkanContext();  // does nothing if global context was already initialized
+    InitGlobalVulkanContext(false, NULL, 0);    // does nothing if global context was already initialized
     sim->world_data = data;
-    sim->world_data.dt = 0;     // update uniform buffer when PerformSimUpdate is called
+    sim->world_data.dt = 0;                     // update uniform buffer when PerformSimUpdate is called
 
     /*
      * Shaders.

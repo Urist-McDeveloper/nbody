@@ -2,7 +2,10 @@
 #define NB_H
 
 #include <stdint.h>
+#include <stdbool.h>
+
 #include <math.h>
+#include <vulkan/vulkan.h>
 
 /* Gravitational constant; `g = NB_G * mass / dist^2`. */
 #define NB_G    10.0f
@@ -43,6 +46,7 @@ static inline float SqMagV2(V2 v) {
     return v.x * v.x + v.y * v.y;
 }
 
+
 /* Simulation particle. */
 typedef struct Particle {
     V2 pos, vel, acc;
@@ -54,10 +58,11 @@ typedef struct Particle {
 _Static_assert(sizeof(Particle) % 16 == 0, "sizeof(Particle) must be a multiple of 16");
 #endif
 
+
 /* The simulated world with fixed particle count. */
 typedef struct World World;
 
-/* Create World with SIZE particles copied from PS. */
+/* Create World with SIZE particles copied from PS. Initializes global Vulkan context if necessary. */
 World *CreateWorld(const Particle *ps, uint32_t size);
 
 /* Destroy World. */
@@ -71,5 +76,22 @@ void UpdateWorld_CPU(World *w, float dt, uint32_t n);
 
 /* Perform N updates using GPU simulation. */
 void UpdateWorld_GPU(World *w, float dt, uint32_t n);
+
+
+/* Global Vulkan context. */
+extern struct VulkanContext {
+    VkInstance instance;
+    VkPhysicalDevice pdev;
+    VkDevice dev;
+    VkQueue queue;
+    VkCommandPool cmd_pool;
+    uint32_t queue_family_idx;
+} vulkan_ctx;
+
+/* Initialize global Vulkan context the first time this function is called; subsequent calls are ignored. */
+void InitGlobalVulkanContext(bool need_gfx_queue, const char **instance_ext, uint32_t ext_count);
+
+/* Allocate primary command buffers. */
+void AllocCommandBuffers(uint32_t count, VkCommandBuffer *buffers);
 
 #endif //NB_H

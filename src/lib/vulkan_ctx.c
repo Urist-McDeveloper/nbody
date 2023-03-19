@@ -11,67 +11,106 @@
 struct VulkanContext vulkan_ctx = {0};
 
 #ifndef NDEBUG
-static const char *DBG_LAYERS[] = {"VK_LAYER_KHRONOS_validation"};
-static const int DBG_LAYERS_COUNT = sizeof(DBG_LAYERS) / sizeof(DBG_LAYERS[0]);
+static const char *const DBG_LAYER = "VK_LAYER_KHRONOS_validation";
+#endif
 
-static void AssertDebugLayersSupported() {
-    // run this function only once
-    static bool done = false;
-    if (done) return;
-    done = true;
-
-    uint32_t layer_count;
-    ASSERT_VK(vkEnumerateInstanceLayerProperties(&layer_count, NULL), "Failed to enumerate instance layers");
-
-    VkLayerProperties *layers = ALLOC(layer_count, VkLayerProperties);
-    ASSERT(layers != NULL, "Failed to alloc %u VkLayerProperties", layer_count);
-    ASSERT_VK(vkEnumerateInstanceLayerProperties(&layer_count, layers), "Failed to enumerate instance layers");
-
-    bool error = false;
-    for (int i = 0; i < DBG_LAYERS_COUNT; i++) {
-        bool found = false;
-        for (uint32_t j = 0; j < layer_count && !found; j++) {
-            if (strcmp(DBG_LAYERS[i], layers[j].layerName) == 0) {
-                found = true;
-            }
-        }
-        if (!found) {
-            fprintf(stderr, "Debug layer not supported: %s\n", DBG_LAYERS[i]);
-            error = true;
-        }
-    }
-    if (error) abort();
-    free(layers);
-}
-
-#endif //NDEBUG
-
-static void InitInstance(VkInstance *instance) {
+static void InitInstance(VkInstance *instance, const char **ext, uint32_t ext_count) {
     VkApplicationInfo app_info = {
             .sType = VK_STRUCTURE_TYPE_APPLICATION_INFO,
             .pApplicationName = "nbody-sim",
-            .applicationVersion = VK_MAKE_VERSION(0, 1, 0),
+            .applicationVersion = VK_MAKE_VERSION(0, 2, 0),
             .apiVersion = VK_API_VERSION_1_0,
     };
     VkInstanceCreateInfo instance_create_info = {
             .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
             .pApplicationInfo = &app_info,
     };
-#ifdef __APPLE__
-    const char *port_ext = "VK_KHR_portability_enumeration";
-    instance_create_info.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
-    instance_create_info.enabledExtensionCount = 1,
-    instance_create_info.ppEnabledExtensionNames = &port_ext,
-#endif
 #ifndef NDEBUG
-    AssertDebugLayersSupported();
     instance_create_info.enabledLayerCount = 1;
-    instance_create_info.ppEnabledLayerNames = DBG_LAYERS;
+    instance_create_info.ppEnabledLayerNames = &DBG_LAYER;
 #endif
+#ifdef __APPLE__
+    const char **new_ext = ALLOC(ext_count + 1, const char *);
+    ASSERT(new_ext != NULL, "Failed to alloc %u char pointers", ext_count + 1);
+
+    for (uint32_t i = 0; i < ext_count; i++) {
+        new_ext[i] = ext[i];
+    }
+    ext = new_ext;
+    ext[ext_count++] = "VK_KHR_portability_enumeration";
+    instance_create_info.flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR;
+#endif
+    instance_create_info.enabledExtensionCount = ext_count;
+    instance_create_info.ppEnabledExtensionNames = ext;
+
+    printf("Creating Vulkan instance with %u extensions:\n", ext_count);
+    for (uint32_t i = 0; i < ext_count; i++) {
+        printf("\t- %s\n", ext[i]);
+    }
+
     ASSERT_VK(vkCreateInstance(&instance_create_info, NULL, instance), "Failed to create instance");
+#ifdef __APPLE__
+    free(ext);
+#endif
 }
 
-static void InitPDev(VkPhysicalDevice *pdev, VkInstance instance) {
+static bool IsPDevSuitable(VkPhysicalDevice pdev, uint32_t *qf_idx, bool need_gfx_queue) {
+    uint32_t family_count;
+    vkGetPhysicalDeviceQueueFamilyProperties(pdev, &family_count, NULL);
+    ASSERT(family_count > 0, "Queue family count is 0");
+
+    VkQueueFamilyProperties *family_props = ALLOC(family_count, VkQueueFamilyProperties);
+    ASSERT(family_props != NULL, "Failed to alloc %u VkQueueFamilyProperties", family_count);
+    vkGetPhysicalDeviceQueueFamilyProperties(pdev, &family_count, family_props);
+
+    *qf_idx = UINT32_MAX;
+    printf("\t\t- Selecting queue family:\n");
+
+    for (uint32_t i = 0; i < family_count; i++) {
+        bool g = family_props[i].queueFlags & VK_QUEUE_GRAPHICS_BIT;
+        bool c = family_props[i].queueFlags & VK_QUEUE_COMPUTE_BIT;
+        bool t = family_props[i].queueFlags & VK_QUEUE_TRANSFER_BIT;
+
+        printf("\t\t\t- #%u: count = %u, flags =", i, family_props[i].queueCount);
+        if (g) printf(" graphics");
+        if (c) printf(" compute");
+        if (t) printf(" transfer");
+
+        // prefer compute only unless need_gfx_queue is true
+        bool check_gfx = need_gfx_queue ? g : (*qf_idx == UINT32_MAX || !g);
+        if (c && t && check_gfx) {
+            *qf_idx = i;
+            printf(" (suitable)\n");
+        } else {
+            printf("\n");
+        }
+    }
+    free(family_props);
+
+    if (*qf_idx == UINT32_MAX) {
+        return false;
+    } else {
+        printf("\t\t- Chosen family #%u\n", *qf_idx);
+        return true;
+    }
+}
+
+static const char *DeviceTypeToStr(VkPhysicalDeviceType type) {
+    switch (type) {
+        case VK_PHYSICAL_DEVICE_TYPE_INTEGRATED_GPU:
+            return "integrated GPU";
+        case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
+            return "discrete GPU";
+        case VK_PHYSICAL_DEVICE_TYPE_VIRTUAL_GPU:
+            return "virtual GPU";
+        case VK_PHYSICAL_DEVICE_TYPE_CPU:
+            return "CPU";
+        default:
+            return "Unknown";
+    }
+}
+
+static void InitPDev(VkPhysicalDevice *pdev, uint32_t *queue_family_idx, VkInstance instance, bool need_gfx_queue) {
     uint32_t pdev_count;
     ASSERT_VK(vkEnumeratePhysicalDevices(instance, &pdev_count, NULL), "Failed to enumerate physical devices");
     ASSERT(pdev_count > 0, "Physical device count is 0");
@@ -80,13 +119,25 @@ static void InitPDev(VkPhysicalDevice *pdev, VkInstance instance) {
     ASSERT(pds != NULL, "Failed to alloc %u VkPhysicalDevices", pdev_count);
     ASSERT_VK(vkEnumeratePhysicalDevices(instance, &pdev_count, pds), "Failed to enumerate physical devices");
 
-    // TODO: choose the most suitable device if pdev_count > 1
-    *pdev = pds[0];
-    free(pds);
+    uint32_t idx = UINT32_MAX;
+    *pdev = VK_NULL_HANDLE;
 
-    VkPhysicalDeviceProperties props;
-    vkGetPhysicalDeviceProperties(*pdev, &props);
-    printf("Using VkPhysicalDevice #%u of type %u -- %s\n", props.deviceID, props.deviceType, props.deviceName);
+    printf("Found %u physical devices:\n", pdev_count);
+    for (uint32_t i = 0; i < pdev_count; i++) {
+        VkPhysicalDeviceProperties props;
+        vkGetPhysicalDeviceProperties(pds[i], &props);
+
+        printf("\t- #%u: %s (%s)\n", i, props.deviceName, DeviceTypeToStr(props.deviceType));
+        // TODO: choose the most suitable device, not the first one
+        if (IsPDevSuitable(pds[i], queue_family_idx, need_gfx_queue)) {
+            idx = i;
+            break;
+        }
+    }
+    ASSERT(idx != UINT32_MAX, "Failed to find suitable physical device");
+    printf("Using physical device #%u\n", idx);
+    *pdev = pds[idx];
+    free(pds);
 }
 
 /*
@@ -123,44 +174,11 @@ static uint32_t SortDeviceExtensionsBySupported(const char **extensions, uint32_
     return supported_count;
 }
 
-static void InitDev(VkDevice *dev, uint32_t *queue_family_idx, VkPhysicalDevice pdev) {
-    uint32_t family_count;
-    vkGetPhysicalDeviceQueueFamilyProperties(pdev, &family_count, NULL);
-    ASSERT(family_count > 0, "Queue family count is 0");
-
-    VkQueueFamilyProperties *family_props = ALLOC(family_count, VkQueueFamilyProperties);
-    ASSERT(family_props != NULL, "Failed to alloc %u VkQueueFamilyProperties", family_count);
-    vkGetPhysicalDeviceQueueFamilyProperties(pdev, &family_count, family_props);
-
-    uint32_t qf_idx = UINT32_MAX;
-    printf("Selecting queue family:\n");
-
-    for (uint32_t i = 0; i < family_count; i++) {
-        bool g = family_props[i].queueFlags & VK_QUEUE_GRAPHICS_BIT;
-        bool c = family_props[i].queueFlags & VK_QUEUE_COMPUTE_BIT;
-        bool t = family_props[i].queueFlags & VK_QUEUE_TRANSFER_BIT;
-
-        printf("\t#%u: count = %u, flags =", i, family_props[i].queueCount);
-        if (g) printf(" graphics");
-        if (c) printf(" compute");
-        if (t) printf(" transfer");
-        printf("\n");
-
-        // prefer compute only
-        if (c && t && (!g || qf_idx == UINT32_MAX)) {
-            qf_idx = i;
-        }
-    }
-    ASSERT(qf_idx != UINT32_MAX, "Could not find suitable queue family");
-    free(family_props);
-
-    printf("Using queue family #%u\n", qf_idx);
-    *queue_family_idx = qf_idx;
-
-    const float queue_priority = 1.f;
+static void InitDev(VkDevice *dev, VkQueue *queue, VkPhysicalDevice pdev, uint32_t queue_family_idx) {
+    float queue_priority = 1.f;
     VkDeviceQueueCreateInfo queue_create_info = {
             .sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
-            .queueFamilyIndex = qf_idx,
+            .queueFamilyIndex = queue_family_idx,
             .queueCount = 1,
             .pQueuePriorities = &queue_priority,
     };
@@ -177,23 +195,22 @@ static void InitDev(VkDevice *dev, uint32_t *queue_family_idx, VkPhysicalDevice 
         device_create_info.ppEnabledExtensionNames = &portability_extension;
     }
 #ifndef NDEBUG
-    AssertDebugLayersSupported();
     device_create_info.enabledLayerCount = 1;
-    device_create_info.ppEnabledLayerNames = DBG_LAYERS;
+    device_create_info.ppEnabledLayerNames = &DBG_LAYER;
 #endif
     ASSERT_VK(vkCreateDevice(pdev, &device_create_info, NULL, dev), "Failed to create device");
+    vkGetDeviceQueue(*dev, queue_family_idx, 0, queue);
 }
 
-void InitGlobalVulkanContext() {
+void InitGlobalVulkanContext(bool need_gfx_queue, const char **instance_ext, uint32_t ext_count) {
     // run this function only once
     static bool done = false;
     if (done) return;
     done = true;
 
-    InitInstance(&vulkan_ctx.instance);
-    InitPDev(&vulkan_ctx.pdev, vulkan_ctx.instance);
-    InitDev(&vulkan_ctx.dev, &vulkan_ctx.queue_family_idx, vulkan_ctx.pdev);
-    vkGetDeviceQueue(vulkan_ctx.dev, vulkan_ctx.queue_family_idx, 0, &vulkan_ctx.queue);
+    InitInstance(&vulkan_ctx.instance, instance_ext, ext_count);
+    InitPDev(&vulkan_ctx.pdev, &vulkan_ctx.queue_family_idx, vulkan_ctx.instance, need_gfx_queue);
+    InitDev(&vulkan_ctx.dev, &vulkan_ctx.queue, vulkan_ctx.pdev, vulkan_ctx.queue_family_idx);
 
     VkCommandPoolCreateInfo pool_create_info = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,

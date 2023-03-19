@@ -3,32 +3,9 @@
 
 #include <string.h>
 #include <stdbool.h>
-#include <vulkan/vulkan.h>
 
+#include <nbody.h>
 #include "util.h"
-
-/* Global Vulkan context. */
-extern struct VulkanContext {
-    VkInstance instance;
-    VkPhysicalDevice pdev;
-    VkDevice dev;
-    VkQueue queue;
-    VkCommandPool cmd_pool;
-    uint32_t queue_family_idx;
-} vulkan_ctx;
-
-/*
- * Initialize global Vulkan context the first time this function is called; subsequent calls are ignored.
- * Every other function in this file MUST NOT be called until Vulkan context is initialized.
- */
-void InitGlobalVulkanContext();
-
-/* Allocate primary command buffers. */
-void AllocCommandBuffers(uint32_t count, VkCommandBuffer *buffers);
-
-/*
- * Memory management.
- */
 
 /* Wrapper of VkBuffer. */
 typedef struct VulkanBuffer {
