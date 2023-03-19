@@ -3,7 +3,7 @@ find_program(GLSLC NAMES glslc)
 
 set(GLSLC_ENV "vulkan1.0" CACHE STRING "glslc --target-env=")
 
-function(compile_shaders target stage)
+function(compile_shaders target)
     cmake_parse_arguments(PARSE_ARGV 1 arg "" "STAGE;DEPENDS" "SOURCE")
     foreach (source ${arg_SOURCE})
         cmake_path(REPLACE_EXTENSION source LAST_ONLY spv OUTPUT_VARIABLE spv)
@@ -30,6 +30,9 @@ add_subdirectory(lib)
 
 # executable
 add_executable(nbody main.c renderer.c)
+compile_shaders(nbody STAGE vert SOURCE shader/particle_vs.glsl)
+compile_shaders(nbody STAGE frag SOURCE shader/particle_fs.glsl)
+
 target_link_libraries(nbody PRIVATE nbody-lib glfw)
 target_compile_options(nbody PRIVATE ${nbody_compiler_flags})
 

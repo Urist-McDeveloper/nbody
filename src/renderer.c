@@ -2,6 +2,10 @@
 #include "lib/util.h"
 
 #include <nbody.h>
+#include "shader/particle_vs.h"
+#include "shader/particle_fs.h"
+
+#define SAMPLE_COUNT    VK_SAMPLE_COUNT_1_BIT
 
 /*
  * Utilities.
@@ -16,6 +20,7 @@ static const char *PresentModeToStr(VkPresentModeKHR mode);
 static VkSurfaceFormatKHR PickSurfaceFormat(const VkSurfaceFormatKHR *formats, uint32_t count) {
     uint32_t idx = 0;
     printf("\t- Selecting surface formats\n");
+
     for (uint32_t i = 0; i < count; i++) {
         VkSurfaceFormatKHR f = formats[i];
         printf("\t\t- #%u: format = %s, space = %s\n",
@@ -101,37 +106,221 @@ static VkExtent2D GetImageExtent(GLFWwindow *window, VkSurfaceCapabilitiesKHR ca
 
 struct Renderer {
     GLFWwindow *window;
+    VkShaderModule vert, frag;
+    VkRenderPass render_pass;
+    // swapchain
     VkSurfaceKHR surface;
     VkSurfaceFormatKHR format;
     VkExtent2D extent;
     VkSwapchainKHR swapchain;
-    VkImage *images;
     uint32_t image_count;
+    VkImage *images;
+    VkImageView *views;
+    VkFramebuffer *framebuffers;
+    // pipeline
+    VkPipelineLayout layout;
+    VkPipeline pipeline;
+    VkCommandBuffer cmd;
 };
+
+static void SetupFramebuffers(Renderer *r) {
+    r->framebuffers = REALLOC(r->framebuffers, r->image_count, VkFramebuffer);
+    ASSERT(r->framebuffers != NULL, "Failed to realloc %u VkFramebuffer", r->image_count);
+
+    for (uint32_t i = 0; i < r->image_count; i++) {
+        VkFramebufferCreateInfo buffer_info = {
+                .sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+                .renderPass = r->render_pass,
+                .attachmentCount = 1,
+                .pAttachments = &r->views[i],
+                .width = r->extent.width,
+                .height = r->extent.height,
+                .layers = 1,
+        };
+        ASSERT_VK(vkCreateFramebuffer(vk_ctx.dev, &buffer_info, NULL, &r->framebuffers[i]),
+                  "Failed to create framebuffer #%u", i);
+    }
+}
 
 Renderer *CreateRenderer(GLFWwindow *window) {
     Renderer *r = ALLOC(1, Renderer);
     ASSERT(r != NULL, "Failed to alloc Renderer");
 
     *r = (Renderer){.window = window};
-
     ASSERT_VK(glfwCreateWindowSurface(vk_ctx.instance, r->window, NULL, &r->surface),
               "Failed to create Vulkan surface");
 
+    /*
+     * Swapchain.
+     */
+
     RecreateSwapchain(r);
+
+    /*
+     * Render pass.
+     */
+
+    VkAttachmentDescription color_attachment = {
+            .format = r->format.format,
+            .samples = SAMPLE_COUNT,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+            .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+            .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+            .finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+    };
+    VkAttachmentReference color_attachment_ref = {
+            .attachment = 0,
+            .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+    };
+    VkSubpassDescription subpass = {
+            .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+            .colorAttachmentCount = 1,
+            .pColorAttachments = &color_attachment_ref,
+    };
+    VkRenderPassCreateInfo render_pass_info = {
+            .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+            .attachmentCount = 1,
+            .pAttachments = &color_attachment,
+            .subpassCount = 1,
+            .pSubpasses = &subpass,
+    };
+    ASSERT_VK(vkCreateRenderPass(vk_ctx.dev, &render_pass_info, NULL, &r->render_pass), "Failed to create render pass");
+    SetupFramebuffers(r);
+
+    /*
+     * Shaders.
+     */
+
+    VkShaderModuleCreateInfo vert_info = {
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .codeSize = sizeof(particle_vs_spv),
+            .pCode = (uint32_t *)particle_vs_spv,
+    };
+    VkShaderModuleCreateInfo frag_info = {
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .codeSize = sizeof(particle_fs_spv),
+            .pCode = (uint32_t *)particle_fs_spv,
+    };
+    ASSERT_VK(vkCreateShaderModule(vk_ctx.dev, &vert_info, NULL, &r->vert), "Failed to create vertex shader module");
+    ASSERT_VK(vkCreateShaderModule(vk_ctx.dev, &frag_info, NULL, &r->frag), "Failed to create vertex shader module");
+
+    VkPipelineShaderStageCreateInfo shader_stages[] = {
+            {
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                    .stage = VK_SHADER_STAGE_VERTEX_BIT,
+                    .module = r->vert,
+                    .pName = "main",
+            },
+            {
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                    .stage = VK_SHADER_STAGE_FRAGMENT_BIT,
+                    .module = r->frag,
+                    .pName = "main",
+            },
+    };
+
+    /*
+     * Pipeline.
+     */
+
+    VkPipelineLayoutCreateInfo layout_info = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+    };
+    ASSERT_VK(vkCreatePipelineLayout(vk_ctx.dev, &layout_info, NULL, &r->layout), "Failed to create pipeline layout");
+
+    VkDynamicState dynamic_state[2] = {
+            VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR
+    };
+    VkPipelineDynamicStateCreateInfo dynamic_info = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO,
+            .dynamicStateCount = 2,
+            .pDynamicStates = dynamic_state,
+    };
+    VkPipelineViewportStateCreateInfo viewport_info = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO,
+            .viewportCount = 1,
+            .scissorCount = 1,
+    };
+
+    VkPipelineVertexInputStateCreateInfo input_info = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+    };
+    VkPipelineInputAssemblyStateCreateInfo assembly_info = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
+            .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+    };
+    VkPipelineRasterizationStateCreateInfo raster_info = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
+            .polygonMode = VK_POLYGON_MODE_FILL,
+            .cullMode = VK_CULL_MODE_BACK_BIT,
+            .frontFace = VK_FRONT_FACE_CLOCKWISE,
+            .lineWidth = 1.f,
+    };
+    VkPipelineMultisampleStateCreateInfo multisample_info = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
+            .rasterizationSamples = SAMPLE_COUNT,
+    };
+    VkPipelineColorBlendAttachmentState blend_attachment = {
+            .colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
+                              VK_COLOR_COMPONENT_G_BIT |
+                              VK_COLOR_COMPONENT_B_BIT |
+                              VK_COLOR_COMPONENT_A_BIT
+    };
+    VkPipelineColorBlendStateCreateInfo blend_info = {
+            .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+            .logicOpEnable = VK_FALSE,
+            .attachmentCount = 1,
+            .pAttachments = &blend_attachment,
+    };
+    VkGraphicsPipelineCreateInfo pipeline_info = {
+            .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
+            .stageCount = 2,
+            .pStages = shader_stages,
+            .pVertexInputState = &input_info,
+            .pInputAssemblyState = &assembly_info,
+            .pViewportState = &viewport_info,
+            .pRasterizationState = &raster_info,
+            .pMultisampleState = &multisample_info,
+            .pColorBlendState = &blend_info,
+            .pDynamicState = &dynamic_info,
+            .layout = r->layout,
+            .renderPass = r->render_pass,
+            .subpass = 0,
+    };
+    ASSERT_VK(vkCreateGraphicsPipelines(vk_ctx.dev, NULL, 1, &pipeline_info, NULL, &r->pipeline),
+              "Failed to create graphics pipeline");
+
     return r;
 }
 
 void DestroyRenderer(Renderer *r) {
     if (r != NULL) {
+        vkFreeCommandBuffers(vk_ctx.dev, vk_ctx.cmd_pool, 1, &r->cmd);
+        vkDestroyPipeline(vk_ctx.dev, r->pipeline, NULL);
+        vkDestroyPipelineLayout(vk_ctx.dev, r->layout, NULL);
+
+        vkDestroyShaderModule(vk_ctx.dev, r->frag, NULL);
+        vkDestroyShaderModule(vk_ctx.dev, r->vert, NULL);
+        vkDestroyRenderPass(vk_ctx.dev, r->render_pass, NULL);
+
+        for (uint32_t i = 0; i < r->image_count; i++) {
+            vkDestroyFramebuffer(vk_ctx.dev, r->framebuffers[i], NULL);
+            vkDestroyImageView(vk_ctx.dev, r->views[i], NULL);
+        }
+        free(r->framebuffers);
+        free(r->views);
+        free(r->images);
         vkDestroySwapchainKHR(vk_ctx.dev, r->swapchain, NULL);
         vkDestroySurfaceKHR(vk_ctx.instance, r->surface, NULL);
+
         free(r);
     }
 }
 
 void RecreateSwapchain(Renderer *r) {
-    printf(r->swapchain == VK_NULL_HANDLE ? "Creating swapchain\n" : "Recreating swapchain\n");
+    printf(r->swapchain == NULL ? "Creating swapchain\n" : "Recreating swapchain\n");
 
     VkSurfaceCapabilitiesKHR cap;
     ASSERT_VK(vkGetPhysicalDeviceSurfaceCapabilitiesKHR(vk_ctx.pdev, r->surface, &cap),
@@ -147,7 +336,7 @@ void RecreateSwapchain(Renderer *r) {
     printf("\t- Using %u images\n", image_count);
 
     r->extent = GetImageExtent(r->window, cap);
-    VkSwapchainCreateInfoKHR create_info = {
+    VkSwapchainCreateInfoKHR swapchain_info = {
             .sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
             .surface = r->surface,
             .minImageCount = image_count,
@@ -163,7 +352,8 @@ void RecreateSwapchain(Renderer *r) {
             .clipped = VK_TRUE,
             .oldSwapchain = r->swapchain,
     };
-    ASSERT_VK(vkCreateSwapchainKHR(vk_ctx.dev, &create_info, NULL, &r->swapchain), "Failed to create swapchain");
+    ASSERT_VK(vkCreateSwapchainKHR(vk_ctx.dev, &swapchain_info, NULL, &r->swapchain),
+              "Failed to create swapchain");
     ASSERT_VK(vkGetSwapchainImagesKHR(vk_ctx.dev, r->swapchain, &r->image_count, NULL),
               "Failed to get swapchain images");
 
@@ -172,6 +362,38 @@ void RecreateSwapchain(Renderer *r) {
 
     ASSERT_VK(vkGetSwapchainImagesKHR(vk_ctx.dev, r->swapchain, &r->image_count, r->images),
               "Failed to get swapchain images");
+
+    r->views = REALLOC(r->views, r->image_count, VkImageView);
+    ASSERT(r->views != NULL, "Failed to realloc %u VkImageView", r->image_count);
+
+    for (uint32_t i = 0; i < r->image_count; i++) {
+        VkImageViewCreateInfo view_info = {
+                .sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+                .image = r->images[i],
+                .viewType = VK_IMAGE_VIEW_TYPE_2D,
+                .format = r->format.format,
+                .components = {
+                        .r = VK_COMPONENT_SWIZZLE_IDENTITY,
+                        .g = VK_COMPONENT_SWIZZLE_IDENTITY,
+                        .b = VK_COMPONENT_SWIZZLE_IDENTITY,
+                        .a = VK_COMPONENT_SWIZZLE_IDENTITY,
+                },
+                .subresourceRange = {
+                        .aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+                        .baseMipLevel = 0,
+                        .levelCount = 1,
+                        .baseArrayLayer = 0,
+                        .layerCount = 1,
+                },
+
+        };
+        ASSERT_VK(vkCreateImageView(vk_ctx.dev, &view_info, NULL, &r->views[i]),
+                  "Failed to create image view #%u", i);
+    }
+
+    if (r->framebuffers != NULL) {
+        SetupFramebuffers(r);
+    }
 }
 
 /*

@@ -49,7 +49,7 @@ SimPipeline *CreateSimPipeline(WorldData data) {
             .pCode = (uint32_t *)particle_cs_spv,
     };
     ASSERT_VK(vkCreateShaderModule(vk_ctx.dev, &create_info, NULL, &sim->shader),
-              "Failed to create shader compute shader module");
+              "Failed to create compute shader module");
 
     VkSpecializationMapEntry shader_spec_map[2];
     for (int i = 0; i < 2; i++) {
