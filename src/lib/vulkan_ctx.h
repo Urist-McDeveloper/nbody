@@ -23,17 +23,12 @@ extern struct VulkanContext {
  */
 void InitGlobalVulkanContext();
 
-/* Load shader module from PATH. */
-VkShaderModule LoadShaderModule(const char *path);
-
 /* Allocate primary command buffers. */
 void AllocCommandBuffers(uint32_t count, VkCommandBuffer *buffers);
-
 
 /*
  * Memory management.
  */
-
 
 /* Wrapper of VkBuffer. */
 typedef struct VulkanBuffer {

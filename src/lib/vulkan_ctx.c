@@ -204,23 +204,6 @@ void InitGlobalVulkanContext() {
               "Failed to create global command pool");
 }
 
-VkShaderModule LoadShaderModule(const char *path) {
-    size_t buf_size;
-    uint32_t *buf = FIO_ReadFile(path, &buf_size);
-
-    VkShaderModuleCreateInfo create_info = {
-            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
-            .codeSize = buf_size,
-            .pCode = buf,
-    };
-    VkShaderModule module;
-    ASSERT_VK(vkCreateShaderModule(vulkan_ctx.dev, &create_info, NULL, &module),
-              "Failed to create shader module from %s", path);
-
-    free(buf);
-    return module;
-}
-
 void AllocCommandBuffers(uint32_t count, VkCommandBuffer *buffers) {
     VkCommandBufferAllocateInfo allocate_info = {
             .sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -233,11 +216,9 @@ void AllocCommandBuffers(uint32_t count, VkCommandBuffer *buffers) {
               "Failed to allocate %u command buffers", count);
 }
 
-
 /*
  * Memory management.
  */
-
 
 static VulkanDeviceMemory CreateDeviceMemory(VkDeviceSize size, VkMemoryPropertyFlags flags) {
     VkPhysicalDeviceMemoryProperties props;

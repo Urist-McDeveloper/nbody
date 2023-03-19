@@ -61,10 +61,6 @@ make
 
 * `SIMD_SET` (default `AVX`) -- which SIMD instruction set to use; possible values: `AVX`, `SSE` or `none`.
 
-### How to run
-
-1. Make sure that the compiled shader is located at `./shader/particle_cs.spv`.
-2. Run `nbody`.
 
 ### What to do
 

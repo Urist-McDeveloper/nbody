@@ -1,8 +1,10 @@
 #include "sim_gpu.h"
-#include "vulkan_ctx.h"
-#include "util.h"
 
 #include <stdbool.h>
+
+#include "vulkan_ctx.h"
+#include "util.h"
+#include "../shader/particle_cs.h"
 
 /* Compute shader work group size. */
 #define LOCAL_SIZE_X 256
@@ -41,7 +43,13 @@ SimPipeline *CreateSimPipeline(WorldData data) {
      * Shaders.
      */
 
-    sim->shader = LoadShaderModule("shader/particle_cs.spv");
+    VkShaderModuleCreateInfo create_info = {
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .codeSize = sizeof(particle_cs_spv),
+            .pCode = (uint32_t *)particle_cs_spv,
+    };
+    ASSERT_VK(vkCreateShaderModule(vulkan_ctx.dev, &create_info, NULL, &sim->shader),
+              "Failed to create shader compute shader module");
 
     VkSpecializationMapEntry shader_spec_map[2];
     for (int i = 0; i < 2; i++) {
