@@ -19,11 +19,10 @@
         if (!(COND)) {                                                          \
             char util_strerror_buf[255] = {0};                                  \
             (void)strerror_r(errno, util_strerror_buf, 255);                    \
-            fprintf(stderr, "%s:%d [%s] errno = %d, str = %s\n",                \
-                    __FILE__, __LINE__, __func__, errno, util_strerror_buf);    \
             fprintf(stderr, "%s:%d [%s] ", __FILE__, __LINE__, __func__);       \
             fprintf(stderr, __VA_ARGS__);                                       \
-            fprintf(stderr, "\n");                                              \
+            fprintf(stderr, "\n%s:%d [%s] errno = %d, str = %s\n",              \
+                    __FILE__, __LINE__, __func__, errno, util_strerror_buf);    \
             abort();                                                            \
         }                                                                       \
     } while (0)
@@ -48,13 +47,12 @@
     do {                                                                                    \
         VkResult util_assert_vk_x = (X);                                                    \
         if (util_assert_vk_x != VK_SUCCESS) {                                               \
-            fprintf(stderr, "%s:%d [%s] VkResult = %d, str = %s\n",                         \
+            fprintf(stderr, "%s:%d [%s] ", __FILE__, __LINE__, __func__);                   \
+            fprintf(stderr, __VA_ARGS__);                                                   \
+            fprintf(stderr, "\n%s:%d [%s] VkResult = %d, str = %s\n",                       \
                     __FILE__, __LINE__, __func__,                                           \
                     util_assert_vk_x,                                                       \
                     util_vkr_to_str(util_assert_vk_x));                                     \
-            fprintf(stderr, "%s:%d [%s] ", __FILE__, __LINE__, __func__);                   \
-            fprintf(stderr, __VA_ARGS__);                                                   \
-            fprintf(stderr, "\n");                                                          \
             abort();                                                                        \
         }                                                                                   \
     } while (0)

@@ -1,6 +1,6 @@
 # 2D N-body simulation on CPU and GPU
 
-Written in C, powered by Vulkan and AVX (or SSE), shown on screen with [raylib](https://github.com/raysan5/raylib).
+Written in C, powered by Vulkan and AVX (or SSE).
 
 *(videos below are quite heavily compressed)*
 
@@ -8,61 +8,57 @@ https://user-images.githubusercontent.com/112800528/225752992-43dac741-f90d-4638
 
 https://user-images.githubusercontent.com/112800528/225753149-73836b71-6744-4fcb-b3d9-e97e08782134.mp4
 
-## Build and run
+## How to build
 
-### Build prerequisites
+1. Clone this repository:
+   ```shell
+   git clone --recurse-submodules https://github.com/Urist-McDeveloper/nbody.git
+   cd nbody
+   ```
+2. Build like any other CMake project. Example for Linux:
+   ```shell
+   mkdir build && cd build
+   cmake -DCMAKE_BUILD_TYPE=Debug ..
+   make
+   ```
 
-1. C compiler:
-   * C99 standard;
-   * unless SIMD is disabled through build options:
-      * AVX or SSE intrinsics (`immintrin.h` and `xmmintrin.h` respectively);
-      * one of:
-         * `aligned_alloc` (C11 standard);
-         * `_aligned_malloc` (Windows);
-         * `posix_memalign` (POSIX)
-   * (*optional*) OpenMP.
-2. Vulkan SDK, including `glslc` and validation layers. Only Vulkan 1.0 features are used.
-3. CMake version 3.20 or later.
+#### Build prerequisites
 
-If you don't have raylib installed on your system, it will be built with this project. For more information
-on building raylib please refer to https://github.com/raysan5/raylib/tree/4.2.0#build-and-installation.
+1. C compiler that supports C99 standard and (optionally) OpenMP
+2. Vulkan SDK, including `glslc` and validation layers
+3. CMake version 3.20 or later
+
+Build prerequisites for GLFW can be found in
+[the official documentation](https://www.glfw.org/docs/latest/compile.html#compile_deps).
+
+#### Build options
+
+* `SIMD_SET` -- which SIMD instruction set to use:
+  * possible values: `AVX` (default), `SSE`, `NONE`
+  * if AVX or SSE is used, compiler must support `immintrin.h` or `xmmintrin.h` respectively
+  * if AVX or SSE is used, compiler must support one of:
+    * `aligned_alloc` in `stdlib.h` (C11 standard)
+    * `posix_memalign` in `stdlib.h` (POSIX)
+    * `_aligned_malloc` in `malloc.h` (Windows)
+* `USE_EXTERNAL_GLFW` -- whether to use external GLFW or build it from source:
+  * possible values: `OFF` (default), `ON`
 
 #### Build is tested on
 
 * Linux:
-   * GCC 12.1;
-   * Clang 15;
+   * GCC 12.1
+   * Clang 15
    * TCC 0.9:
-      * raylib is provided externally;
-      * `SIMD_SET` is `none`.
+      * `SIMD_SET=NONE`
+      * `USE_EXTERNAL_GLFW=ON`
 * Windows:
-   * MinGW-w64 10.
+   * MinGW-w64 10
 
 #### Misc.
 
 Target `nbody-bench` uses Linux-only monotonic clock and therefore is not available on other platforms.
 
-### How to build
-
-```shell
-git clone --recurse-submodules https://github.com/Urist-McDeveloper/nbody.git
-cd nbody
-```
-
-Then build like any other CMake project. Example on Linux:
-
-```shell
-mkdir build && cd build
-cmake -DCMAKE_BUILD_TYPE=Debug ..
-make
-```
-
-#### Build options
-
-* `SIMD_SET` (default `AVX`) -- which SIMD instruction set to use; possible values: `AVX`, `SSE` or `none`.
-
-
-### What to do
+## What to do
 
 Base controls:
 
@@ -87,8 +83,8 @@ Simulation controls:
 
 By changing some macros:
 
-* `WINDOW_WIDTH` and `WINDOW_HEIGHT` ([src/main.c](src/main.c#L10)) -- self explanatory;
-* `PARTICLE_COUNT` ([src/main.c](src/main.c#L13)) -- you guessed it, particle count;
+* `WINDOW_WIDTH` and `WINDOW_HEIGHT` ([src/main.c](src/main.c#L10)) -- self explanatory
+* `PARTICLE_COUNT` ([src/main.c](src/main.c#L13)) -- you guessed it, particle count
 * The entirety of [include/galaxy.h](include/galaxy.h)
 
 ## TODO list

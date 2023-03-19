@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.20)
 project(nbody C)
 
 set(SIMD_SET "AVX" CACHE STRING "Which SIMD instruction set to use: AVX, SSE or none")
+option(USE_EXTERNAL_GLFW "Use external GLFW library instead of building it from source" OFF)
 
 if (MSVC)
     set(nbody_compiler_flags /W4)
