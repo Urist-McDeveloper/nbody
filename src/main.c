@@ -13,12 +13,15 @@
 #define WINDOW_WIDTH    1280
 #define WINDOW_HEIGHT   720
 
-#define PARTICLE_COUNT  10000       // number of simulated particles
+#define PARTICLE_COUNT  40000       // number of simulated particles
+#define GALAXY_COUNT    8           // number of created galaxies
+
 #define PHYS_STEP       0.01f       // fixed time step used by simulation
+#define MAX_OVERWORK    3           // maximum updates per second = MAX_OVERWORK * current_speed
 
 #define CAMERA_SCROLL_ZOOM   0.1f   // how much 1 mouse wheel scroll affects zoom
 
-static const float SPEEDS[] = {1, 2, 4, 8, 16, 32, 64, 128};        // number of updates per tick
+static const int SPEEDS[] = {1, 2, 4, 8, 16, 32, 64, 128};          // number of updates per tick
 static const float STEPS[] = {0.1f, 0.25f, 0.5f, 1.f, 2.f, 4.f};    // fixed step multiplier
 
 #define SPEEDS_LENGTH   (sizeof(SPEEDS) / sizeof(SPEEDS[0]))
@@ -43,15 +46,23 @@ static struct {
     double last_frame_time;
     uint32_t speed_idx;
     uint32_t step_idx;
+    bool reverse;
     bool paused;
     bool mmb_pressed;
 } state;
 
 static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
-    if (action != GLFW_PRESS) return;
-
     (void)scancode;
     (void)mods;
+
+    if (key == GLFW_KEY_R) {
+        if (action == GLFW_PRESS)
+            state.reverse = true;
+
+        if (action == GLFW_RELEASE)
+            state.reverse = false;
+    }
+    if (action != GLFW_PRESS) return;
 
     switch (key) {
         case GLFW_KEY_ESCAPE:
@@ -79,7 +90,7 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
     }
 }
 
-static void scroll_callback(GLFWwindow* window, double dx, double dy) {
+static void scroll_callback(GLFWwindow *window, double dx, double dy) {
     (void)window;
     (void)dx;
 
@@ -130,7 +141,7 @@ int main() {
     glfwSetCursorPosCallback(window, cursor_callback);
     glfwSetMouseButtonCallback(window, mouse_button_callback);
 
-    Particle *particles = MakeGalaxies(PARTICLE_COUNT, 3 + (rand() % 4));
+    Particle *particles = MakeGalaxies(PARTICLE_COUNT, GALAXY_COUNT);
     World *world = CreateWorld(particles, PARTICLE_COUNT);
     state.camera = InitCamera(particles, PARTICLE_COUNT);
     free(particles);
@@ -148,8 +159,7 @@ int main() {
     bool rnd_signaled = false;
 
     state.step_idx = DEF_STEP_IDX;
-    state.phys_time = PHYS_STEP;
-    state.last_frame_time = glfwGetTime();
+    state.frame_time = glfwGetTime();
 
     glfwShowWindow(window);
     while (!glfwWindowShouldClose(window)) {
@@ -168,10 +178,19 @@ int main() {
         }
 
         if (updates > 0) {
+            uint32_t max_updates = MAX_OVERWORK * SPEEDS[state.speed_idx];
+            if (updates > max_updates) {
+                updates = max_updates;
+            }
+
+            float step = PHYS_STEP * STEPS[state.step_idx];
+            if (state.reverse) {
+                step = -step;
+            }
+
             VkSemaphore wait = rnd_signaled ? rnd_to_sim : NULL;
             rnd_signaled = false;
 
-            float step = PHYS_STEP * STEPS[state.step_idx];
             UpdateWorld_GPU(world, wait, sim_to_rnd, step, updates);
         }
 

@@ -7,7 +7,7 @@
 #define PI      3.1415927f  // homegrown constants are the best
 #endif
 
-#define MIN_SPIRALS 2       // minimum number of spirals in a galaxy
+#define MIN_SPIRALS 1       // minimum number of spirals in a galaxy
 #define MAX_SPIRALS 4       // maximum number of spirals in a galaxy
 
 #define GC_MIN_R    200.f   // minimum radius of galaxy cores
@@ -24,7 +24,7 @@
 #define NP_R_TO_M(R)    R_TO_M(R, NP_DENSITY)   // convert normal particle's radius to mass
 #define MIN_GC_MASS     GC_R_TO_M(GC_MIN_R)     // minimum possible mass of galaxy core
 
-#define MIN_PARTICLES_PER_GALAXY    100         // minimum number of particles per galaxy
+#define MIN_PARTICLES_PER_GALAXY    1000        // minimum number of particles per galaxy
 
 /*
  *  A galaxy has a minimum and maximum distance from its core at which the particles can be generated:

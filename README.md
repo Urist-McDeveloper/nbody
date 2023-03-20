@@ -73,7 +73,7 @@ Camera controls:
 
 Simulation controls:
 
-* `TAB` to switch between CPU and GPU simulation
+* `R` to reverse time
 * `LEFT` to decrease simulation speed (fewer updates per second)
 * `RIGHT` to increase simulation speed (more updates per second)
 * `UP` to increase simulation step (less accurate, simulation speeds up)
@@ -83,8 +83,8 @@ Simulation controls:
 
 By changing some macros:
 
-* `WINDOW_WIDTH` and `WINDOW_HEIGHT` ([src/main.c](src/main.c#L10)) -- self explanatory
-* `PARTICLE_COUNT` ([src/main.c](src/main.c#L13)) -- you guessed it, particle count
+* `WINDOW_WIDTH` and `WINDOW_HEIGHT` ([src/main.c](src/main.c#L13))
+* `PARTICLE_COUNT` and `GALAXY_COUNT` ([src/main.c](src/main.c#L16))
 * The entirety of [include/galaxy.h](include/galaxy.h)
 
 ## TODO list
