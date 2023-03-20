@@ -96,6 +96,10 @@ const Particle *GetWorldParticles(World *w, uint32_t *size) {
     return w->arr;
 }
 
+const VulkanBuffer *GetWorldParticleBuffer(World *w) {
+    return GetSimulationBuffer(w->sim);
+}
+
 void UpdateWorld_CPU(World *w, float dt, uint32_t n) {
     SyncToArrFromGPU(w);
     for (uint32_t update_iter = 0; update_iter < n; update_iter++) {
@@ -109,10 +113,10 @@ void UpdateWorld_CPU(World *w, float dt, uint32_t n) {
     w->arr_sync = false;
 }
 
-void UpdateWorld_GPU(World *w, float dt, uint32_t n) {
+void UpdateWorld_GPU(World *w, VkEvent set_event, float dt, uint32_t n) {
     if (n > 0) {
         SyncFromArrToGPU(w);
-        PerformSimUpdate(w->sim, n, dt);
+        PerformSimUpdate(w->sim, set_event, n, dt);
         w->gpu_sync = false;
     }
 }

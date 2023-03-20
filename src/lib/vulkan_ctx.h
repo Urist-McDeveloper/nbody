@@ -7,13 +7,6 @@
 #include <nbody.h>
 #include "util.h"
 
-/* Wrapper of VkBuffer. */
-typedef struct VulkanBuffer {
-    VkBuffer handle;
-    VkDeviceSize size;  // total size (in bytes)
-    void *mapped;       // NULL if buffer is not from host-coherent memory
-} VulkanBuffer;
-
 /* Wrapper of VkDeviceMemory capable of linear buffer allocation. */
 typedef struct VulkanDeviceMemory {
     VkDeviceMemory handle;
@@ -61,11 +54,5 @@ static inline void CopyFromVulkanBuffer(const VulkanBuffer *buffer, void *data) 
 
 /* Copy data from SRC to DST. Both buffers must have the same size. */
 void CopyVulkanBuffer(VkCommandBuffer cmd, const VulkanBuffer *src, const VulkanBuffer *dst);
-
-/* Fill INFO. */
-void FillDescriptorBufferInfo(const VulkanBuffer *buffer, VkDescriptorBufferInfo *info);
-
-/* Fill buffer memory barrier; src operation is MEMORY_WRITE, dst operation is MEMORY_READ. */
-void FillWriteReadBufferBarrier(const VulkanBuffer *buffer, VkBufferMemoryBarrier *barrier);
 
 #endif //NB_VULKAN_CTX_H

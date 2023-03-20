@@ -15,9 +15,6 @@ typedef struct V2 {
     float x, y;
 } V2;
 
-/* Zero-length vector. */
-#define V2_ZERO         (V2){ .x = 0.0, .y = 0.0 }
-
 /* Constructor macro. */
 #define V2_FROM(X, Y)   (V2){ .x = (X), .y = (Y) }
 
@@ -46,6 +43,36 @@ static inline float SqMagV2(V2 v) {
     return v.x * v.x + v.y * v.y;
 }
 
+/* Global Vulkan context. */
+extern struct VulkanContext {
+    VkInstance instance;
+    VkPhysicalDevice pdev;
+    VkDevice dev;
+    VkQueue queue;
+    VkCommandPool cmd_pool;
+    uint32_t queue_family_idx;
+} vk_ctx;
+
+/* Wrapper of VkBuffer. */
+typedef struct VulkanBuffer {
+    VkBuffer handle;
+    VkDeviceSize size;  // total size (in bytes)
+    void *mapped;       // NULL if buffer is not from host-coherent memory
+} VulkanBuffer;
+
+/* Initialize global Vulkan context the first time this function is called; subsequent calls are ignored. */
+void InitGlobalVulkanContext(bool need_gfx_queue, const char **instance_ext, uint32_t ext_count);
+
+/* Fill INFO with metadata of BUFFER. */
+void FillDescriptorBufferInfo(const VulkanBuffer *buffer, VkDescriptorBufferInfo *info);
+
+/* Allocate primary command buffers. */
+void AllocCommandBuffers(uint32_t count, VkCommandBuffer *buffers);
+
+static inline void FreeCommandBuffers(uint32_t count, VkCommandBuffer *buffers) {
+    vkFreeCommandBuffers(vk_ctx.dev, vk_ctx.cmd_pool, count, buffers);
+}
+
 
 /* Simulation particle. */
 typedef struct Particle {
@@ -57,7 +84,6 @@ typedef struct Particle {
 // Vulkan requires structs to be aligned to 16 bytes
 _Static_assert(sizeof(Particle) % 16 == 0, "sizeof(Particle) must be a multiple of 16");
 #endif
-
 
 /* The simulated world with fixed particle count. */
 typedef struct World World;
@@ -71,27 +97,13 @@ void DestroyWorld(World *w);
 /* Get Particle array and its size. */
 const Particle *GetWorldParticles(World *w, uint32_t *size);
 
+/* Get device-local buffer of latest particle data. */
+const VulkanBuffer *GetWorldParticleBuffer(World *w);
+
 /* Perform N updates using CPU simulation. */
 void UpdateWorld_CPU(World *w, float dt, uint32_t n);
 
 /* Perform N updates using GPU simulation. */
-void UpdateWorld_GPU(World *w, float dt, uint32_t n);
-
-
-/* Global Vulkan context. */
-extern struct VulkanContext {
-    VkInstance instance;
-    VkPhysicalDevice pdev;
-    VkDevice dev;
-    VkQueue queue;
-    VkCommandPool cmd_pool;
-    uint32_t queue_family_idx;
-} vk_ctx;
-
-/* Initialize global Vulkan context the first time this function is called; subsequent calls are ignored. */
-void InitGlobalVulkanContext(bool need_gfx_queue, const char **instance_ext, uint32_t ext_count);
-
-/* Allocate primary command buffers. */
-void AllocCommandBuffers(uint32_t count, VkCommandBuffer *buffers);
+void UpdateWorld_GPU(World *w, VkEvent set_event, float dt, uint32_t n);
 
 #endif //NB_H

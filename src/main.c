@@ -14,6 +14,7 @@
 #define WINDOW_HEIGHT   720
 
 #define PARTICLE_COUNT  6000        // number of simulated particles
+#define PHYS_STEP       0.01f       // fixed time step used by simulation
 
 static void InitVulkan();
 
@@ -27,34 +28,48 @@ int main() {
     ASSERT(GLFW_TRUE == glfwVulkanSupported(), "glfwVulkanSupported() returned false");
     InitVulkan();
 
-    World *world;
-    GLFWwindow *window;
-    Renderer *renderer;
+    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
 
-    #pragma omp parallel num_threads(2) default(none) shared(world, window, renderer, stderr)
-    #pragma omp master
-    {
-        #pragma omp task default(none) shared(world)
-        {
-            Particle *particles = MakeGalaxies(PARTICLE_COUNT, 3);
-            world = CreateWorld(particles, PARTICLE_COUNT);
-            free(particles);
-        }
+    GLFWwindow *window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "N-Body Simulation", NULL, NULL);
+    ASSERT(window != NULL, "Failed to create GLFW window");
 
-        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
-        glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-        glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+    Particle *particles = MakeGalaxies(PARTICLE_COUNT, 3);
+    World *world = CreateWorld(particles, PARTICLE_COUNT);
+    free(particles);
 
-        window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "N-Body Simulation", NULL, NULL);
-        ASSERT(window != NULL, "Failed to create GLFW window");
+    Renderer *renderer = CreateRenderer(window, GetWorldParticleBuffer(world));
+    VkEvent event;
 
-        renderer = CreateRenderer(window);
-    }
+    VkEventCreateInfo info = {
+            .sType = VK_STRUCTURE_TYPE_EVENT_CREATE_INFO,
+    };
+    ASSERT_VK(vkCreateEvent(vk_ctx.dev, &info, NULL, &event), "Failed to create Vulkan event");
+
+    double last_frame_time = glfwGetTime();
+    double phys_time = 0.0;
 
     glfwShowWindow(window);
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
-        Draw(renderer);
+        ASSERT_VK(vkResetEvent(vk_ctx.dev, event), "Failed to reset Vulkan event");
+
+        double frame_time = glfwGetTime();
+        double frame_time_delta = last_frame_time - frame_time;
+
+        phys_time += frame_time_delta;
+        uint32_t updates = 0;
+
+        while (phys_time > PHYS_STEP) {
+            phys_time -= PHYS_STEP;
+            updates++;
+        }
+
+        UpdateWorld_GPU(world, event, PHYS_STEP, updates);
+        Draw(renderer, event, PARTICLE_COUNT);
+
+        last_frame_time = frame_time;
     }
 
     DestroyRenderer(renderer);

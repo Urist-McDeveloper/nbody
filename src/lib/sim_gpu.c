@@ -131,14 +131,8 @@ SimPipeline *CreateSimPipeline(WorldData data) {
               "Failed to create descriptor set layout");
 
     VkDescriptorPoolSize ds_pool_size[2] = {
-            {
-                    .type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-                    .descriptorCount = 1,
-            },
-            {
-                    .type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
-                    .descriptorCount = 2,
-            },
+            {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1},
+            {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 2},
     };
     VkDescriptorPoolCreateInfo ds_pool_info = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
@@ -214,6 +208,7 @@ SimPipeline *CreateSimPipeline(WorldData data) {
     AllocCommandBuffers(1, &sim->cmd);
     VkFenceCreateInfo fence_info = {
             .sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+            .flags = VK_FENCE_CREATE_SIGNALED_BIT,
     };
     ASSERT_VK(vkCreateFence(vk_ctx.dev, &fence_info, NULL, &sim->fence), "Failed to create fence");
 
@@ -223,9 +218,7 @@ SimPipeline *CreateSimPipeline(WorldData data) {
 void DestroySimPipeline(SimPipeline *sim) {
     if (sim != NULL) {
         VkDevice dev = vk_ctx.dev;
-
-        vkDestroyFence(dev, sim->fence, NULL);
-        vkFreeCommandBuffers(dev, vk_ctx.cmd_pool, 1, &sim->cmd);
+        FreeCommandBuffers(1, &sim->cmd);
 
         vkDestroyPipeline(dev, sim->pipeline, NULL);
         vkDestroyPipelineLayout(dev, sim->pipeline_layout, NULL);
@@ -255,8 +248,16 @@ void SetSimulationData(SimPipeline *sim, const Particle *ps) {
     sim->transfer_buf_synced = false;
 }
 
-void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt) {
+const VulkanBuffer *GetSimulationBuffer(const SimPipeline *sim) {
+    return &sim->storage[1];
+}
+
+void PerformSimUpdate(SimPipeline *sim, VkEvent set_event, uint32_t n, float dt) {
     ASSERT_DBG(n > 0, "Performing 0 GPU simulation updates is not allowed");
+
+    ASSERT_VK(vkWaitForFences(vk_ctx.dev, 1, &sim->fence, VK_TRUE, UINT64_MAX), "Failed to wait for fences");
+    ASSERT_VK(vkResetFences(vk_ctx.dev, 1, &sim->fence), "Failed to reset fence");
+    ASSERT_VK(vkResetCommandBuffer(sim->cmd, 0), "Failed to reset command buffer");
 
     // start recording command buffer
     VkCommandBufferBeginInfo begin_info = {
@@ -271,16 +272,6 @@ void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt) {
 
         CopyIntoVulkanBuffer(&sim->transfer_buf[0], &sim->world_data);
         CopyVulkanBuffer(sim->cmd, &sim->transfer_buf[0], &sim->uniform);
-
-        // pipeline should wait until copy command is finished
-        VkBufferMemoryBarrier uniform_copy_barrier;
-        FillWriteReadBufferBarrier(&sim->uniform, &uniform_copy_barrier);
-
-        vkCmdPipelineBarrier(sim->cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
-                             VK_DEPENDENCY_BY_REGION_BIT,
-                             0, NULL,
-                             1, &uniform_copy_barrier,
-                             0, NULL);
     }
 
     // copy latest data into storage[0]
@@ -290,15 +281,22 @@ void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt) {
     } else {
         // transfer_buf[1] was modified externally
         CopyVulkanBuffer(sim->cmd, &sim->transfer_buf[1], &sim->storage[0]);
+        sim->transfer_buf_synced = true;
     }
 
     // wait for pipeline to finish before copying storage[1] into storage[0]
-    VkBufferMemoryBarrier pipeline_barrier;
-    FillWriteReadBufferBarrier(&sim->storage[1], &pipeline_barrier);
+    VkMemoryBarrier pipeline_barrier = {
+            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+            .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+            .dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT,
+    };
 
     // wait for copy command to finish before running pipeline
-    VkBufferMemoryBarrier transfer_barrier;
-    FillWriteReadBufferBarrier(&sim->storage[0], &transfer_barrier);
+    VkMemoryBarrier transfer_barrier = {
+            .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+            .srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
+            .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+    };
 
     // bind pipeline and descriptor set
     uint32_t group_count = sim->world_data.total_len / LOCAL_SIZE_X;
@@ -317,8 +315,8 @@ void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt) {
             // wait for pipeline to finish and copy new data from storage[1] to storage[0]
             vkCmdPipelineBarrier(sim->cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
                                  VK_DEPENDENCY_BY_REGION_BIT,
-                                 0, NULL,
                                  1, &pipeline_barrier,
+                                 0, NULL,
                                  0, NULL);
             CopyVulkanBuffer(sim->cmd, &sim->storage[1], &sim->storage[0]);
         }
@@ -326,17 +324,20 @@ void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt) {
         // wait for transfer to finish and run pipeline
         vkCmdPipelineBarrier(sim->cmd, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
                              VK_DEPENDENCY_BY_REGION_BIT,
-                             0, NULL,
                              1, &transfer_barrier,
+                             0, NULL,
                              0, NULL);
         vkCmdDispatch(sim->cmd, group_count, 1, 1);
     }
 
+    // wait for pipeline to finish and set event
+    vkCmdSetEvent(sim->cmd, set_event, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
+
     // wait for pipeline to finish and copy new data from storage[1] to transfer_buf[1]
     vkCmdPipelineBarrier(sim->cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
                          VK_DEPENDENCY_BY_REGION_BIT,
-                         0, NULL,
                          1, &pipeline_barrier,
+                         0, NULL,
                          0, NULL);
     CopyVulkanBuffer(sim->cmd, &sim->storage[1], &sim->transfer_buf[1]);
 
@@ -350,12 +351,4 @@ void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt) {
             .pCommandBuffers = &sim->cmd,
     };
     ASSERT_VK(vkQueueSubmit(vk_ctx.queue, 1, &submit_info, sim->fence), "Failed to submit command buffer");
-    ASSERT_VK(vkWaitForFences(vk_ctx.dev, 1, &sim->fence, VK_TRUE, UINT64_MAX), "Failed to wait for fences");
-
-    // reset fence and command buffer
-    ASSERT_VK(vkResetFences(vk_ctx.dev, 1, &sim->fence), "Failed to reset fence");
-    ASSERT_VK(vkResetCommandBuffer(sim->cmd, 0), "Failed to reset command buffer");
-
-    // storage[1] was copied to transfer_buf[1]
-    sim->transfer_buf_synced = true;
 }

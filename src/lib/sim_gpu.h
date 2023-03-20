@@ -29,10 +29,13 @@ void GetSimulationData(const SimPipeline *sim, Particle *ps);
 /* Copy particle data from PS into GPU buffer. */
 void SetSimulationData(SimPipeline *sim, const Particle *ps);
 
+/* Get device-local buffer that holds the latest particle data. */
+const VulkanBuffer *GetSimulationBuffer(const SimPipeline *sim);
+
 /*
- * Perform N > 0 updates with time step.
+ * Perform N > 0 updates with time step and set event on completion.
  * Simulation data MUST have been set prior to calling this function.
  */
-void PerformSimUpdate(SimPipeline *sim, uint32_t n, float dt);
+void PerformSimUpdate(SimPipeline *sim, VkEvent set_event, uint32_t n, float dt);
 
 #endif //NB_WORLD_VK_H

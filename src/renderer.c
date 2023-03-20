@@ -118,8 +118,12 @@ struct Renderer {
     VkImage *images;
     VkImageView *views;
     VkFramebuffer *framebuffers;
+    // descriptors
+    VkDescriptorSetLayout ds_layout;
+    VkDescriptorPool ds_pool;
+    VkDescriptorSet ds_set;
     // pipeline
-    VkPipelineLayout layout;
+    VkPipelineLayout pipeline_layout;
     VkPipeline pipeline;
     // commands and synchronization
     VkCommandBuffer cmd;
@@ -147,7 +151,7 @@ static void SetupFramebuffers(Renderer *r) {
     }
 }
 
-Renderer *CreateRenderer(GLFWwindow *window) {
+Renderer *CreateRenderer(GLFWwindow *window, const VulkanBuffer *particle_data) {
     Renderer *r = ALLOC(1, Renderer);
     ASSERT(r != NULL, "Failed to alloc Renderer");
 
@@ -227,13 +231,66 @@ Renderer *CreateRenderer(GLFWwindow *window) {
     };
 
     /*
+     * Descriptors.
+     */
+
+    VkDescriptorSetLayoutBinding data_binding = {
+            .binding = 0,
+            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+            .descriptorCount = 1,
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+    };
+    VkDescriptorSetLayoutCreateInfo ds_layout_info = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+            .bindingCount = 1,
+            .pBindings = &data_binding,
+    };
+    ASSERT_VK(vkCreateDescriptorSetLayout(vk_ctx.dev, &ds_layout_info, NULL, &r->ds_layout),
+              "Failed to create descriptor set layout");
+
+    VkDescriptorPoolSize ds_pool_size = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1};
+    VkDescriptorPoolCreateInfo ds_pool_info = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+            .maxSets = 1,
+            .poolSizeCount = 2,
+            .pPoolSizes = &ds_pool_size,
+    };
+    ASSERT_VK(vkCreateDescriptorPool(vk_ctx.dev, &ds_pool_info, NULL, &r->ds_pool),
+              "Failed to create descriptor pool");
+
+    VkDescriptorSetAllocateInfo ds_alloc_info = {
+            .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+            .descriptorPool = r->ds_pool,
+            .descriptorSetCount = 1,
+            .pSetLayouts = &r->ds_layout,
+    };
+    ASSERT_VK(vkAllocateDescriptorSets(vk_ctx.dev, &ds_alloc_info, &r->ds_set),
+              "Failed to allocate descriptor set");
+
+    VkDescriptorBufferInfo data_info;
+    FillDescriptorBufferInfo(particle_data, &data_info);
+
+    VkWriteDescriptorSet write_set = {
+            .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+            .dstSet = r->ds_set,
+            .dstBinding = 0,
+            .descriptorCount = 1,
+            .descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,
+            .pBufferInfo = &data_info,
+    };
+    vkUpdateDescriptorSets(vk_ctx.dev, 1, &write_set, 0, NULL);
+
+    /*
      * Pipeline.
      */
 
     VkPipelineLayoutCreateInfo layout_info = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+            .setLayoutCount = 1,
+            .pSetLayouts = &r->ds_layout,
     };
-    ASSERT_VK(vkCreatePipelineLayout(vk_ctx.dev, &layout_info, NULL, &r->layout), "Failed to create pipeline layout");
+    ASSERT_VK(vkCreatePipelineLayout(vk_ctx.dev, &layout_info, NULL, &r->pipeline_layout),
+              "Failed to create pipeline layout");
 
     VkDynamicState dynamic_state[2] = {
             VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR
@@ -254,7 +311,7 @@ Renderer *CreateRenderer(GLFWwindow *window) {
     };
     VkPipelineInputAssemblyStateCreateInfo assembly_info = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO,
-            .topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST,
+            .topology = VK_PRIMITIVE_TOPOLOGY_POINT_LIST,
     };
     VkPipelineRasterizationStateCreateInfo raster_info = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
@@ -267,17 +324,17 @@ Renderer *CreateRenderer(GLFWwindow *window) {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO,
             .rasterizationSamples = SAMPLE_COUNT,
     };
-    VkPipelineColorBlendAttachmentState blend_attachment = {
+    VkPipelineColorBlendAttachmentState color_blend_attachment = {
             .colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
                               VK_COLOR_COMPONENT_G_BIT |
                               VK_COLOR_COMPONENT_B_BIT |
                               VK_COLOR_COMPONENT_A_BIT
     };
-    VkPipelineColorBlendStateCreateInfo blend_info = {
+    VkPipelineColorBlendStateCreateInfo color_blend_info = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
             .logicOpEnable = VK_FALSE,
             .attachmentCount = 1,
-            .pAttachments = &blend_attachment,
+            .pAttachments = &color_blend_attachment,
     };
     VkGraphicsPipelineCreateInfo pipeline_info = {
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
@@ -288,9 +345,9 @@ Renderer *CreateRenderer(GLFWwindow *window) {
             .pViewportState = &viewport_info,
             .pRasterizationState = &raster_info,
             .pMultisampleState = &multisample_info,
-            .pColorBlendState = &blend_info,
+            .pColorBlendState = &color_blend_info,
             .pDynamicState = &dynamic_info,
-            .layout = r->layout,
+            .layout = r->pipeline_layout,
             .renderPass = r->render_pass,
             .subpass = 0,
     };
@@ -322,13 +379,13 @@ void DestroyRenderer(Renderer *r) {
     ASSERT_VK(vkWaitForFences(vk_ctx.dev, 1, &r->fence, VK_TRUE, UINT64_MAX), "Failed to wait for fences");
 
     if (r != NULL) {
-        vkFreeCommandBuffers(vk_ctx.dev, vk_ctx.cmd_pool, 1, &r->cmd);
+        FreeCommandBuffers(1, &r->cmd);
         vkDestroySemaphore(vk_ctx.dev, r->swapchain_sem, NULL);
         vkDestroySemaphore(vk_ctx.dev, r->cmd_sem, NULL);
         vkDestroyFence(vk_ctx.dev, r->fence, NULL);
 
         vkDestroyPipeline(vk_ctx.dev, r->pipeline, NULL);
-        vkDestroyPipelineLayout(vk_ctx.dev, r->layout, NULL);
+        vkDestroyPipelineLayout(vk_ctx.dev, r->pipeline_layout, NULL);
 
         vkDestroyShaderModule(vk_ctx.dev, r->frag, NULL);
         vkDestroyShaderModule(vk_ctx.dev, r->vert, NULL);
@@ -428,7 +485,7 @@ void RecreateSwapchain(Renderer *r) {
     }
 }
 
-void Draw(Renderer *r) {
+void Draw(Renderer *r, VkEvent wait_event, uint32_t particle_count) {
     // wait for previous frame to finish
     ASSERT_VK(vkWaitForFences(vk_ctx.dev, 1, &r->fence, VK_TRUE, UINT64_MAX), "Failed to wait for fences");
     ASSERT_VK(vkResetFences(vk_ctx.dev, 1, &r->fence), "Failed to reset fence");
@@ -458,7 +515,14 @@ void Draw(Renderer *r) {
     };
     vkCmdBeginRenderPass(r->cmd, &pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
-    // bind pipeline and set viewport
+    // bind pipeline and descriptor set
+    vkCmdBindDescriptorSets(r->cmd, VK_PIPELINE_BIND_POINT_GRAPHICS,
+                            r->pipeline_layout, 0,
+                            1, &r->ds_set,
+                            0, 0);
+    vkCmdBindPipeline(r->cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r->pipeline);
+
+    // set dynamic data
     VkViewport viewport = {
             .width = (float)r->extent.width,
             .height = (float)r->extent.height,
@@ -469,12 +533,23 @@ void Draw(Renderer *r) {
             .offset = {0, 0},
             .extent = r->extent,
     };
-    vkCmdBindPipeline(r->cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, r->pipeline);
     vkCmdSetViewport(r->cmd, 0, 1, &viewport);
     vkCmdSetScissor(r->cmd, 0, 1, &scissors);
 
     // draw stuff
-    vkCmdDraw(r->cmd, 3, 1, 0, 0);
+    if (wait_event != NULL) {
+        VkMemoryBarrier data_barrier = {
+                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
+                .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
+                .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
+        };
+        vkCmdWaitEvents(r->cmd, 1, &wait_event,
+                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
+                        1, &data_barrier,
+                        0, NULL,
+                        0, NULL);
+    }
+    vkCmdDraw(r->cmd, particle_count, 1, 0, 0);
 
     // finish recording command buffer
     vkCmdEndRenderPass(r->cmd);

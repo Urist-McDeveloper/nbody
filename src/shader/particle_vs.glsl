@@ -1,20 +1,22 @@
 #version 450
 
-const vec2 positions[3] = vec2[](
-    vec2(0.0, -0.5),
-    vec2(0.5, 0.5),
-    vec2(-0.5, 0.5)
-);
+struct Particle {
+    vec2 pos, vel, acc;
+    float mass, radius;
+};
 
-const vec3 colors[3] = vec3[](
-    vec3(1.0, 0.0, 0.0),
-    vec3(0.0, 1.0, 0.0),
-    vec3(0.0, 0.0, 1.0)
-);
+layout (std140, binding = 0) readonly buffer Data {
+    Particle particles[];
+};
 
 layout (location = 0) out vec3 color;
 
 void main() {
-    gl_Position = vec4(positions[gl_VertexIndex], 0.0, 1.0);
-    color = colors[gl_VertexIndex];
+    Particle particle = particles[gl_VertexIndex];
+    gl_Position = vec4(
+        particle.pos / 40000.f,
+        0.f, 1.f
+    );
+    gl_PointSize = 1.f;
+    color = vec3(1.f, 1.f, 1.f);
 }

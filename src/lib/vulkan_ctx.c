@@ -258,6 +258,16 @@ void AllocCommandBuffers(uint32_t count, VkCommandBuffer *buffers) {
               "Failed to allocate %u command buffers", count);
 }
 
+VkSemaphore CreateSemaphore() {
+    VkSemaphoreCreateInfo sem_info = {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+    };
+    VkSemaphore semaphore;
+    ASSERT_VK(vkCreateSemaphore(vk_ctx.dev, &sem_info, NULL, &semaphore), "Failed to create semaphore");
+
+    return semaphore;
+}
+
 /*
  * Memory management.
  */
@@ -358,19 +368,5 @@ void FillDescriptorBufferInfo(const VulkanBuffer *buffer, VkDescriptorBufferInfo
             .buffer = buffer->handle,
             .offset = 0,
             .range = buffer->size,
-    };
-}
-
-void FillWriteReadBufferBarrier(const VulkanBuffer *buffer, VkBufferMemoryBarrier *barrier) {
-    *barrier = (VkBufferMemoryBarrier){
-            .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER,
-            .pNext = NULL,
-            .srcAccessMask = VK_ACCESS_MEMORY_WRITE_BIT,
-            .dstAccessMask = VK_ACCESS_MEMORY_READ_BIT,
-            .srcQueueFamilyIndex = vk_ctx.queue_family_idx,
-            .dstQueueFamilyIndex = vk_ctx.queue_family_idx,
-            .buffer = buffer->handle,
-            .offset = 0,
-            .size = buffer->size,
     };
 }
