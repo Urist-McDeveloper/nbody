@@ -113,10 +113,10 @@ void UpdateWorld_CPU(World *w, float dt, uint32_t n) {
     w->arr_sync = false;
 }
 
-void UpdateWorld_GPU(World *w, VkEvent set_event, float dt, uint32_t n) {
+void UpdateWorld_GPU(World *w, VkSemaphore wait, VkSemaphore signal, float dt, uint32_t n) {
     if (n > 0) {
         SyncFromArrToGPU(w);
-        PerformSimUpdate(w->sim, set_event, n, dt);
+        PerformSimUpdate(w->sim, wait, signal, n, dt);
         w->gpu_sync = false;
     }
 }

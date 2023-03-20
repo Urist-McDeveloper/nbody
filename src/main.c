@@ -91,10 +91,10 @@ static void cursor_callback(GLFWwindow *window, double pos_x, double pos_y) {
 
     float dx = (float)pos_x - state.camera.offset.x;
     float dy = (float)pos_y - state.camera.offset.y;
-    printf("[CRS] dx = %.2f, dy = %.2f\n", dx, dy);
 
     state.camera.offset.x += dx;
     state.camera.offset.y += dy;
+
     if (!state.mmb_pressed) {
         state.camera.target.x += dx / state.camera.zoom;
         state.camera.target.y += dy / state.camera.zoom;
@@ -136,12 +136,16 @@ int main() {
     free(particles);
 
     Renderer *renderer = CreateRenderer(window, GetWorldParticleBuffer(world));
-    VkEvent event;
+    VkSemaphore sim_to_rnd, rnd_to_sim;
 
-    VkEventCreateInfo info = {
-            .sType = VK_STRUCTURE_TYPE_EVENT_CREATE_INFO,
+    VkSemaphoreCreateInfo semaphore_info = {
+            .sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
     };
-    ASSERT_VK(vkCreateEvent(vk_ctx.dev, &info, NULL, &event), "Failed to create Vulkan event");
+    ASSERT_VK(vkCreateSemaphore(vk_ctx.dev, &semaphore_info, NULL, &sim_to_rnd), "Failed to create semaphore");
+    ASSERT_VK(vkCreateSemaphore(vk_ctx.dev, &semaphore_info, NULL, &rnd_to_sim), "Failed to create semaphore");
+
+    bool window_shown = false;
+    bool rnd_signaled = false;
 
     state.step_idx = DEF_STEP_IDX;
     state.phys_time = PHYS_STEP;
@@ -164,12 +168,23 @@ int main() {
         }
 
         if (updates > 0) {
-            ASSERT_VK(vkResetEvent(vk_ctx.dev, event), "Failed to reset Vulkan event");
-            float step = PHYS_STEP * STEPS[state.step_idx];
+            VkSemaphore wait = rnd_signaled ? rnd_to_sim : NULL;
+            rnd_signaled = false;
 
-            UpdateWorld_GPU(world, event, step, updates);
+            float step = PHYS_STEP * STEPS[state.step_idx];
+            UpdateWorld_GPU(world, wait, sim_to_rnd, step, updates);
         }
-        Draw(renderer, state.camera, updates == 0 ? NULL : event, PARTICLE_COUNT);
+
+        VkSemaphore wait = updates > 0 ? sim_to_rnd : NULL;
+        VkSemaphore signal = rnd_signaled ? NULL : rnd_to_sim;
+        rnd_signaled = true;
+
+        Draw(renderer, state.camera, wait, signal, PARTICLE_COUNT);
+
+        if (!window_shown) {
+            glfwShowWindow(window);
+            window_shown = true;
+        }
     }
 
     DestroyRenderer(renderer);

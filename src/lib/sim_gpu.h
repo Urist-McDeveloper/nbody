@@ -36,6 +36,6 @@ const VulkanBuffer *GetSimulationBuffer(const SimPipeline *sim);
  * Perform N > 0 updates with time step and set event on completion.
  * Simulation data MUST have been set prior to calling this function.
  */
-void PerformSimUpdate(SimPipeline *sim, VkEvent set_event, uint32_t n, float dt);
+void PerformSimUpdate(SimPipeline *sim, VkSemaphore wait, VkSemaphore signal, uint32_t n, float dt);
 
 #endif //NB_WORLD_VK_H

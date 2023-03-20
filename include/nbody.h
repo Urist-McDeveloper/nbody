@@ -104,6 +104,6 @@ const VulkanBuffer *GetWorldParticleBuffer(World *w);
 void UpdateWorld_CPU(World *w, float dt, uint32_t n);
 
 /* Perform N updates using GPU simulation. */
-void UpdateWorld_GPU(World *w, VkEvent set_event, float dt, uint32_t n);
+void UpdateWorld_GPU(World *w, VkSemaphore wait, VkSemaphore signal, float dt, uint32_t n);
 
 #endif //NB_H

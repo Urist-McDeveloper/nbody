@@ -92,7 +92,6 @@ By changing some macros:
 - [ ] Select optimal VkPhysicalDevice, not the first one in the list
 - [ ] Allow setting simulation parameters through command line arguments
 - [ ] Write tests that actually test something
-- [ ] Figure out why the simulation keeps freezing along with the rest of my desktop
 
 Done:
 

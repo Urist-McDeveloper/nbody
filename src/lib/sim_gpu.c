@@ -252,7 +252,7 @@ const VulkanBuffer *GetSimulationBuffer(const SimPipeline *sim) {
     return &sim->storage[1];
 }
 
-void PerformSimUpdate(SimPipeline *sim, VkEvent set_event, uint32_t n, float dt) {
+void PerformSimUpdate(SimPipeline *sim, VkSemaphore wait, VkSemaphore signal, uint32_t n, float dt) {
     ASSERT_DBG(n > 0, "Performing 0 GPU simulation updates is not allowed");
 
     ASSERT_VK(vkWaitForFences(vk_ctx.dev, 1, &sim->fence, VK_TRUE, UINT64_MAX), "Failed to wait for fences");
@@ -330,25 +330,18 @@ void PerformSimUpdate(SimPipeline *sim, VkEvent set_event, uint32_t n, float dt)
         vkCmdDispatch(sim->cmd, group_count, 1, 1);
     }
 
-    // wait for pipeline to finish and set event
-    vkCmdSetEvent(sim->cmd, set_event, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT);
-
-    // wait for pipeline to finish and copy new data from storage[1] to transfer_buf[1]
-    vkCmdPipelineBarrier(sim->cmd, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                         VK_DEPENDENCY_BY_REGION_BIT,
-                         1, &pipeline_barrier,
-                         0, NULL,
-                         0, NULL);
-    CopyVulkanBuffer(sim->cmd, &sim->storage[1], &sim->transfer_buf[1]);
-
     // finish recording command buffer
     ASSERT_VK(vkEndCommandBuffer(sim->cmd), "Failed to end pipeline command buffer");
 
     // submit command buffer
     VkSubmitInfo submit_info = {
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+            .waitSemaphoreCount = wait == NULL ? 0 : 1,
+            .pWaitSemaphores = &wait,
             .commandBufferCount = 1,
             .pCommandBuffers = &sim->cmd,
+            .signalSemaphoreCount = signal == NULL ? 0 : 1,
+            .pSignalSemaphores = &signal,
     };
     ASSERT_VK(vkQueueSubmit(vk_ctx.queue, 1, &submit_info, sim->fence), "Failed to submit command buffer");
 }

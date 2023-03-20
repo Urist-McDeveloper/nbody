@@ -513,7 +513,7 @@ void RecreateSwapchain(Renderer *r) {
     }
 }
 
-void Draw(Renderer *r, Camera cam, VkEvent wait_event, uint32_t particle_count) {
+void Draw(Renderer *r, Camera cam, VkSemaphore wait, VkSemaphore signal, uint32_t particle_count) {
     // wait for previous frame to finish
     ASSERT_VK(vkWaitForFences(vk_ctx.dev, 1, &r->fence, VK_TRUE, UINT64_MAX), "Failed to wait for fences");
     ASSERT_VK(vkResetFences(vk_ctx.dev, 1, &r->fence), "Failed to reset fence");
@@ -593,18 +593,6 @@ void Draw(Renderer *r, Camera cam, VkEvent wait_event, uint32_t particle_count) 
     vkCmdPushConstants(r->cmd, r->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(push), &push);
 
     // draw stuff
-    if (wait_event != NULL) {
-        VkMemoryBarrier data_barrier = {
-                .sType = VK_STRUCTURE_TYPE_MEMORY_BARRIER,
-                .srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT,
-                .dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-        };
-        vkCmdWaitEvents(r->cmd, 1, &wait_event,
-                        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_ALL_GRAPHICS_BIT,
-                        1, &data_barrier,
-                        0, NULL,
-                        0, NULL);
-    }
     vkCmdDraw(r->cmd, particle_count, 1, 0, 0);
 
     // finish recording command buffer
@@ -612,16 +600,27 @@ void Draw(Renderer *r, Camera cam, VkEvent wait_event, uint32_t particle_count) 
     ASSERT_VK(vkEndCommandBuffer(r->cmd), "Failed to end pipeline command buffer");
 
     // submit command buffer
-    VkPipelineStageFlags wait_stages[] = {VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT};
+    VkSemaphore wait_semaphores[] = {
+            r->swapchain_sem,
+            wait,
+    };
+    VkPipelineStageFlags wait_stages[] = {
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
+    };
+    VkSemaphore signal_semaphores[] = {
+            r->cmd_sem,
+            signal,
+    };
     VkSubmitInfo submit_info = {
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-            .waitSemaphoreCount = 1,
-            .pWaitSemaphores = &r->swapchain_sem,
+            .waitSemaphoreCount = wait == NULL ? 1 : 2,
+            .pWaitSemaphores = wait_semaphores,
             .pWaitDstStageMask = wait_stages,
             .commandBufferCount = 1,
             .pCommandBuffers = &r->cmd,
-            .signalSemaphoreCount = 1,
-            .pSignalSemaphores = &r->cmd_sem,
+            .signalSemaphoreCount = signal == NULL ? 1 : 2,
+            .pSignalSemaphores = signal_semaphores,
     };
     ASSERT_VK(vkQueueSubmit(vk_ctx.queue, 1, &submit_info, r->fence), "Failed to submit command buffer");
 
