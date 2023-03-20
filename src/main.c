@@ -14,7 +14,7 @@
 #define WINDOW_WIDTH    1280
 #define WINDOW_HEIGHT   720
 
-#define PARTICLE_COUNT  6000        // number of simulated particles
+#define PARTICLE_COUNT  30000       // number of simulated particles
 #define PHYS_STEP       0.01f       // fixed time step used by simulation
 
 static void InitVulkan();
@@ -40,14 +40,9 @@ int main() {
     GLFWwindow *window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "N-Body Simulation", NULL, NULL);
     ASSERT(window != NULL, "Failed to create GLFW window");
 
-    Particle *particles = MakeGalaxies(PARTICLE_COUNT, 3);
+    Particle *particles = MakeGalaxies(PARTICLE_COUNT, 3 +(rand() % 4));
     World *world = CreateWorld(particles, PARTICLE_COUNT);
     Camera camera = InitCamera(particles, PARTICLE_COUNT);
-    printf("Initialized camera\n");
-    printf("\t- offset: (%.0f, %0.f)\n", camera.offset.x, camera.offset.y);
-    printf("\t- target: (%.0f, %0.f)\n", camera.target.x, camera.target.y);
-    printf("\t- dims:   (%.0f, %0.f)\n", camera.dims.x, camera.dims.y);
-    printf("\t- zoom:   %.5f\n", camera.zoom);
     free(particles);
 
     Renderer *renderer = CreateRenderer(window, GetWorldParticleBuffer(world));

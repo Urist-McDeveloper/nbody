@@ -23,7 +23,7 @@ layout (std140, binding = 2) buffer FrameNew {
 layout (local_size_x_id = 0) in;
 
 /* Gravitational constant; `g = NB_G * mass / dist^2`. */
-layout (constant_id = 1) const float G = 10;
+layout (constant_id = 1) const float G = 0;
 
 void main() {
     uint i = gl_GlobalInvocationID.x;

@@ -2,6 +2,8 @@
 #include "lib/util.h"
 
 #include <nbody.h>
+#include <galaxy.h>
+
 #include "shader/particle_vs.h"
 #include "shader/particle_fs.h"
 
@@ -132,6 +134,11 @@ struct Renderer {
     VkSemaphore swapchain_sem;
 };
 
+typedef struct {
+    float camera_proj[3][2];
+    float zoom;
+} PushConstants;
+
 static void SetupFramebuffers(Renderer *r) {
     r->framebuffers = REALLOC(r->framebuffers, r->image_count, VkFramebuffer);
     ASSERT(r->framebuffers != NULL, "Failed to realloc %u VkFramebuffer", r->image_count);
@@ -215,12 +222,26 @@ Renderer *CreateRenderer(GLFWwindow *window, const VulkanBuffer *particle_data) 
     ASSERT_VK(vkCreateShaderModule(vk_ctx.dev, &vert_info, NULL, &r->vert), "Failed to create vertex shader module");
     ASSERT_VK(vkCreateShaderModule(vk_ctx.dev, &frag_info, NULL, &r->frag), "Failed to create vertex shader module");
 
+    VkSpecializationMapEntry spec_map_entry = {
+            .constantID = 1,
+            .offset = 0,
+            .size = sizeof(float),
+    };
+    float spec_const = MIN_GC_MASS;
+    VkSpecializationInfo spec_info = {
+            .mapEntryCount = 1,
+            .pMapEntries = &spec_map_entry,
+            .dataSize = sizeof(float),
+            .pData = &spec_const,
+    };
+
     VkPipelineShaderStageCreateInfo shader_stages[] = {
             {
                     .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
                     .stage = VK_SHADER_STAGE_VERTEX_BIT,
                     .module = r->vert,
                     .pName = "main",
+                    .pSpecializationInfo = &spec_info,
             },
             {
                     .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -287,7 +308,7 @@ Renderer *CreateRenderer(GLFWwindow *window, const VulkanBuffer *particle_data) 
     VkPushConstantRange push_constant_range = {
             .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
             .offset = 0,
-            .size = 6 * sizeof(float),
+            .size = sizeof(PushConstants),
     };
     VkPipelineLayoutCreateInfo layout_info = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
@@ -508,7 +529,7 @@ void Draw(Renderer *r, Camera cam, VkEvent wait_event, uint32_t particle_count) 
     ASSERT_VK(vkBeginCommandBuffer(r->cmd, &begin_info), "Failed to begin pipeline command buffer");
 
     // begin render pass
-    VkClearValue clear_color = {{{0.f, 0.f, 0.f, 0.f}}};
+    VkClearValue clear_color = {{{0.01f, 0.01f, 0.01f, 1.f}}};
     VkRenderPassBeginInfo pass_info = {
             .sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
             .renderPass = r->render_pass,
@@ -561,12 +582,15 @@ void Draw(Renderer *r, Camera cam, VkEvent wait_event, uint32_t particle_count) 
             MakeVec2(-1.f, -1.f)
     );
 
-    float matrix[3][2] = {
-            {div_z.x, 0.f,},
-            {0.f,     div_z.y},
-            {vk_v.x,  vk_v.y}
+    PushConstants push = {
+            .camera_proj = {
+                    {div_z.x, 0.f,},
+                    {0.f,     div_z.y},
+                    {vk_v.x,  vk_v.y}
+            },
+            .zoom = cam.zoom,
     };
-    vkCmdPushConstants(r->cmd, r->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(matrix), matrix);
+    vkCmdPushConstants(r->cmd, r->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(push), &push);
 
     // draw stuff
     if (wait_event != NULL) {
