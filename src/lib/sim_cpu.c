@@ -188,7 +188,7 @@ void PackedUpdate(Particle *p, float dt, uint32_t packs_len, ParticlePack *packs
         ay = simd_add(ay, simd_mul(dy, f));
     }
 
-    p->acc = V2_FROM(simd_sum(ax), simd_sum(ay));
-    p->vel = AddV2(p->vel, ScaleV2(p->acc, dt));
-    p->pos = AddV2(p->pos, ScaleV2(p->vel, dt));
+    p->acc = MakeVec2(simd_sum(ax), simd_sum(ay));
+    p->vel = AddVec2(p->vel, ScaleVec2(p->acc, dt));
+    p->pos = AddVec2(p->pos, ScaleVec2(p->vel, dt));
 }

@@ -106,7 +106,7 @@ Particle *MakeGalaxies(uint32_t particle_count, uint32_t galaxy_count) {
                 GalaxyData other = galaxies[j];
 
                 float other_min_sep = MIN_GALAXY_SEPARATION * (galaxy.max_dist + other.max_dist);
-                float other_sq_dist = SqMagV2(SubV2(galaxy.core->pos, other.core->pos));
+                float other_sq_dist = SqMagVec2(SubVec2(galaxy.core->pos, other.core->pos));
 
                 if (other_sq_dist < other_min_sep * other_min_sep) {
                     // other galaxy is too close to the chosen position
@@ -125,19 +125,19 @@ Particle *MakeGalaxies(uint32_t particle_count, uint32_t galaxy_count) {
             if (i == j) continue;
             Particle *b = galaxies[j].core;
 
-            V2 a_to_b = SubV2(b->pos, a->pos);      // vector from a to b
-            float dist = MagV2(a_to_b);             // distance between a adn b
-            V2 unit = ScaleV2(a_to_b, 1.f / dist);  // unit vector
+            Vec2 a_to_b = SubVec2(b->pos, a->pos);      // vector from a to b
+            float dist = MagVec2(a_to_b);             // distance between a adn b
+            Vec2 unit = ScaleVec2(a_to_b, 1.f / dist);  // unit vector
 
             // calculate a fraction of "orbital speed" (won't actually work as orbital speed)
             float speed_a = 0.3f * sqrtf(NB_G * b->mass / dist);
             float speed_b = 0.3f * sqrtf(NB_G * a->mass / dist);
 
-            V2 dv_a = ScaleV2(V2_FROM(unit.y, -unit.x), speed_a);
-            V2 dv_b = ScaleV2(V2_FROM(-unit.y, unit.x), speed_b);
+            Vec2 dv_a = ScaleVec2(MakeVec2(unit.y, -unit.x), speed_a);
+            Vec2 dv_b = ScaleVec2(MakeVec2(-unit.y, unit.x), speed_b);
 
-            a->vel = AddV2(a->vel, dv_a);
-            b->vel = AddV2(b->vel, dv_b);
+            a->vel = AddVec2(a->vel, dv_a);
+            b->vel = AddVec2(b->vel, dv_b);
         }
     }
 

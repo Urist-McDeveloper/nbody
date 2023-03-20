@@ -4,6 +4,13 @@
 #include <nbody.h>
 #include <GLFW/glfw3.h>
 
+typedef struct Camera {
+    Vec2 offset;
+    Vec2 target;
+    Vec2 dims;
+    float zoom;
+} Camera;
+
 typedef struct Renderer Renderer;
 
 /* Allocate and initialize. */

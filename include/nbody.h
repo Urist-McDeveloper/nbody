@@ -11,35 +11,35 @@
 #define NB_G    10.0f
 
 /* 2D vector of floats. */
-typedef struct V2 {
+typedef struct Vec2 {
     float x, y;
-} V2;
+} Vec2;
 
 /* Constructor macro. */
-#define V2_FROM(X, Y)   (V2){ .x = (X), .y = (Y) }
+#define MakeVec2(X, Y)   (Vec2){ .x = (X), .y = (Y) }
 
 /* Vector addition. */
-static inline V2 AddV2(V2 a, V2 b) {
-    return V2_FROM(a.x + b.x, a.y + b.y);
+static inline Vec2 AddVec2(Vec2 a, Vec2 b) {
+    return MakeVec2(a.x + b.x, a.y + b.y);
 }
 
 /* Vector subtraction. */
-static inline V2 SubV2(V2 a, V2 b) {
-    return V2_FROM(a.x - b.x, a.y - b.y);
+static inline Vec2 SubVec2(Vec2 a, Vec2 b) {
+    return MakeVec2(a.x - b.x, a.y - b.y);
 }
 
 /* Scalar multiplication. */
-static inline V2 ScaleV2(V2 v, float f) {
-    return V2_FROM(v.x * f, v.y * f);
+static inline Vec2 ScaleVec2(Vec2 v, float f) {
+    return MakeVec2(v.x * f, v.y * f);
 }
 
 /* Vector magnitude. */
-static inline float MagV2(V2 v) {
+static inline float MagVec2(Vec2 v) {
     return hypotf(v.x, v.y);
 }
 
 /* Vector magnitude squared. */
-static inline float SqMagV2(V2 v) {
+static inline float SqMagVec2(Vec2 v) {
     return v.x * v.x + v.y * v.y;
 }
 
@@ -76,7 +76,7 @@ static inline void FreeCommandBuffers(uint32_t count, VkCommandBuffer *buffers) 
 
 /* Simulation particle. */
 typedef struct Particle {
-    V2 pos, vel, acc;
+    Vec2 pos, vel, acc;
     float mass, radius;
 } Particle;
 

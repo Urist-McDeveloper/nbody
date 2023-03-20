@@ -53,10 +53,9 @@ int main() {
     glfwShowWindow(window);
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
-        ASSERT_VK(vkResetEvent(vk_ctx.dev, event), "Failed to reset Vulkan event");
 
         double frame_time = glfwGetTime();
-        double frame_time_delta = last_frame_time - frame_time;
+        double frame_time_delta = frame_time - last_frame_time;
 
         phys_time += frame_time_delta;
         uint32_t updates = 0;
@@ -66,9 +65,11 @@ int main() {
             updates++;
         }
 
-        UpdateWorld_GPU(world, event, PHYS_STEP, updates);
-        Draw(renderer, event, PARTICLE_COUNT);
-
+        if (updates > 0) {
+            ASSERT_VK(vkResetEvent(vk_ctx.dev, event), "Failed to reset Vulkan event");
+            UpdateWorld_GPU(world, event, PHYS_STEP, updates);
+            Draw(renderer, event, PARTICLE_COUNT);
+        }
         last_frame_time = frame_time;
     }
 
