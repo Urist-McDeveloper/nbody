@@ -1,5 +1,4 @@
 #include <stdlib.h>
-#include <stdio.h>
 #include <time.h>
 
 #include <vulkan/vulkan.h>
@@ -14,8 +13,20 @@
 #define WINDOW_WIDTH    1280
 #define WINDOW_HEIGHT   720
 
-#define PARTICLE_COUNT  30000       // number of simulated particles
+#define PARTICLE_COUNT  10000       // number of simulated particles
 #define PHYS_STEP       0.01f       // fixed time step used by simulation
+
+#define CAMERA_SCROLL_ZOOM   0.1f   // how much 1 mouse wheel scroll affects zoom
+
+static const float SPEEDS[] = {1, 2, 4, 8, 16, 32, 64, 128};        // number of updates per tick
+static const float STEPS[] = {0.1f, 0.25f, 0.5f, 1.f, 2.f, 4.f};    // fixed step multiplier
+
+#define SPEEDS_LENGTH   (sizeof(SPEEDS) / sizeof(SPEEDS[0]))
+#define LAST_SPEED_IDX  (SPEEDS_LENGTH - 1)
+
+#define STEPS_LENGTH    (sizeof(STEPS) / sizeof(STEPS[0]))
+#define LAST_STEP_IDX   (STEPS_LENGTH - 1)
+#define DEF_STEP_IDX    3
 
 static void InitVulkan();
 
@@ -23,6 +34,80 @@ static Camera InitCamera(const Particle *particles, uint32_t count);
 
 static void error_callback(int code, const char *msg) {
     fprintf(stderr, "GLFW error %08x: %s\n", code, msg);
+}
+
+static struct {
+    Camera camera;
+    double phys_time;
+    double frame_time;
+    double last_frame_time;
+    uint32_t speed_idx;
+    uint32_t step_idx;
+    bool paused;
+    bool mmb_pressed;
+} state;
+
+static void key_callback(GLFWwindow *window, int key, int scancode, int action, int mods) {
+    if (action != GLFW_PRESS) return;
+
+    (void)scancode;
+    (void)mods;
+
+    switch (key) {
+        case GLFW_KEY_ESCAPE:
+        case GLFW_KEY_Q:
+            glfwSetWindowShouldClose(window, GLFW_TRUE);
+            return;
+        case GLFW_KEY_LEFT:
+            if (state.speed_idx > 0) state.speed_idx--;
+            return;
+        case GLFW_KEY_DOWN:
+            if (state.step_idx > 0) state.step_idx--;
+            return;
+        case GLFW_KEY_RIGHT:
+            if (state.speed_idx < LAST_SPEED_IDX) state.speed_idx++;
+            return;
+        case GLFW_KEY_UP:
+            if (state.step_idx < LAST_STEP_IDX) state.step_idx++;
+            return;
+        case GLFW_KEY_SPACE:
+            state.paused = !state.paused;
+            state.phys_time = 0;
+            return;
+        default:
+            return;
+    }
+}
+
+static void scroll_callback(GLFWwindow* window, double dx, double dy) {
+    (void)window;
+    (void)dx;
+
+    state.camera.zoom *= 1.f + (float)dy * CAMERA_SCROLL_ZOOM;
+}
+
+static void cursor_callback(GLFWwindow *window, double pos_x, double pos_y) {
+    (void)window;
+
+    float dx = (float)pos_x - state.camera.offset.x;
+    float dy = (float)pos_y - state.camera.offset.y;
+    printf("[CRS] dx = %.2f, dy = %.2f\n", dx, dy);
+
+    state.camera.offset.x += dx;
+    state.camera.offset.y += dy;
+    if (!state.mmb_pressed) {
+        state.camera.target.x += dx / state.camera.zoom;
+        state.camera.target.y += dy / state.camera.zoom;
+    }
+}
+
+static void mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
+    (void)window;
+    (void)mods;
+
+    if (button == GLFW_MOUSE_BUTTON_MIDDLE) {
+        state.mmb_pressed = action == GLFW_PRESS;
+    }
 }
 
 int main() {
@@ -40,9 +125,14 @@ int main() {
     GLFWwindow *window = glfwCreateWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "N-Body Simulation", NULL, NULL);
     ASSERT(window != NULL, "Failed to create GLFW window");
 
-    Particle *particles = MakeGalaxies(PARTICLE_COUNT, 3 +(rand() % 4));
+    glfwSetKeyCallback(window, key_callback);
+    glfwSetScrollCallback(window, scroll_callback);
+    glfwSetCursorPosCallback(window, cursor_callback);
+    glfwSetMouseButtonCallback(window, mouse_button_callback);
+
+    Particle *particles = MakeGalaxies(PARTICLE_COUNT, 3 + (rand() % 4));
     World *world = CreateWorld(particles, PARTICLE_COUNT);
-    Camera camera = InitCamera(particles, PARTICLE_COUNT);
+    state.camera = InitCamera(particles, PARTICLE_COUNT);
     free(particles);
 
     Renderer *renderer = CreateRenderer(window, GetWorldParticleBuffer(world));
@@ -53,30 +143,33 @@ int main() {
     };
     ASSERT_VK(vkCreateEvent(vk_ctx.dev, &info, NULL, &event), "Failed to create Vulkan event");
 
-    double last_frame_time = glfwGetTime();
-    double phys_time = PHYS_STEP;
+    state.step_idx = DEF_STEP_IDX;
+    state.phys_time = PHYS_STEP;
+    state.last_frame_time = glfwGetTime();
 
     glfwShowWindow(window);
     while (!glfwWindowShouldClose(window)) {
         glfwPollEvents();
 
-        double frame_time = glfwGetTime();
-        double frame_time_delta = frame_time - last_frame_time;
+        state.last_frame_time = state.frame_time;
+        state.frame_time = glfwGetTime();
+        state.phys_time += (state.frame_time - state.last_frame_time) * SPEEDS[state.speed_idx];
 
-        phys_time += frame_time_delta;
         uint32_t updates = 0;
-
-        while (phys_time > PHYS_STEP) {
-            phys_time -= PHYS_STEP;
-            updates++;
+        if (!state.paused) {
+            while (state.phys_time > PHYS_STEP) {
+                state.phys_time -= PHYS_STEP;
+                updates++;
+            }
         }
 
         if (updates > 0) {
             ASSERT_VK(vkResetEvent(vk_ctx.dev, event), "Failed to reset Vulkan event");
-            UpdateWorld_GPU(world, event, PHYS_STEP, updates);
-            Draw(renderer, camera, event, PARTICLE_COUNT);
+            float step = PHYS_STEP * STEPS[state.step_idx];
+
+            UpdateWorld_GPU(world, event, step, updates);
         }
-        last_frame_time = frame_time;
+        Draw(renderer, state.camera, updates == 0 ? NULL : event, PARTICLE_COUNT);
     }
 
     DestroyRenderer(renderer);

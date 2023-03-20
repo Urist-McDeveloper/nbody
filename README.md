@@ -90,9 +90,9 @@ By changing some macros:
 ## TODO list
 
 - [ ] Select optimal VkPhysicalDevice, not the first one in the list
-- [ ] Write Vulkan renderer so that particle data never has to leave GPU
 - [ ] Allow setting simulation parameters through command line arguments
 - [ ] Write tests that actually test something
+- [ ] Figure out why the simulation keeps freezing along with the rest of my desktop
 
 Done:
 
@@ -103,3 +103,4 @@ Done:
 - [x] Use AVX for CPU simulation
 - [x] Add CMake option to disable AVX and fall back to SSE
 - [x] A moving camera would be nice
+- [x] Write Vulkan renderer so that particle data never has to leave GPU
