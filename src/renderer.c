@@ -252,7 +252,7 @@ Renderer *CreateRenderer(GLFWwindow *window, const VulkanBuffer *particle_data) 
     VkDescriptorPoolCreateInfo ds_pool_info = {
             .sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
             .maxSets = 1,
-            .poolSizeCount = 2,
+            .poolSizeCount = 1,
             .pPoolSizes = &ds_pool_size,
     };
     ASSERT_VK(vkCreateDescriptorPool(vk_ctx.dev, &ds_pool_info, NULL, &r->ds_pool),
@@ -284,10 +284,17 @@ Renderer *CreateRenderer(GLFWwindow *window, const VulkanBuffer *particle_data) 
      * Pipeline.
      */
 
+    VkPushConstantRange push_constant_range = {
+            .stageFlags = VK_SHADER_STAGE_VERTEX_BIT,
+            .offset = 0,
+            .size = 6 * sizeof(float),
+    };
     VkPipelineLayoutCreateInfo layout_info = {
             .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
             .setLayoutCount = 1,
             .pSetLayouts = &r->ds_layout,
+            .pushConstantRangeCount = 1,
+            .pPushConstantRanges = &push_constant_range,
     };
     ASSERT_VK(vkCreatePipelineLayout(vk_ctx.dev, &layout_info, NULL, &r->pipeline_layout),
               "Failed to create pipeline layout");
@@ -485,7 +492,7 @@ void RecreateSwapchain(Renderer *r) {
     }
 }
 
-void Draw(Renderer *r, VkEvent wait_event, uint32_t particle_count) {
+void Draw(Renderer *r, Camera cam, VkEvent wait_event, uint32_t particle_count) {
     // wait for previous frame to finish
     ASSERT_VK(vkWaitForFences(vk_ctx.dev, 1, &r->fence, VK_TRUE, UINT64_MAX), "Failed to wait for fences");
     ASSERT_VK(vkResetFences(vk_ctx.dev, 1, &r->fence), "Failed to reset fence");
@@ -535,6 +542,31 @@ void Draw(Renderer *r, VkEvent wait_event, uint32_t particle_count) {
     };
     vkCmdSetViewport(r->cmd, 0, 1, &viewport);
     vkCmdSetScissor(r->cmd, 0, 1, &scissors);
+
+    // set camera matrix as a push constant
+    Vec2 div = MakeVec2(2.f / cam.dims.x,
+                        2.f / cam.dims.y);
+    Vec2 div_z = ScaleVec2(div, cam.zoom);
+
+    Vec2 screen_v = SubVec2(
+            cam.offset,
+            ScaleVec2(
+                    AddVec2(cam.target, cam.offset),
+                    1.f * cam.zoom
+            )
+    );
+    Vec2 vk_v = AddVec2(
+            MakeVec2(screen_v.x * div.x,
+                     screen_v.y * div.y),
+            MakeVec2(-1.f, -1.f)
+    );
+
+    float matrix[3][2] = {
+            {div_z.x, 0.f,},
+            {0.f,     div_z.y},
+            {vk_v.x,  vk_v.y}
+    };
+    vkCmdPushConstants(r->cmd, r->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(matrix), matrix);
 
     // draw stuff
     if (wait_event != NULL) {

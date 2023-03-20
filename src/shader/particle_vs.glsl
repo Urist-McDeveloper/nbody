@@ -7,16 +7,21 @@ struct Particle {
 
 layout (std140, binding = 0) readonly buffer Data {
     Particle particles[];
-};
+} data;
+
+layout (push_constant) uniform PushConstants {
+    mat3x2 camera_proj;
+} push;
 
 layout (location = 0) out vec3 color;
 
 void main() {
-    Particle particle = particles[gl_VertexIndex];
-    gl_Position = vec4(
-        particle.pos / 40000.f,
-        0.f, 1.f
-    );
+    Particle p = data.particles[gl_VertexIndex];
+
+    mat3x2 matrix = push.camera_proj;
+    vec2 position = matrix * vec3(p.pos, 1);
+
+    gl_Position = vec4(position, 0, 1);
     gl_PointSize = 1.f;
     color = vec3(1.f, 1.f, 1.f);
 }
