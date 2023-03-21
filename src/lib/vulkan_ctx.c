@@ -4,7 +4,6 @@
 #include <stdbool.h>
 #include <string.h>
 
-#include "fio.h"
 #include "util.h"
 
 static const char *DeviceTypeToStr(VkPhysicalDeviceType type) {

@@ -92,6 +92,7 @@ By changing some macros:
 - [ ] Select optimal VkPhysicalDevice, not the first one in the list
 - [ ] Allow setting simulation parameters through command line arguments
 - [ ] Write tests that actually test something
+- [ ] Fix weird camera movement that follows the cursor
 
 Done:
 

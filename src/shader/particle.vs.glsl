@@ -12,6 +12,7 @@ layout (std140, binding = 0) readonly buffer Data {
 layout (push_constant) uniform PushConstants {
     mat3x2 camera_proj;
     float zoom;
+    float dt;
 } push;
 
 layout (location = 0) out vec3 color;
@@ -25,10 +26,11 @@ layout (constant_id = 1) const float MIN_GC_MASS = 0;
 void main() {
     Particle p = data.particles[gl_VertexIndex];
 
-    mat3x2 matrix = push.camera_proj;
-    vec2 position = matrix * vec3(p.pos, 1);
+    vec2 vel = p.vel + push.dt * p.acc;
+    vec2 pos = p.pos + push.dt * vel;
+    vec2 proj = push.camera_proj * vec3(pos, 1);
 
-    gl_Position = vec4(position, 0, 1);
+    gl_Position = vec4(proj, 0, 1);
     gl_PointSize = p.radius * push.zoom;
 
     if (p.mass <= 0) {

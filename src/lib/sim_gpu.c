@@ -4,7 +4,7 @@
 
 #include "vulkan_ctx.h"
 #include "util.h"
-#include "../shader/particle_cs.h"
+#include "../shader/particle.cs.h"
 
 /* Compute shader work group size. */
 #define LOCAL_SIZE_X 256

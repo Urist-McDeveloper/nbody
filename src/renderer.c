@@ -4,8 +4,8 @@
 #include <nbody.h>
 #include <galaxy.h>
 
-#include "shader/particle_vs.h"
-#include "shader/particle_fs.h"
+#include "shader/particle.vs.h"
+#include "shader/particle.fs.h"
 
 #define SAMPLE_COUNT    VK_SAMPLE_COUNT_1_BIT
 
@@ -137,6 +137,7 @@ struct Renderer {
 typedef struct {
     float camera_proj[3][2];
     float zoom;
+    float dt;
 } PushConstants;
 
 static void SetupFramebuffers(Renderer *r) {
@@ -513,7 +514,7 @@ void RecreateSwapchain(Renderer *r) {
     }
 }
 
-void Draw(Renderer *r, Camera cam, VkSemaphore wait, VkSemaphore signal, uint32_t particle_count) {
+void Draw(Renderer *r, Camera cam, float dt, uint32_t particle_count, VkSemaphore wait, VkSemaphore signal) {
     // wait for previous frame to finish
     ASSERT_VK(vkWaitForFences(vk_ctx.dev, 1, &r->fence, VK_TRUE, UINT64_MAX), "Failed to wait for fences");
     ASSERT_VK(vkResetFences(vk_ctx.dev, 1, &r->fence), "Failed to reset fence");
@@ -589,6 +590,7 @@ void Draw(Renderer *r, Camera cam, VkSemaphore wait, VkSemaphore signal, uint32_
                     {vk_v.x,  vk_v.y}
             },
             .zoom = cam.zoom,
+            .dt = dt,
     };
     vkCmdPushConstants(r->cmd, r->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(push), &push);
 
@@ -606,7 +608,7 @@ void Draw(Renderer *r, Camera cam, VkSemaphore wait, VkSemaphore signal, uint32_
     };
     VkPipelineStageFlags wait_stages[] = {
             VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-            VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT
+            VK_PIPELINE_STAGE_VERTEX_SHADER_BIT,
     };
     VkSemaphore signal_semaphores[] = {
             r->cmd_sem,

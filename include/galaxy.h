@@ -7,7 +7,7 @@
 #define PI      3.1415927f  // homegrown constants are the best
 #endif
 
-#define MIN_SPIRALS 1       // minimum number of spirals in a galaxy
+#define MIN_SPIRALS 2       // minimum number of spirals in a galaxy
 #define MAX_SPIRALS 4       // maximum number of spirals in a galaxy
 
 #define GC_MIN_R    200.f   // minimum radius of galaxy cores

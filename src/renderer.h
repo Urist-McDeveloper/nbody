@@ -23,6 +23,6 @@ void DestroyRenderer(Renderer *renderer);
 void RecreateSwapchain(Renderer *r);
 
 /* Submit a draw call. */
-void Draw(Renderer *r, Camera cam, VkSemaphore wait, VkSemaphore signal, uint32_t particle_count);
+void Draw(Renderer *r, Camera cam, float dt, uint32_t particle_count, VkSemaphore wait, VkSemaphore signal);
 
 #endif //NB_RENDERER_H

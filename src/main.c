@@ -13,11 +13,11 @@
 #define WINDOW_WIDTH    1280
 #define WINDOW_HEIGHT   720
 
-#define PARTICLE_COUNT  40000       // number of simulated particles
-#define GALAXY_COUNT    8           // number of created galaxies
+#define PARTICLE_COUNT  60000       // number of simulated particles
+#define GALAXY_COUNT    6           // number of created galaxies
 
-#define PHYS_STEP       0.01f       // fixed time step used by simulation
-#define MAX_OVERWORK    3           // maximum updates per second = MAX_OVERWORK * current_speed
+#define PHYS_STEP       0.05f       // fixed time step used by simulation
+#define MAX_OVERWORK    2           // maximum updates per second = MAX_OVERWORK * current_speed
 
 #define CAMERA_SCROLL_ZOOM   0.1f   // how much 1 mouse wheel scroll affects zoom
 
@@ -177,20 +177,21 @@ int main() {
             }
         }
 
+        float step_scale = state.paused ? 0.f : STEPS[state.step_idx];
+        if (state.reverse) {
+            step_scale = -step_scale;
+        }
+
         if (updates > 0) {
             uint32_t max_updates = MAX_OVERWORK * SPEEDS[state.speed_idx];
             if (updates > max_updates) {
                 updates = max_updates;
             }
 
-            float step = PHYS_STEP * STEPS[state.step_idx];
-            if (state.reverse) {
-                step = -step;
-            }
-
             VkSemaphore wait = rnd_signaled ? rnd_to_sim : NULL;
             rnd_signaled = false;
 
+            float step = PHYS_STEP * step_scale;
             UpdateWorld_GPU(world, wait, sim_to_rnd, step, updates);
         }
 
@@ -198,7 +199,11 @@ int main() {
         VkSemaphore signal = rnd_signaled ? NULL : rnd_to_sim;
         rnd_signaled = true;
 
-        Draw(renderer, state.camera, wait, signal, PARTICLE_COUNT);
+        Draw(renderer,
+             state.camera,
+             state.phys_time * step_scale,
+             PARTICLE_COUNT,
+             wait, signal);
 
         if (!window_shown) {
             glfwShowWindow(window);
