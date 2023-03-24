@@ -34,11 +34,13 @@ compile_shaders(nbody STAGE vert SOURCE shader/particle.vs.glsl)
 compile_shaders(nbody STAGE frag SOURCE shader/particle.fs.glsl)
 
 target_link_libraries(nbody PRIVATE nbody-lib glfw)
+target_link_options(nbody PRIVATE ${nbody_linker_flags})
 target_compile_options(nbody PRIVATE ${nbody_compiler_flags})
 
 # benchmark uses clock_gettime which is not available on Windows and MacOS
 if (UNIX AND NOT APPLE)
     add_executable(nbody-bench bench.c)
     target_link_libraries(nbody-bench PRIVATE nbody-lib)
+    target_link_options(nbody-bench PRIVATE ${nbody_linker_flags})
     target_compile_options(nbody-bench PRIVATE ${nbody_compiler_flags})
 endif()

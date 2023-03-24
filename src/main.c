@@ -13,7 +13,7 @@
 #define WINDOW_WIDTH    1280
 #define WINDOW_HEIGHT   720
 
-#define PARTICLE_COUNT  60000       // number of simulated particles
+#define PARTICLE_COUNT  10000       // number of simulated particles
 #define GALAXY_COUNT    6           // number of created galaxies
 
 #define PHYS_STEP       0.05f       // fixed time step used by simulation
@@ -83,7 +83,6 @@ static void key_callback(GLFWwindow *window, int key, int scancode, int action, 
             return;
         case GLFW_KEY_SPACE:
             state.paused = !state.paused;
-            state.phys_time = 0;
             return;
         default:
             return;
@@ -97,19 +96,24 @@ static void scroll_callback(GLFWwindow *window, double dx, double dy) {
     state.camera.zoom *= 1.f + (float)dy * CAMERA_SCROLL_ZOOM;
 }
 
+#include <stdio.h>
+
 static void cursor_callback(GLFWwindow *window, double pos_x, double pos_y) {
     (void)window;
 
-    float dx = (float)pos_x - state.camera.offset.x;
-    float dy = (float)pos_y - state.camera.offset.y;
-
-    state.camera.offset.x += dx;
-    state.camera.offset.y += dy;
+    Camera *cam = &state.camera;
+    Vec2 old_offset = state.camera.offset;
+    Vec2 new_offset = MakeVec2(pos_x, pos_y);
+    
+    Vec2 diff = SubVec2(new_offset, old_offset);
+    float scale = -1.f;
 
     if (!state.mmb_pressed) {
-        state.camera.target.x += dx / state.camera.zoom;
-        state.camera.target.y += dy / state.camera.zoom;
+        scale += 1.f / cam->zoom;
     }
+
+    cam->target = AddVec2(cam->target, ScaleVec2(diff, scale));
+    cam->offset = new_offset;
 }
 
 static void mouse_button_callback(GLFWwindow *window, int button, int action, int mods) {
@@ -167,17 +171,17 @@ int main() {
 
         state.last_frame_time = state.frame_time;
         state.frame_time = glfwGetTime();
-        state.phys_time += (state.frame_time - state.last_frame_time) * SPEEDS[state.speed_idx];
 
         uint32_t updates = 0;
         if (!state.paused) {
+            state.phys_time += (state.frame_time - state.last_frame_time) * SPEEDS[state.speed_idx];
             while (state.phys_time > PHYS_STEP) {
                 state.phys_time -= PHYS_STEP;
                 updates++;
             }
         }
 
-        float step_scale = state.paused ? 0.f : STEPS[state.step_idx];
+        float step_scale = STEPS[state.step_idx];
         if (state.reverse) {
             step_scale = -step_scale;
         }

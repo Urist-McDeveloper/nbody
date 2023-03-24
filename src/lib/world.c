@@ -68,6 +68,7 @@ void DestroyWorld(World *w) {
     if (w != NULL) {
         DestroySimPipeline(w->sim);
         FreePackArray(w->pack);
+        free(w->arr);
         free(w);
     }
 }

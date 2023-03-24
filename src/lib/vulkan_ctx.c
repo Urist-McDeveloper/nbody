@@ -164,6 +164,9 @@ static void InitPDev(bool need_gfx_queue) {
     ASSERT(pds != NULL, "Failed to alloc %u VkPhysicalDevices", pdev_count);
     ASSERT_VK(vkEnumeratePhysicalDevices(vk_ctx.instance, &pdev_count, pds), "Failed to enumerate physical devices");
 
+    uint32_t *qf_idx = ALLOC(pdev_count, uint32_t);
+    ASSERT(qf_idx != NULL, "Failed to alloc %u uint32_t", pdev_count);
+
     uint32_t idx = UINT32_MAX;
     vk_ctx.pdev = VK_NULL_HANDLE;
 
@@ -174,14 +177,17 @@ static void InitPDev(bool need_gfx_queue) {
 
         printf("\t- #%u: %s (%s)\n", i, props.deviceName, DeviceTypeToStr(props.deviceType));
         // TODO: choose the most suitable device, not the first one
-        if (IsPDevSuitable(pds[i], &vk_ctx.queue_family_idx, need_gfx_queue)) {
+        if (IsPDevSuitable(pds[i], &qf_idx[i], need_gfx_queue)) {
             idx = i;
             break;
         }
     }
     ASSERT(idx != UINT32_MAX, "Failed to find suitable physical device");
     printf("\t- Using physical device #%u\n", idx);
+
+    vk_ctx.queue_family_idx = qf_idx[idx];
     vk_ctx.pdev = pds[idx];
+    free(qf_idx);
     free(pds);
 }
 
