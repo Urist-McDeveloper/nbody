@@ -217,6 +217,8 @@ SimPipeline *CreateSimPipeline(WorldData data) {
 
 void DestroySimPipeline(SimPipeline *sim) {
     if (sim != NULL) {
+        ASSERT_VK(vkWaitForFences(vk_ctx.dev, 1, &sim->fence, VK_TRUE, UINT64_MAX), "Failed to wait for fences");
+
         VkDevice dev = vk_ctx.dev;
         FreeCommandBuffers(1, &sim->cmd);
 
@@ -334,10 +336,12 @@ void PerformSimUpdate(SimPipeline *sim, VkSemaphore wait, VkSemaphore signal, ui
     ASSERT_VK(vkEndCommandBuffer(sim->cmd), "Failed to end pipeline command buffer");
 
     // submit command buffer
+    VkPipelineStageFlags wait_mask = VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT;
     VkSubmitInfo submit_info = {
             .sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
             .waitSemaphoreCount = wait == NULL ? 0 : 1,
             .pWaitSemaphores = &wait,
+            .pWaitDstStageMask = &wait_mask,
             .commandBufferCount = 1,
             .pCommandBuffers = &sim->cmd,
             .signalSemaphoreCount = signal == NULL ? 0 : 1,
