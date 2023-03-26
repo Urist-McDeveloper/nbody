@@ -4,8 +4,9 @@
 #include <nbody.h>
 #include <galaxy.h>
 
-#include "shader/particle.vs.h"
 #include "shader/particle.fs.h"
+#include "shader/particle.gs.h"
+#include "shader/particle.vs.h"
 
 #define SAMPLE_COUNT    VK_SAMPLE_COUNT_1_BIT
 
@@ -108,7 +109,7 @@ static VkExtent2D GetImageExtent(GLFWwindow *window, VkSurfaceCapabilitiesKHR ca
 
 struct Renderer {
     GLFWwindow *window;
-    VkShaderModule vert, frag;
+    VkShaderModule vert, geom, frag;
     VkRenderPass render_pass;
     // swapchain
     VkSurfaceKHR surface;
@@ -136,7 +137,7 @@ struct Renderer {
 
 typedef struct {
     float camera_proj[3][2];
-    float zoom;
+    Vec2 dims;
     float dt;
 } PushConstants;
 
@@ -215,13 +216,19 @@ Renderer *CreateRenderer(GLFWwindow *window, const VulkanBuffer *particle_data) 
             .codeSize = sizeof(particle_vs_spv),
             .pCode = (uint32_t *)particle_vs_spv,
     };
+    VkShaderModuleCreateInfo geom_info = {
+            .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
+            .codeSize = sizeof(particle_gs_spv),
+            .pCode = (uint32_t *)particle_gs_spv,
+    };
     VkShaderModuleCreateInfo frag_info = {
             .sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO,
             .codeSize = sizeof(particle_fs_spv),
             .pCode = (uint32_t *)particle_fs_spv,
     };
-    ASSERT_VK(vkCreateShaderModule(vk_ctx.dev, &vert_info, NULL, &r->vert), "Failed to create vertex shader module");
-    ASSERT_VK(vkCreateShaderModule(vk_ctx.dev, &frag_info, NULL, &r->frag), "Failed to create vertex shader module");
+    ASSERT_VK(vkCreateShaderModule(vk_ctx.dev, &vert_info, NULL, &r->vert), "Failed to create vert shader module");
+    ASSERT_VK(vkCreateShaderModule(vk_ctx.dev, &geom_info, NULL, &r->geom), "Failed to create geom shader module");
+    ASSERT_VK(vkCreateShaderModule(vk_ctx.dev, &frag_info, NULL, &r->frag), "Failed to create frag shader module");
 
     VkSpecializationMapEntry spec_map_entry = {
             .constantID = 1,
@@ -243,6 +250,12 @@ Renderer *CreateRenderer(GLFWwindow *window, const VulkanBuffer *particle_data) 
                     .module = r->vert,
                     .pName = "main",
                     .pSpecializationInfo = &spec_info,
+            },
+            {
+                    .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+                    .stage = VK_SHADER_STAGE_GEOMETRY_BIT,
+                    .module = r->geom,
+                    .pName = "main",
             },
             {
                     .sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
@@ -346,7 +359,7 @@ Renderer *CreateRenderer(GLFWwindow *window, const VulkanBuffer *particle_data) 
             .sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO,
             .polygonMode = VK_POLYGON_MODE_FILL,
             .cullMode = VK_CULL_MODE_BACK_BIT,
-            .frontFace = VK_FRONT_FACE_CLOCKWISE,
+            .frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE,
             .lineWidth = 1.f,
     };
     VkPipelineMultisampleStateCreateInfo multisample_info = {
@@ -354,6 +367,13 @@ Renderer *CreateRenderer(GLFWwindow *window, const VulkanBuffer *particle_data) 
             .rasterizationSamples = SAMPLE_COUNT,
     };
     VkPipelineColorBlendAttachmentState color_blend_attachment = {
+            .blendEnable = VK_TRUE,
+            .srcColorBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+            .dstColorBlendFactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA,
+            .colorBlendOp = VK_BLEND_OP_ADD,
+            .srcAlphaBlendFactor = VK_BLEND_FACTOR_SRC_ALPHA,
+            .dstAlphaBlendFactor = VK_BLEND_FACTOR_DST_ALPHA,
+            .alphaBlendOp = VK_BLEND_OP_ADD,
             .colorWriteMask = VK_COLOR_COMPONENT_R_BIT |
                               VK_COLOR_COMPONENT_G_BIT |
                               VK_COLOR_COMPONENT_B_BIT |
@@ -367,7 +387,7 @@ Renderer *CreateRenderer(GLFWwindow *window, const VulkanBuffer *particle_data) 
     };
     VkGraphicsPipelineCreateInfo pipeline_info = {
             .sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
-            .stageCount = 2,
+            .stageCount = 3,
             .pStages = shader_stages,
             .pVertexInputState = &input_info,
             .pInputAssemblyState = &assembly_info,
@@ -416,8 +436,9 @@ void DestroyRenderer(Renderer *r) {
         vkDestroyPipeline(vk_ctx.dev, r->pipeline, NULL);
         vkDestroyPipelineLayout(vk_ctx.dev, r->pipeline_layout, NULL);
 
-        vkDestroyShaderModule(vk_ctx.dev, r->frag, NULL);
         vkDestroyShaderModule(vk_ctx.dev, r->vert, NULL);
+        vkDestroyShaderModule(vk_ctx.dev, r->geom, NULL);
+        vkDestroyShaderModule(vk_ctx.dev, r->frag, NULL);
         vkDestroyRenderPass(vk_ctx.dev, r->render_pass, NULL);
 
         for (uint32_t i = 0; i < r->image_count; i++) {
@@ -589,7 +610,7 @@ void Draw(Renderer *r, Camera cam, float dt, uint32_t particle_count, VkSemaphor
                     {0.f,     div_z.y},
                     {vk_v.x,  vk_v.y}
             },
-            .zoom = cam.zoom,
+            .dims = cam.dims,
             .dt = dt,
     };
     vkCmdPushConstants(r->cmd, r->pipeline_layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(push), &push);

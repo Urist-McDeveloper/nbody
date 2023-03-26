@@ -31,6 +31,7 @@ add_subdirectory(lib)
 # executable
 add_executable(nbody main.c renderer.c)
 compile_shaders(nbody STAGE vert SOURCE shader/particle.vs.glsl)
+compile_shaders(nbody STAGE geom SOURCE shader/particle.gs.glsl)
 compile_shaders(nbody STAGE frag SOURCE shader/particle.fs.glsl)
 
 target_link_libraries(nbody PRIVATE nbody-lib glfw)

@@ -219,6 +219,13 @@ static void InitDev(bool need_gfx_queue) {
     device_create_info.ppEnabledLayerNames = &DBG_LAYER;
 #endif
 
+    VkPhysicalDeviceFeatures features = {0};
+    device_create_info.pEnabledFeatures = &features;
+
+    if (need_gfx_queue) {
+        features.geometryShader = VK_TRUE;
+    }
+
     printf("Creating Vulkan device\n\t- %u extensions\n", enabled);
     for (uint32_t i = 0; i < enabled; i++) {
         printf("\t\t- %s\n", extensions[i]);

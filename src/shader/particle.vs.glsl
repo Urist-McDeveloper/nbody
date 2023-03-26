@@ -11,11 +11,14 @@ layout (std140, binding = 0) readonly buffer Data {
 
 layout (push_constant) uniform PushConstants {
     mat3x2 camera_proj;
-    float zoom;
+    vec2 dims;
     float dt;
 } push;
 
-layout (location = 0) out vec3 color;
+layout (location = 0) out GeomData {
+    vec2 out_size;
+    vec3 out_color;
+};
 
 const vec3 EP_COLOR = vec3(145, 145, 233) / 255.f;
 const vec3 NP_COLOR = vec3(175, 195, 175) / 255.f;
@@ -28,16 +31,17 @@ void main() {
 
     vec2 vel = p.vel + push.dt * p.acc;
     vec2 pos = p.pos + push.dt * vel;
-    vec2 proj = push.camera_proj * vec3(pos, 1);
+    vec2 proj_pos = push.camera_proj * vec3(pos, 1);
+    gl_Position = vec4(proj_pos, 0, 1);
 
-    gl_Position = vec4(proj, 0, 1);
-    gl_PointSize = p.radius * push.zoom;
+    vec2 proj_size = push.camera_proj * vec3(p.radius, p.radius, 0);
+    out_size = max(proj_size, 1.0 / push.dims);
 
     if (p.mass <= 0) {
-        color = EP_COLOR;
+        out_color = EP_COLOR;
     } else if (p.mass < MIN_GC_MASS) {
-        color = NP_COLOR;
+        out_color = NP_COLOR;
     } else {
-        color = GC_COLOR;
+        out_color = GC_COLOR;
     }
 }

@@ -13,7 +13,7 @@
 #define WINDOW_WIDTH    1280
 #define WINDOW_HEIGHT   720
 
-#define PARTICLE_COUNT  10000       // number of simulated particles
+#define PARTICLE_COUNT  40000       // number of simulated particles
 #define GALAXY_COUNT    6           // number of created galaxies
 
 #define PHYS_STEP       0.05f       // fixed time step used by simulation
